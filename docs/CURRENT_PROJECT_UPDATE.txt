@@ -1,0 +1,280 @@
+GateGrave Current Project Update
+================================
+
+Date
+----
+2026-03-11
+
+
+1) Where The Project Is Overall
+-------------------------------
+GateGrave is now at the point where there is one real supported playable slice for closed alpha.
+
+That supported slice is:
+- Discord command intake
+- character creation
+- profile/inventory readback
+- dungeon session entry
+- room movement
+- encounter trigger
+- combat handoff
+- combat actions
+- combat render regeneration
+- return from combat
+- reward grant
+- session leave/cleanup
+
+Canonical path still being preserved:
+Discord -> gateway -> controller -> router -> runtime -> subsystem -> persistence -> response
+
+Important architecture rules still being followed:
+- gameplay actions are JSON events
+- gateway does not contain gameplay logic
+- database/persistence is the source of truth
+- world, session, and combat state stay separate
+- combat instances stay isolated
+
+
+2) What Is Actually Stable Enough Right Now
+-------------------------------------------
+Stable enough for controlled testing:
+- /start character creation flow with button-driven race and gestalt track selection
+- 5e point-buy flow for stats
+- /profile summary output
+- /inventory summary output
+- dungeon session creation and movement through connected rooms
+- encounter trigger to combat handoff
+- move / attack / use-item combat actions
+- combat turn ownership and actor ownership checks
+- combat render output regeneration from authoritative combat state
+- reward grant path after combat
+- session leave/cleanup
+- limited multiplayer party/session/combat participation
+- limited admin inspection and support actions
+
+Operationally important protections already in place:
+- duplicate reward protection
+- duplicate trigger protection
+- ended combat rejection
+- ended/completed session rejection
+- action ownership checks
+- non-admin admin-command rejection
+- lightweight replay protection on keyed mutation requests
+
+
+3) What Is Still Not Ready
+--------------------------
+These should not be presented as "done" to testers:
+- full 5e feature parity
+- full spellcasting engine
+- full subclass progression depth
+- raids as complete gameplay
+- world events as complete gameplay
+- broad economy depth as a live tester focus
+- full live-ops/admin dashboard
+
+There are many scaffolded systems in the repo, but the supported alpha claim is intentionally narrower than the code surface.
+
+
+4) Character And Player-Facing Status
+-------------------------------------
+Character creation:
+- /start is now the real entry point
+- only the name is typed
+- race, class track selection, subclass-at-level-1 choices, and point-buy use menus/buttons
+- gestalt start is supported through Track A and Track B selection
+
+Profile/inventory:
+- /profile now returns a usable summary instead of a generic "completed" response
+- /inventory now returns a usable summary with counts and gold instead of only a generic completion line
+
+
+5) Dungeon System Status
+------------------------
+Current dungeon model:
+- dungeon exploration is session-based
+- the session tracks current room, discovered rooms, cleared rooms, trigger consumption, reward consumption, and active combat linkage
+- room traversal is authoritative in session state, not in the gateway
+
+What the supported dungeon loop currently does:
+- create or join a valid session
+- bind the party to that session
+- move through connected rooms
+- resolve room entry
+- fire supported encounter triggers
+- prevent consumed triggers from firing repeatedly
+- hand off to combat when the room requires combat
+- restore control to the same session after combat resolves
+- prepare and consume rewards
+- leave or complete the session cleanly
+
+What is important here:
+- session state is not supposed to become a second combat state
+- the dungeon system coordinates exploration and trigger progression
+- combat remains its own isolated state model
+
+Current dungeon risks that are already guarded:
+- duplicate session creation on repeated enter
+- invalid room progression
+- duplicate trigger activation
+- stale completed combat reuse
+- post-completion or post-leave session mutation
+
+
+6) Combat Status
+----------------
+Current supported combat slice:
+- isolated combat instances
+- participants with owner/controller identity
+- initiative and turn order
+- move requests
+- attack requests
+- item use requests
+- snapshot persistence
+- ended-combat rejection
+
+What is currently reliable:
+- one player cannot control another player's combat actor in the supported multiplayer path
+- ended combats reject further mutation
+- combat item use respects ownership and persistence rollback behavior
+- combat state persists through the canonical combat persistence bridge
+
+Combat remains a supported slice, not a full finished tactics engine.
+That means:
+- the important action path is working
+- hardening around invalid mutation is in place
+- but not every advanced D&D-style mechanic is implemented
+
+
+7) Combat Map / Dungeon Map / Render Status
+-------------------------------------------
+This is the part most worth calling out clearly.
+
+There are really two different map concepts in the current project:
+
+A) Dungeon exploration map/state
+- this is session-side room progression
+- it is room/connection based
+- it is not a full visual overworld renderer
+- the authoritative truth is session room state, not an image
+
+B) Combat map render
+- this is the tile-grid combat renderer
+- 1 tile = 5 feet
+- the renderer is presentation-only
+- combat state is the only positional truth
+- rendered PNG output is regenerated from combat state
+
+Current combat render behavior:
+- combat state is loaded
+- authoritative battlefield grid is used as render input
+- tile coordinates become pixel positions from tile size math
+- terrain/background renders first
+- environment/object layer renders next
+- actor tokens render after that
+- effects/overlays render last
+- each later render reflects the latest combat state
+
+Important architectural point:
+- the PNG map is not gameplay logic
+- the PNG map must never become a second source of truth
+- the combat state decides where actors are
+- the renderer only visualizes that state
+
+What is already stabilized in render/output:
+- canonical single render path
+- token placement follows authoritative combat positions
+- layer order is stable
+- movement is reflected on later renders
+- defeated/removed actors do not remain rendered
+- invalid/out-of-bounds render inputs fail safely
+- ended combats do not continue producing normal active-combat renders
+
+What this means in practical terms:
+- the combat map side is usable for alpha testing
+- the dungeon side is structurally playable through room/session state
+- but there is not yet a big "walkaround visual dungeon map" system that should be marketed as complete
+
+
+8) Multiplayer Status
+---------------------
+Multiplayer foundation exists in a limited but real form:
+- party model exists
+- valid party members can share a dungeon session
+- valid participants can share a combat
+- actor ownership is enforced
+- unrelated players cannot inject actions into someone else's combat actor
+
+What this is good for:
+- small controlled party testing
+
+What it is not yet:
+- full raid/guild/world-boss live gameplay depth
+
+
+9) Admin / Support Status
+-------------------------
+Admin support exists for early operation and debugging:
+- inspect character/account
+- inspect inventory
+- inspect session
+- inspect combat
+- inspect party/guild/rankings/world event summary
+- reset session
+- spawn monster into combat for support use
+- limited tuning/content refresh helpers
+
+This is enough for early alpha support, but not a polished live-ops suite.
+
+
+10) Closed Alpha Readiness Status
+---------------------------------
+Current closed-alpha readiness posture:
+- supported slice is defined
+- alpha preflight exists
+- internal smoke harness exists
+- fast alpha smoke matrix exists
+- gateway/runtime/dungeon/combat/render/multiplayer/admin paths all have meaningful test coverage
+
+Recent alpha readiness improvements:
+- /profile and /inventory outputs are more useful for testers and support triage
+- alpha preflight now has deterministic strict-env validation support
+- internal alpha smoke tooling is explicitly covered by tests
+- docs and env examples are aligned more closely with actual runtime expectations
+
+
+11) What To Tell Testers Right Now
+----------------------------------
+Safe tester message:
+"You can create a character, enter the supported dungeon slice, trigger combat, take core combat actions, get rewards, and leave the session. Multiplayer and admin support exist in limited form. Many larger systems in the repo are still scaffolded and should not be treated as closed-alpha complete."
+
+
+12) Recommended Commands Right Now
+----------------------------------
+Useful baseline checks:
+- npm run alpha:preflight
+- npm run alpha:smoke:internal
+- npm run test:alpha:smoke
+
+If preparing a stricter Discord test-server candidate:
+- npm run alpha:gate
+
+If running the bot locally:
+- npm run gateway:start
+
+If slash commands need manual refresh:
+- npm run discord:register
+
+
+13) Bottom Line
+---------------
+The project is no longer just a broad scaffold collection.
+It now has one honest, test-backed closed-alpha gameplay slice.
+
+The strongest current area is the canonical command/runtime/session/combat/reward loop.
+The dungeon flow is structurally stable.
+The combat map/render side is stable as a presentation layer driven by authoritative combat state.
+
+The biggest thing to stay disciplined about is scope:
+do not describe scaffold-heavy systems as if they are production-ready alpha gameplay.
+

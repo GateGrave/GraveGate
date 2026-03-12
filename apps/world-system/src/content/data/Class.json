@@ -1,0 +1,317 @@
+{
+  "content_type": "class",
+  "schema_version": 1,
+  "entries": [
+    {
+      "id": "barbarian",
+      "name": "Barbarian",
+      "stat_modifiers": {},
+      "features": ["rage", "unarmored_defense"],
+      "metadata": {
+        "source": "SRD 5.1",
+        "hit_die": "d12",
+        "primary_abilities": ["strength"],
+        "saving_throws": ["strength", "constitution"],
+        "armor_proficiencies": ["light", "medium", "shields"],
+        "weapon_proficiencies": ["simple", "martial"],
+        "tool_proficiencies": [],
+        "subclass_unlock_level": 3,
+        "spellcasting_ability": null,
+        "subclasses": [
+          {
+            "id": "path_of_the_berserker",
+            "name": "Path of the Berserker",
+            "features": ["frenzy", "mindless_rage", "retaliation"]
+          }
+        ],
+        "notes": ["Primal martial class with rage-based durability and damage"]
+      }
+    },
+    {
+      "id": "bard",
+      "name": "Bard",
+      "stat_modifiers": {},
+      "features": ["spellcasting", "bardic_inspiration"],
+      "metadata": {
+        "source": "SRD 5.1",
+        "hit_die": "d8",
+        "primary_abilities": ["charisma"],
+        "saving_throws": ["dexterity", "charisma"],
+        "armor_proficiencies": ["light"],
+        "weapon_proficiencies": ["simple", "hand_crossbow", "longsword", "rapier", "shortsword"],
+        "tool_proficiencies": ["three_musical_instruments"],
+        "subclass_unlock_level": 3,
+        "spellcasting_ability": "charisma",
+        "subclasses": [
+          {
+            "id": "college_of_lore",
+            "name": "College of Lore",
+            "features": ["bonus_proficiencies", "cutting_words", "additional_magical_secrets"]
+          }
+        ],
+        "notes": ["Versatile support caster and skill specialist"]
+      }
+    },
+    {
+      "id": "cleric",
+      "name": "Cleric",
+      "stat_modifiers": {},
+      "features": ["spellcasting", "divine_domain"],
+      "metadata": {
+        "source": "SRD 5.1",
+        "hit_die": "d8",
+        "primary_abilities": ["wisdom"],
+        "saving_throws": ["wisdom", "charisma"],
+        "armor_proficiencies": ["light", "medium", "shields"],
+        "weapon_proficiencies": ["simple"],
+        "tool_proficiencies": [],
+        "subclass_unlock_level": 1,
+        "spellcasting_ability": "wisdom",
+        "subclasses": [
+          {
+            "id": "life_domain",
+            "name": "Life Domain",
+            "features": ["bonus_proficiency", "disciple_of_life", "blessed_healer", "supreme_healing"]
+          }
+        ],
+        "notes": ["Divine caster with domain specialization"]
+      }
+    },
+    {
+      "id": "druid",
+      "name": "Druid",
+      "stat_modifiers": {},
+      "features": ["druidic", "spellcasting"],
+      "metadata": {
+        "source": "SRD 5.1",
+        "hit_die": "d8",
+        "primary_abilities": ["wisdom"],
+        "saving_throws": ["intelligence", "wisdom"],
+        "armor_proficiencies": ["light_nonmetal", "medium_nonmetal", "shields_nonmetal"],
+        "weapon_proficiencies": [
+          "clubs",
+          "daggers",
+          "darts",
+          "javelins",
+          "maces",
+          "quarterstaffs",
+          "scimitars",
+          "sickles",
+          "slings",
+          "spears"
+        ],
+        "tool_proficiencies": ["herbalism_kit"],
+        "subclass_unlock_level": 2,
+        "spellcasting_ability": "wisdom",
+        "subclasses": [
+          {
+            "id": "circle_of_the_land",
+            "name": "Circle of the Land",
+            "features": ["bonus_cantrip", "natural_recovery", "natures_ward", "natures_sanctuary"]
+          }
+        ],
+        "notes": ["Nature caster with shapechanging progression at later levels"]
+      }
+    },
+    {
+      "id": "fighter",
+      "name": "Fighter",
+      "stat_modifiers": {},
+      "features": ["fighting_style", "second_wind"],
+      "metadata": {
+        "source": "SRD 5.1",
+        "hit_die": "d10",
+        "primary_abilities": ["strength", "dexterity"],
+        "saving_throws": ["strength", "constitution"],
+        "armor_proficiencies": ["light", "medium", "heavy", "shields"],
+        "weapon_proficiencies": ["simple", "martial"],
+        "tool_proficiencies": [],
+        "subclass_unlock_level": 3,
+        "spellcasting_ability": null,
+        "subclasses": [
+          {
+            "id": "champion",
+            "name": "Champion",
+            "features": ["improved_critical", "remarkable_athlete", "additional_fighting_style", "survivor"]
+          }
+        ],
+        "notes": ["Core martial class with broad combat versatility"]
+      }
+    },
+    {
+      "id": "monk",
+      "name": "Monk",
+      "stat_modifiers": {},
+      "features": ["unarmored_defense", "martial_arts"],
+      "metadata": {
+        "source": "SRD 5.1",
+        "hit_die": "d8",
+        "primary_abilities": ["dexterity", "wisdom"],
+        "saving_throws": ["strength", "dexterity"],
+        "armor_proficiencies": [],
+        "weapon_proficiencies": ["simple", "shortsword"],
+        "tool_proficiencies": ["artisan_tool_or_musical_instrument_choice"],
+        "subclass_unlock_level": 3,
+        "spellcasting_ability": null,
+        "subclasses": [
+          {
+            "id": "way_of_the_open_hand",
+            "name": "Way of the Open Hand",
+            "features": ["open_hand_technique", "wholeness_of_body", "tranquility", "quivering_palm"]
+          }
+        ],
+        "notes": ["Mobile martial class using ki features as it levels"]
+      }
+    },
+    {
+      "id": "paladin",
+      "name": "Paladin",
+      "stat_modifiers": {},
+      "features": ["divine_sense", "lay_on_hands"],
+      "metadata": {
+        "source": "SRD 5.1",
+        "hit_die": "d10",
+        "primary_abilities": ["strength", "charisma"],
+        "saving_throws": ["wisdom", "charisma"],
+        "armor_proficiencies": ["light", "medium", "heavy", "shields"],
+        "weapon_proficiencies": ["simple", "martial"],
+        "tool_proficiencies": [],
+        "subclass_unlock_level": 3,
+        "spellcasting_ability": "charisma",
+        "subclasses": [
+          {
+            "id": "oath_of_devotion",
+            "name": "Oath of Devotion",
+            "features": ["sacred_weapon", "turn_the_unholy", "aura_of_devotion", "holy_nimbus"]
+          }
+        ],
+        "notes": ["Holy warrior with auras, smites, and limited spellcasting"]
+      }
+    },
+    {
+      "id": "ranger",
+      "name": "Ranger",
+      "stat_modifiers": {},
+      "features": ["favored_enemy", "natural_explorer"],
+      "metadata": {
+        "source": "SRD 5.1",
+        "hit_die": "d10",
+        "primary_abilities": ["dexterity", "wisdom"],
+        "saving_throws": ["strength", "dexterity"],
+        "armor_proficiencies": ["light", "medium", "shields"],
+        "weapon_proficiencies": ["simple", "martial"],
+        "tool_proficiencies": [],
+        "subclass_unlock_level": 3,
+        "spellcasting_ability": "wisdom",
+        "subclasses": [
+          {
+            "id": "hunter",
+            "name": "Hunter",
+            "features": ["hunters_prey", "defensive_tactics", "multiattack", "superior_hunters_defense"]
+          }
+        ],
+        "notes": ["Skirmisher and explorer with limited primal spellcasting"]
+      }
+    },
+    {
+      "id": "rogue",
+      "name": "Rogue",
+      "stat_modifiers": {},
+      "features": ["expertise", "sneak_attack", "thieves_cant"],
+      "metadata": {
+        "source": "SRD 5.1",
+        "hit_die": "d8",
+        "primary_abilities": ["dexterity"],
+        "saving_throws": ["dexterity", "intelligence"],
+        "armor_proficiencies": ["light"],
+        "weapon_proficiencies": ["simple", "hand_crossbow", "longsword", "rapier", "shortsword"],
+        "tool_proficiencies": ["thieves_tools"],
+        "subclass_unlock_level": 3,
+        "spellcasting_ability": null,
+        "subclasses": [
+          {
+            "id": "thief",
+            "name": "Thief",
+            "features": ["fast_hands", "second_story_work", "supreme_sneak", "thiefs_reflexes"]
+          }
+        ],
+        "notes": ["Precision striker with strong utility and skill coverage"]
+      }
+    },
+    {
+      "id": "sorcerer",
+      "name": "Sorcerer",
+      "stat_modifiers": {},
+      "features": ["spellcasting", "sorcerous_origin"],
+      "metadata": {
+        "source": "SRD 5.1",
+        "hit_die": "d6",
+        "primary_abilities": ["charisma"],
+        "saving_throws": ["constitution", "charisma"],
+        "armor_proficiencies": [],
+        "weapon_proficiencies": ["daggers", "darts", "slings", "quarterstaffs", "light_crossbows"],
+        "tool_proficiencies": [],
+        "subclass_unlock_level": 1,
+        "spellcasting_ability": "charisma",
+        "subclasses": [
+          {
+            "id": "draconic_bloodline",
+            "name": "Draconic Bloodline",
+            "features": ["dragon_ancestor", "draconic_resilience", "elemental_affinity", "dragon_wings"]
+          }
+        ],
+        "notes": ["Innate arcane caster with metamagic progression"]
+      }
+    },
+    {
+      "id": "warlock",
+      "name": "Warlock",
+      "stat_modifiers": {},
+      "features": ["otherworldly_patron", "pact_magic"],
+      "metadata": {
+        "source": "SRD 5.1",
+        "hit_die": "d8",
+        "primary_abilities": ["charisma"],
+        "saving_throws": ["wisdom", "charisma"],
+        "armor_proficiencies": ["light"],
+        "weapon_proficiencies": ["simple"],
+        "tool_proficiencies": [],
+        "subclass_unlock_level": 1,
+        "spellcasting_ability": "charisma",
+        "subclasses": [
+          {
+            "id": "the_fiend",
+            "name": "The Fiend",
+            "features": ["dark_ones_blessing", "dark_ones_own_luck", "fiendish_resilience", "hurl_through_hell"]
+          }
+        ],
+        "notes": ["Short-rest pact caster with invocation customization"]
+      }
+    },
+    {
+      "id": "wizard",
+      "name": "Wizard",
+      "stat_modifiers": {},
+      "features": ["spellcasting", "arcane_recovery"],
+      "metadata": {
+        "source": "SRD 5.1",
+        "hit_die": "d6",
+        "primary_abilities": ["intelligence"],
+        "saving_throws": ["intelligence", "wisdom"],
+        "armor_proficiencies": [],
+        "weapon_proficiencies": ["daggers", "darts", "slings", "quarterstaffs", "light_crossbows"],
+        "tool_proficiencies": [],
+        "subclass_unlock_level": 2,
+        "spellcasting_ability": "intelligence",
+        "subclasses": [
+          {
+            "id": "school_of_evocation",
+            "name": "School of Evocation",
+            "features": ["evocation_savant", "sculpt_spells", "potent_cantrip", "overchannel"]
+          }
+        ],
+        "notes": ["Prepared arcane caster with broad spell list access"]
+      }
+    }
+  ]
+}

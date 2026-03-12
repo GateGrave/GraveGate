@@ -1,0 +1,350 @@
+{
+  "handoff_meta": {
+    "project_name": "GateGrave-bot-System",
+    "generated_on": "2026-03-09",
+    "generated_timezone": "America/New_York",
+    "format_version": "1.0",
+    "purpose": "Upload-ready system state handoff for ChatGPT continuation"
+  },
+  "project_profile": {
+    "repo_type": "Node.js CommonJS monorepo",
+    "language": "JavaScript",
+    "package_manager": "npm",
+    "node_requirement": ">=18",
+    "total_app_files_estimate": 394,
+    "test_file_count": 105
+  },
+  "architecture_contract": {
+    "style": "event-driven",
+    "hard_rules": [
+      "Discord gateway contains no gameplay logic",
+      "Systems should not call each other directly for gameplay outcomes",
+      "World/Session/Combat state layers remain separate",
+      "Combat instances stay isolated",
+      "Use structured result objects for flows",
+      "Prefer modular subsystem boundaries"
+    ],
+    "shared_event_contract": {
+      "location": "packages/shared-types",
+      "files": [
+        "event-schema.js",
+        "event-types.js",
+        "state-layer-notes.js"
+      ],
+      "core_fields": [
+        "event_id",
+        "event_type",
+        "timestamp",
+        "source",
+        "target_system",
+        "player_id",
+        "session_id",
+        "combat_id",
+        "payload"
+      ]
+    }
+  },
+  "repo_layout": {
+    "top_level": [
+      "apps",
+      "backups",
+      "docs",
+      "packages",
+      "scripts",
+      "src"
+    ],
+    "apps": [
+      "advanced-ai",
+      "character-system",
+      "combat-system",
+      "controller",
+      "database",
+      "dungeon-exploration",
+      "economy-crafting",
+      "gateway",
+      "guilds",
+      "inventory-system",
+      "logger",
+      "queue",
+      "raid-bosses",
+      "runtime",
+      "world-system"
+    ]
+  },
+  "subsystems": {
+    "gateway": {
+      "status": "implemented shell",
+      "location": "apps/gateway/src",
+      "capabilities": [
+        "dotenv config loading",
+        "Discord config validation",
+        "discord.js client creation",
+        "slash command registration runner",
+        "single /ping shell command",
+        "structured gateway event logging"
+      ],
+      "key_files": [
+        "apps/gateway/src/config/discordConfig.js",
+        "apps/gateway/src/discord/createClient.js",
+        "apps/gateway/src/discord/registerCommands.js",
+        "apps/gateway/src/discord/registerCommandsRunner.js",
+        "apps/gateway/src/index.js"
+      ]
+    },
+    "controller": {
+      "status": "phase scaffold",
+      "location": "apps/controller/src",
+      "capabilities": [
+        "event router",
+        "routing stubs for world/session/combat"
+      ]
+    },
+    "database": {
+      "status": "in-memory + adapter boundary",
+      "location": "apps/database/src",
+      "capabilities": [
+        "world/session/combat state placeholders",
+        "world-storage stores for characters/inventories/items",
+        "database adapter contract",
+        "inMemory adapter",
+        "sqlite adapter",
+        "adapter tests"
+      ],
+      "key_files": [
+        "apps/database/src/adapters/databaseAdapter.interface.js",
+        "apps/database/src/adapters/inMemoryAdapter.js",
+        "apps/database/src/adapters/sqliteAdapter.js",
+        "apps/database/src/world-storage/characters.store.js",
+        "apps/database/src/world-storage/inventories.store.js",
+        "apps/database/src/world-storage/items.store.js"
+      ]
+    },
+    "combat_system": {
+      "status": "extensive scaffold implemented",
+      "location": "apps/combat-system/src",
+      "core": [
+        "combat model + manager",
+        "initiative resolver",
+        "start combat / next turn / check combat end",
+        "actions: attack, move, dodge, use item",
+        "defeated participant restrictions",
+        "event logs on state changes"
+      ],
+      "advanced": [
+        "combat lock + safe processing",
+        "battlefield grid + movement resolver",
+        "target/action validation layer",
+        "dice resolver",
+        "damage pipeline",
+        "concentration checks",
+        "reaction windows",
+        "status effects",
+        "death/downed logic",
+        "turn resolver order",
+        "turn timeout + snapshots",
+        "harness + simulation"
+      ],
+      "persistence_bridge": "apps/combat-system/src/combat.persistence.js"
+    },
+    "dungeon_exploration": {
+      "status": "stage 2 implemented with harnesses",
+      "location": "apps/dungeon-exploration/src",
+      "capabilities": [
+        "session model + manager",
+        "room model + room storage on session",
+        "party movement with room connectivity",
+        "room entry resolver (empty/encounter/challenge/rest)",
+        "challenge/object/rest/boss resolvers",
+        "reward hook preparation",
+        "session locks",
+        "session snapshots",
+        "dungeon harness",
+        "first playable loop harness"
+      ],
+      "persistence_bridge": "apps/dungeon-exploration/src/session.persistence.js"
+    },
+    "world_system": {
+      "location": "apps/world-system/src",
+      "domains": {
+        "character": {
+          "status": "stage 9 scaffold with persistence and adapters",
+          "capabilities": [
+            "character schema (fuller sheet fields)",
+            "manager + service + repository",
+            "persistence bridge",
+            "character-inventory link flow with validation",
+            "progress/equipment update flows",
+            "adapters to combat participant and dungeon party member",
+            "race/class/background rule hook modules",
+            "character harness"
+          ],
+          "key_files": [
+            "apps/world-system/src/character/character.schema.js",
+            "apps/world-system/src/character/character.service.js",
+            "apps/world-system/src/character/character.repository.js",
+            "apps/world-system/src/character/character.persistence.js",
+            "apps/world-system/src/character/flow/characterInventoryLink.js",
+            "apps/world-system/src/character/adapters/toCombatParticipant.js",
+            "apps/world-system/src/character/adapters/toDungeonPartyMember.js"
+          ]
+        },
+        "loot": {
+          "status": "phase 5 complete scaffold + alignments",
+          "capabilities": [
+            "loot core schema/manager",
+            "loot tables with weighted + guaranteed drops",
+            "roll resolver + boss resolver",
+            "reward hook consumer",
+            "individual assignment",
+            "loot grant flow",
+            "loot logging",
+            "loot testing harness",
+            "alignment to canonical inventory mutations"
+          ]
+        },
+        "currency": {
+          "status": "implemented",
+          "capabilities": [
+            "currency account model",
+            "create/get/add/subtract/has funds"
+          ]
+        },
+        "economy": {
+          "status": "phase 6 complete scaffold + hardening",
+          "capabilities": [
+            "transaction schema",
+            "NPC shop core/purchase/sell",
+            "player shop/listing/purchase",
+            "transaction logging",
+            "snapshot/recovery",
+            "economy harness",
+            "sellability hardening",
+            "ownership hardening",
+            "mutation helper alignment"
+          ]
+        },
+        "crafting": {
+          "status": "phase 7 complete scaffold",
+          "capabilities": [
+            "recipe core",
+            "resource requirement validation",
+            "eligibility validator",
+            "job/progress system",
+            "craft checks",
+            "completion resolver",
+            "resource consumption + rollback safety",
+            "crafting logs",
+            "snapshot/recovery",
+            "crafting harness",
+            "mutation helper alignment"
+          ]
+        },
+        "advanced_domains": {
+          "status": "phase 8 scaffold complete",
+          "contains": [
+            "guild core/membership/storage/progression",
+            "raid core + coordination",
+            "world events + world boss + seasonal events",
+            "hunter association + contracts",
+            "ranking",
+            "advanced systems snapshot + harness"
+          ]
+        }
+      }
+    },
+    "inventory_system": {
+      "status": "canonical schema + mutation/persistence helpers",
+      "location": "apps/inventory-system/src",
+      "capabilities": [
+        "canonical inventory schema",
+        "inventory mutation helpers",
+        "inventory persistence bridge",
+        "alignment tests with loot/economy/crafting"
+      ],
+      "key_files": [
+        "apps/inventory-system/src/inventory.schema.js",
+        "apps/inventory-system/src/mutationHelpers.js",
+        "apps/inventory-system/src/inventory.persistence.js"
+      ]
+    },
+    "runtime": {
+      "status": "event runtime foundation in place",
+      "location": "apps/runtime/src",
+      "capabilities": [
+        "event bus (subscribe/publish)",
+        "orchestrator (process emitted event chains)",
+        "runtime game loop integration test",
+        "repeatable game loop harness"
+      ],
+      "key_files": [
+        "apps/runtime/src/eventBus.js",
+        "apps/runtime/src/orchestrator.js",
+        "apps/runtime/src/gameLoopHarness.js"
+      ]
+    }
+  },
+  "recent_validation_runs": {
+    "executed_on": "2026-03-09",
+    "all_passed": true,
+    "tests": [
+      "apps/runtime/src/testing/eventBus.test.js",
+      "apps/runtime/src/testing/orchestrator.test.js",
+      "apps/runtime/src/testing/gameLoopHarness.test.js",
+      "apps/runtime/src/testing/gameLoopRuntime.test.js",
+      "apps/world-system/src/economy/testing/npcShopSellValidation.test.js",
+      "apps/world-system/src/economy/testing/npcShopSellOwnership.test.js",
+      "apps/world-system/src/character/testing/characterInventoryLinkValidation.test.js",
+      "apps/inventory-system/src/testing/inventoryMutationHelpers.test.js",
+      "apps/database/src/testing/databaseAdapter.test.js",
+      "apps/database/src/testing/sqliteAdapter.test.js",
+      "apps/world-system/src/character/testing/characterPersistenceAdapter.test.js",
+      "apps/inventory-system/src/testing/inventoryPersistenceAdapter.test.js",
+      "apps/dungeon-exploration/src/testing/sessionPersistenceAdapter.test.js",
+      "apps/combat-system/src/testing/combatPersistenceAdapter.test.js",
+      "apps/dungeon-exploration/src/testing/firstPlayableLoopHarness.test.js",
+      "apps/world-system/src/character/testing/characterHarness.test.js"
+    ]
+  },
+  "known_constraints": {
+    "current_storage_default": "in-memory in many managers; adapters added for migration",
+    "discord_scope": "stage shell only; no gameplay logic in gateway",
+    "rules_engine_scope": "race/class/background and advanced combat logic remain scaffold-level",
+    "cross_system_rule": "maintain event-driven boundaries and avoid direct gameplay coupling"
+  },
+  "high_value_next_steps": [
+    "Route firstPlayableLoop and runtime harness through one canonical event path (controller + queue + runtime) with minimal duplication",
+    "Expand persistence adapter usage so domain managers can optionally run on sqlite without changing callsites",
+    "Create a single CI-friendly aggregate test command for key harnesses and hardening tests",
+    "Formalize canonical event names/payload contracts per domain in one reference doc",
+    "Audit remaining direct cross-domain calls and replace with emitted events where practical"
+  ],
+  "quick_start_commands": {
+    "discord": [
+      "npm run discord:register",
+      "npm run gateway:start"
+    ],
+    "runtime": [
+      "node apps/runtime/src/testing/eventBus.test.js",
+      "node apps/runtime/src/testing/orchestrator.test.js",
+      "node apps/runtime/src/testing/gameLoopHarness.test.js"
+    ],
+    "playable_loop": [
+      "node apps/dungeon-exploration/src/testing/firstPlayableLoopHarness.test.js"
+    ],
+    "persistence": [
+      "node apps/database/src/testing/databaseAdapter.test.js",
+      "node apps/database/src/testing/sqliteAdapter.test.js",
+      "node apps/world-system/src/character/testing/characterPersistenceAdapter.test.js",
+      "node apps/inventory-system/src/testing/inventoryPersistenceAdapter.test.js",
+      "node apps/dungeon-exploration/src/testing/sessionPersistenceAdapter.test.js",
+      "node apps/combat-system/src/testing/combatPersistenceAdapter.test.js"
+    ],
+    "hardening": [
+      "node apps/world-system/src/economy/testing/npcShopSellValidation.test.js",
+      "node apps/world-system/src/economy/testing/npcShopSellOwnership.test.js",
+      "node apps/world-system/src/character/testing/characterInventoryLinkValidation.test.js",
+      "node apps/inventory-system/src/testing/inventoryMutationHelpers.test.js"
+    ]
+  },
+  "chatgpt_seed_prompt": "Use this handoff as source of truth. Keep the monorepo CommonJS, preserve event-driven boundaries, avoid gameplay logic in gateway/runtime, and return structured flow results. Prefer extending existing subsystem modules and tests over creating parallel architectures."
+}

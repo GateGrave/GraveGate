@@ -1,0 +1,310 @@
+GateGrave Project Status Update (Stage 16 Pack 1)
+=================================================
+
+Purpose
+-------
+This document is a practical handoff snapshot of where the monorepo is now:
+- what systems exist
+- what each system is responsible for
+- rough file-level map of key modules
+- what is tested
+- what remains for next packs
+
+
+1) Architecture Snapshot
+------------------------
+Canonical flow (preserved):
+Discord -> gateway -> controller -> router -> runtime -> subsystem -> persistence -> response
+
+Core rules currently followed:
+- Event-driven architecture for gameplay flows
+- Gateway is translation + interaction boundary, no gameplay mutation
+- Controller handles intake/validation/routing only
+- Runtime event bus + orchestrator execute chained events
+- World/session/combat state remain separated
+- Persistence behind adapter boundaries (in-memory + sqlite)
+- Inventory mutation centralized through canonical inventory helpers/service boundary
+
+
+2) Monorepo Systems (Implemented)
+---------------------------------
+
+A) apps/gateway
+---------------
+Status: Implemented and integrated with canonical runtime path.
+
+Key files:
+- src/index.js
+  Discord interaction boundary and safe reply behavior.
+- src/discord/commandDefinitions.js
+  Slash command definitions (/ping, /help, /profile, /inventory, /start, /equip, /unequip, /dungeon enter, /leave, /move, /attack, /use, /admin).
+- src/discord/commandEventMapper.js
+  Maps Discord command input into canonical event objects.
+- src/testing/*
+  Registration + event mapping + gateway->runtime integration tests.
+
+What it does:
+- Normalizes command payloads
+- Emits shared contract events (event_id, event_type, event_version, target_system, payload, etc.)
+- Sends structured replies from runtime results
+
+
+B) apps/controller
+------------------
+Status: Implemented as validation/routing layer.
+
+Key files:
+- src/validator.js
+  Event schema/event-version/target-system checks.
+- src/event-router.js
+  Deterministic routing; unknown event types/targets fail structurally.
+- src/handlers/*
+  Domain-focused routing helpers (world/session/combat/controller).
+- src/testing/*
+  Validation + routing behavior tests.
+
+What it does:
+- Validates incoming canonical events
+- Routes events to correct domain dispatch path
+- Does not mutate gameplay state directly
+
+
+C) apps/runtime
+---------------
+Status: Implemented and async-safe.
+
+Key files:
+- src/eventBus.js
+  subscribe(event_type, handler), publish(event), collects emitted events/errors.
+- src/orchestrator.js
+  Processes initial + follow-up events until queue drains; loop guard protections.
+- src/gameLoopHarness.js
+  Repeatable integration harness.
+- src/testing/*
+  event bus, orchestrator, runtime game loop, read command runtime tests.
+
+What it does:
+- Canonical event execution engine
+- Supports sync + async handlers
+- Preserves deterministic processing order
+
+
+D) apps/database
+----------------
+Status: Adapter boundary + in-memory + sqlite implemented.
+
+Key files:
+- src/adapters/databaseAdapter.interface.js
+  Contract/shape validator for adapters.
+- src/adapters/inMemoryAdapter.js
+  Generic CRUD + session/combat convenience methods.
+- src/adapters/sqliteAdapter.js
+  SQLite persistence with migrations, schema_meta, upserts, JSON blobs, indexed columns.
+- src/testing/databaseAdapter.test.js
+- src/testing/sqliteAdapter.test.js
+
+What it does:
+- Persistence backend abstraction for all domains
+- Supports characters, inventories, accounts, sessions, combats (and generic collections)
+
+
+E) apps/inventory-system
+------------------------
+Status: Canonical inventory schema + mutation + persistence implemented.
+
+Key files:
+- src/inventory.schema.js
+  Canonical inventory shape + defaults.
+- src/mutationHelpers.js
+  normalizeInventoryShape, addItemToInventory, removeItemFromInventory, stackInventoryItem.
+- src/inventory.persistence.js
+  Adapter-backed persistence bridge.
+- src/testing/*
+  Schema, mutation helper, persistence tests.
+
+What it does:
+- Canonical inventory state and safe mutation primitives used by loot/economy/trade/crafting.
+
+
+F) apps/world-system
+--------------------
+Status: Broad domain coverage implemented (scaffold depth varies by subdomain).
+
+Major subdomains:
+
+1. account
+   - account.schema/manager/service/repository/persistence implemented.
+   - Multi-character ownership foundation (account_id, active_character_id, slot limits).
+   - Tests include ownership/slot/active-character behavior and persistence.
+
+2. character
+   - character schema/service/manager/repository/persistence implemented.
+   - Selection hooks (race/class/background/subclass/dragon ancestry scaffolds).
+   - Equipment/progression update flows + adapters to combat/dungeon shapes.
+   - Character-inventory linking validation and tests.
+
+3. content
+   - Data files: Race, Class, Background, Items, Monsters, Spells, Dungeons, Recipes.
+   - Loader + schema + cross-file reference validation.
+   - Content loader tests + integrity checks.
+
+4. loot
+   - loot core model/manager, loot tables, roll resolver, reward hook consumer.
+   - Grant to inventory aligned with canonical inventory mutation behavior.
+   - Loot assignment hooks and harnesses.
+
+5. economy
+   - NPC buy/sell, player listing, player shop purchase flows.
+   - Hardening for sellability/ownership validation.
+   - NEW in Stage 16 Pack 1: player-trade scaffold flow (atomic trade + rollback).
+
+6. guild
+   - Guild schema/manager + membership/storage/progression scaffolds.
+   - NEW in Stage 16 Pack 1: guild persistence bridge.
+
+7. crafting
+   - Recipe/job/check/completion/resource-consumption flows.
+   - Inventory alignment + rollback tests + crafting harness.
+
+8. currency
+   - Currency account schema/manager core.
+
+9. raid/ranking/world-events/hunter-association/advanced-systems/admin
+   - Scaffolded systems + tests/harnesses for world-level mechanics and operations.
+
+Key umbrella files:
+- src/index.js
+  Main exports for world-system domains.
+- src/handlers.js
+  World event handling entrypoints for runtime/controller routing.
+
+
+G) apps/dungeon-exploration
+---------------------------
+Status: Session-based dungeon system implemented with persistence and room/flow resolvers.
+
+Key files:
+- src/core/dungeonSessionModel.js
+- src/core/dungeonSessionManager.js
+  Session CRUD + party + room state + discovery/clear + (Stage 16) multiplayer participants.
+- src/flow/*
+  moveParty, resolveRoomEntry, resolveChallenge, resolveRestRoom, resolveBossRoom, prepareRewardHook, etc.
+- src/session.persistence.js
+  Adapter-backed session persistence bridge.
+- src/testing/*
+  Session/room tests, harnesses, firstPlayableLoopHarness, tutorial dungeon harness.
+
+What it does:
+- Manages dungeon session lifecycle + room traversal state
+- Emits structured outcomes for downstream systems (combat/loot) without direct subsystem mutation coupling
+
+
+H) apps/combat-system
+---------------------
+Status: Combat scaffold implemented with persistence and action flows.
+
+Key files:
+- src/flow/processCombatActionRequest.js
+  Action handling for move/attack/use/dodge scaffolds.
+- src/combat.persistence.js
+  Adapter-backed combat snapshot persistence.
+- src/testing/*
+  Action tests, persistence tests, harnesses, content slice combat validations.
+
+What it does:
+- Handles isolated combat state/actions with structured results and persistence support.
+
+
+3) Stage 16 Pack 1 Work Added
+-----------------------------
+
+Guild Foundation:
+- Added guild persistence bridge:
+  apps/world-system/src/guild/guild.persistence.js
+- Exposed bridge in guild and world-system exports.
+- Added guild persistence tests:
+  apps/world-system/src/guild/testing/guildPersistence.test.js
+
+Trade Foundation:
+- Added player-to-player trade flow:
+  apps/world-system/src/economy/player-trade.flow.js
+- Exposed in economy/world-system exports.
+- Supports:
+  - propose/validate/execute pattern
+  - ownership checks on offered/requested items
+  - transferability policy via ownership/shared flags
+  - atomic persistence with rollback on second-write failure
+  - optional existence validators for player/account/character checks
+- Added tests:
+  apps/world-system/src/economy/testing/playerTrade.flow.test.js
+
+Multi-player Dungeon Participation:
+- Extended session manager with:
+  - addPartyParticipant()
+  - removePartyParticipant()
+  - listPartyParticipants()
+- Added tests:
+  apps/dungeon-exploration/src/testing/multiPlayerSession.test.js
+
+
+4) Test Command Coverage
+------------------------
+Aggregate scripts (root package.json):
+- test:gateway
+- test:runtime
+- test:persistence
+- test:subsystems
+- test:harness
+- test:hardening
+- test:foundation
+- test:stage13
+- test:stage14
+- test:all
+
+Latest run status for Stage 16 Pack 1 task:
+- npm run test:persistence  -> PASS
+- npm run test:harness      -> PASS
+- npm run test:stage14      -> PASS
+- npm run test:all          -> PASS
+
+
+5) What Is Stable Right Now
+---------------------------
+- Canonical command-to-runtime path is active and tested.
+- Runtime supports async handlers and structured errors.
+- Unknown routing/validation failures are structured.
+- Persistence adapter boundary is in place and parity-tested for major entities.
+- Core alpha playable loop harnesses are passing.
+- Stage 16 Pack 1 multiplayer/world foundations are present and green.
+
+
+6) Known Gaps / Follow-up Candidates
+------------------------------------
+1. Trade validation wiring
+   - Trade flow supports account/character existence validation hooks.
+   - Recommended next step: enforce these checks by default in canonical runtime handler wiring for trade events.
+
+2. Guild service/repository layering
+   - Guild manager + flows + persistence bridge are present.
+   - If Pack 2 needs stricter domain parity with character/account style, add formal guild service/repository wrappers on top of current manager/bridge.
+
+3. Multiplayer gameplay depth
+   - Session participant membership is implemented.
+   - Pack 2 may add cooperative encounter/loot distribution/session permissions on top of this base.
+
+
+7) Quick Start for Next Work Session
+------------------------------------
+1) Validate baseline:
+   npm run test:stage14
+
+2) Full confidence run:
+   npm run test:all
+
+3) Focused world-system + dungeon iteration:
+   npm run test:persistence
+   npm run test:harness
+
+
+End of status update.
+

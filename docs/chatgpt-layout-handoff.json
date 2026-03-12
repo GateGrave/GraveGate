@@ -1,0 +1,101 @@
+{
+  "project": {
+    "name": "GateGrave Bot System",
+    "type": "event-driven Discord RPG backend scaffold",
+    "language": "JavaScript (Node.js CommonJS)",
+    "current_focus": "Modular subsystems with in-memory managers, event-style flows, and automated tests"
+  },
+  "architecture_rules": [
+    "Event-driven architecture only.",
+    "Discord gateway translates input into events only (no gameplay logic).",
+    "Systems should not call each other directly for gameplay outcomes.",
+    "Persistent player/world data belongs in World State.",
+    "Combat instances are isolated and in-memory.",
+    "Snapshot/recovery modules exist per subsystem and should stay separated."
+  ],
+  "folder_layout": {
+    "apps/gateway/src": "Gateway input translation scaffolding",
+    "apps/controller/src": "Event router and system routing stubs",
+    "apps/queue/src": "Queue scaffolding",
+    "apps/logger/src": "Event logging scaffolding",
+    "apps/database/src/world-storage": "In-memory world storage placeholders",
+    "apps/combat-system/src": "Combat engine modules and testing harness",
+    "apps/dungeon-exploration/src": "Dungeon/session models, movement, challenges, snapshots, harness",
+    "apps/world-system/src": {
+      "currency": "Currency system",
+      "economy": "Economy and shops",
+      "loot": "Loot generation and grant flows",
+      "crafting": "Crafting lifecycle systems",
+      "guild": "Guild core, membership, storage, progression",
+      "raid": "Raid core and coordination",
+      "world-events": "World events, world boss, seasonal events",
+      "hunter-association": "Hunter profiles and contract/hunt board",
+      "ranking": "Ranking entries and score updates",
+      "advanced-systems": "Advanced snapshot/recovery and testing harness"
+    }
+  },
+  "phase_8_status": {
+    "guild": [
+      "Core model/manager",
+      "Membership flow",
+      "Shared storage flow with duplicate withdrawal protection",
+      "Progression system"
+    ],
+    "raid": [
+      "Raid core model/manager",
+      "Multi-party coordination and readiness"
+    ],
+    "world_events": [
+      "World event core",
+      "World boss participation/contribution/defeat/reward trigger/claim protection",
+      "Seasonal event system with active window, participation gating, and retirement"
+    ],
+    "hunter_association": [
+      "Hunter association core",
+      "Contract/hunt board flow: create, claim, cancel, complete, expire"
+    ],
+    "ranking": [
+      "Ranking types: hunter, guild, dungeon_leaderboard, world_event_contribution",
+      "Score update with optional history/audit trail"
+    ],
+    "advanced_systems": [
+      "Snapshot and restore for guild, guild storage, raid, world events, contracts, ranking references",
+      "Advanced systems simulation harness"
+    ]
+  },
+  "entry_points": {
+    "apps/world-system/src/index.js": "Exports all world modules and helpers",
+    "subsystem_index_pattern": "Each subsystem uses index.js with default managers and wrappers"
+  },
+  "commands": {
+    "tests": [
+      "npm run test:guild-core",
+      "npm run test:guild-membership",
+      "npm run test:guild-storage",
+      "npm run test:guild-progression",
+      "npm run test:raid-core",
+      "npm run test:raid-coordination",
+      "npm run test:world-events-core",
+      "npm run test:world-boss-system",
+      "npm run test:seasonal-events",
+      "npm run test:hunter-association-core",
+      "npm run test:contract-hunt-board",
+      "npm run test:ranking-system",
+      "npm run test:advanced-systems-snapshot",
+      "npm run test:advanced-systems-harness"
+    ],
+    "simulations": [
+      "npm run simulate:economy",
+      "npm run simulate:loot",
+      "npm run simulate:crafting",
+      "npm run simulate:advanced-systems"
+    ]
+  },
+  "chatgpt_bootstrap_prompt": "You are helping on the GateGrave Bot System Node.js monorepo. Follow event-driven architecture rules: gateway has no gameplay logic, systems do not directly call each other for gameplay, and state layers remain separated. Work primarily in apps/world-system/src modular subsystems (guild, raid, world-events, hunter-association, ranking, advanced-systems) and preserve existing in-memory manager/test patterns. Add beginner-readable JavaScript with structured result payloads and matching automated tests in each subsystem's testing/ folder.",
+  "contributor_notes": [
+    "Keep new logic modular by subsystem.",
+    "Add or extend tests for each phase increment.",
+    "Prefer structured { ok, event_type, payload } flow results.",
+    "Keep snapshot modules isolated by domain."
+  ]
+}

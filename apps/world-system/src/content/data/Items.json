@@ -1,0 +1,557 @@
+{
+  "content_type": "item",
+  "schema_version": 1,
+  "entries": [
+    {
+      "item_id": "item_club",
+      "name": "Club",
+      "item_type": "equipment",
+      "sellable": true,
+      "stackable": false,
+      "equip_slot": "main_hand",
+      "metadata": {
+        "category": "weapon",
+        "weapon_class": "simple_melee",
+        "weapon": {
+          "damage_dice": "1d4",
+          "damage_type": "bludgeoning",
+          "properties": ["light"]
+        },
+        "source": "srd_5_1"
+      }
+    },
+    {
+      "item_id": "item_dagger",
+      "name": "Dagger",
+      "item_type": "equipment",
+      "sellable": true,
+      "stackable": false,
+      "equip_slot": "main_hand",
+      "metadata": {
+        "category": "weapon",
+        "weapon_class": "simple_melee",
+        "weapon": {
+          "damage_dice": "1d4",
+          "damage_type": "piercing",
+          "properties": ["finesse", "light", "thrown"],
+          "range": {
+            "normal": 20,
+            "long": 60
+          }
+        },
+        "source": "srd_5_1"
+      }
+    },
+    {
+      "item_id": "item_shortbow",
+      "name": "Shortbow",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "main_hand",
+      "metadata": {
+        "category": "weapon",
+        "weapon_class": "simple_ranged",
+        "weapon": {
+          "damage_dice": "1d6",
+          "damage_type": "piercing",
+          "properties": ["ammunition", "two_handed"],
+          "range": {
+            "normal": 80,
+            "long": 320
+          }
+        },
+        "source": "srd_5_1"
+      }
+    },
+    {
+      "item_id": "item_longsword",
+      "name": "Longsword",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "main_hand",
+      "metadata": {
+        "category": "weapon",
+        "weapon_class": "martial_melee",
+        "weapon": {
+          "damage_dice": "1d8",
+          "damage_type": "slashing",
+          "properties": ["versatile"],
+          "versatile_damage_dice": "1d10"
+        },
+        "source": "srd_5_1"
+      }
+    },
+    {
+      "item_id": "item_greataxe",
+      "name": "Greataxe",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "main_hand",
+      "metadata": {
+        "category": "weapon",
+        "weapon_class": "martial_melee",
+        "weapon": {
+          "damage_dice": "1d12",
+          "damage_type": "slashing",
+          "properties": ["heavy", "two_handed"]
+        },
+        "source": "srd_5_1"
+      }
+    },
+    {
+      "item_id": "item_leather_armor",
+      "name": "Leather Armor",
+      "item_type": "equipment",
+      "sellable": true,
+      "stackable": false,
+      "equip_slot": "body",
+      "metadata": {
+        "category": "armor",
+        "armor_class": "light",
+        "armor": {
+          "base_ac": 11,
+          "dex_cap": null,
+          "stealth_disadvantage": false
+        },
+        "source": "srd_5_1"
+      }
+    },
+    {
+      "item_id": "item_chain_shirt",
+      "name": "Chain Shirt",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "body",
+      "metadata": {
+        "category": "armor",
+        "armor_class": "medium",
+        "armor": {
+          "base_ac": 13,
+          "dex_cap": 2,
+          "stealth_disadvantage": false
+        },
+        "source": "srd_5_1"
+      }
+    },
+    {
+      "item_id": "item_chain_mail",
+      "name": "Chain Mail",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "body",
+      "metadata": {
+        "category": "armor",
+        "armor_class": "heavy",
+        "armor": {
+          "base_ac": 16,
+          "dex_cap": 0,
+          "stealth_disadvantage": true
+        },
+        "source": "srd_5_1"
+      }
+    },
+    {
+      "item_id": "item_shield",
+      "name": "Shield",
+      "item_type": "equipment",
+      "sellable": true,
+      "stackable": false,
+      "equip_slot": "off_hand",
+      "metadata": {
+        "category": "shield",
+        "shield_bonus": 2,
+        "source": "srd_5_1"
+      }
+    },
+    {
+      "item_id": "item_healing_potion",
+      "name": "Potion of Healing",
+      "item_type": "consumable",
+      "sellable": true,
+      "stackable": true,
+      "metadata": {
+        "category": "consumable",
+        "heal_amount": 7,
+        "dice": "2d4+2",
+        "source": "srd_5_1"
+      }
+    },
+    {
+      "item_id": "item_antitoxin",
+      "name": "Antitoxin",
+      "item_type": "consumable",
+      "sellable": true,
+      "stackable": true,
+      "metadata": {
+        "category": "consumable",
+        "effect": "advantage_on_poison_saves_1h",
+        "source": "srd_5_1"
+      }
+    },
+    {
+      "item_id": "item_training_sword",
+      "name": "Training Sword",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "main_hand",
+      "metadata": {
+        "category": "weapon",
+        "weapon_class": "simple_melee",
+        "weapon": {
+          "damage_dice": "1d6",
+          "damage_type": "slashing",
+          "properties": ["light"]
+        },
+        "damage": 4,
+        "source": "starter_legacy"
+      }
+    },
+    {
+      "item_id": "item_minor_heal_potion",
+      "name": "Minor Healing Potion",
+      "item_type": "consumable",
+      "stackable": true,
+      "metadata": {
+        "category": "consumable",
+        "heal_amount": 6,
+        "source": "starter_legacy"
+      }
+    },
+    {
+      "item_id": "item_rat_tail",
+      "name": "Rat Tail",
+      "item_type": "loot_material",
+      "stackable": true,
+      "metadata": {
+        "category": "material",
+        "craft_tag": "beast_material",
+        "source": "starter_legacy"
+      }
+    },
+    {
+      "item_id": "item_spear",
+      "name": "Spear",
+      "item_type": "equipment",
+      "sellable": true,
+      "stackable": false,
+      "equip_slot": "main_hand",
+      "metadata": {
+        "category": "weapon",
+        "weapon_class": "simple_melee",
+        "weapon": {
+          "damage_dice": "1d6",
+          "damage_type": "piercing",
+          "properties": ["thrown", "versatile"],
+          "range": {
+            "normal": 20,
+            "long": 60
+          },
+          "versatile_damage_dice": "1d8"
+        },
+        "source": "srd_5_1"
+      }
+    },
+    {
+      "item_id": "item_handaxe",
+      "name": "Handaxe",
+      "item_type": "equipment",
+      "sellable": true,
+      "stackable": false,
+      "equip_slot": "main_hand",
+      "metadata": {
+        "category": "weapon",
+        "weapon_class": "simple_melee",
+        "weapon": {
+          "damage_dice": "1d6",
+          "damage_type": "slashing",
+          "properties": ["light", "thrown"],
+          "range": {
+            "normal": 20,
+            "long": 60
+          }
+        },
+        "source": "srd_5_1"
+      }
+    },
+    {
+      "item_id": "item_light_crossbow",
+      "name": "Light Crossbow",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "main_hand",
+      "metadata": {
+        "category": "weapon",
+        "weapon_class": "simple_ranged",
+        "weapon": {
+          "damage_dice": "1d8",
+          "damage_type": "piercing",
+          "properties": ["ammunition", "loading", "two_handed"],
+          "range": {
+            "normal": 80,
+            "long": 320
+          }
+        },
+        "source": "srd_5_1"
+      }
+    },
+    {
+      "item_id": "item_padded_armor",
+      "name": "Padded Armor",
+      "item_type": "equipment",
+      "sellable": true,
+      "stackable": false,
+      "equip_slot": "body",
+      "metadata": {
+        "category": "armor",
+        "armor_class": "light",
+        "armor": {
+          "base_ac": 11,
+          "dex_cap": null,
+          "stealth_disadvantage": true
+        },
+        "source": "srd_5_1"
+      }
+    },
+    {
+      "item_id": "item_scale_mail",
+      "name": "Scale Mail",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "body",
+      "metadata": {
+        "category": "armor",
+        "armor_class": "medium",
+        "armor": {
+          "base_ac": 14,
+          "dex_cap": 2,
+          "stealth_disadvantage": true
+        },
+        "source": "srd_5_1"
+      }
+    },
+    {
+      "item_id": "item_smoke_bomb",
+      "name": "Smoke Bomb",
+      "item_type": "consumable",
+      "stackable": true,
+      "metadata": {
+        "category": "consumable",
+        "effect": "obscuring_smoke_cloud",
+        "duration_rounds": 1,
+        "source": "stage15_content_pack_1"
+      }
+    },
+    {
+      "item_id": "item_throwing_oil",
+      "name": "Throwing Oil",
+      "item_type": "consumable",
+      "stackable": true,
+      "metadata": {
+        "category": "consumable",
+        "effect": "oil_slick_or_ignition_setup",
+        "source": "stage15_content_pack_1"
+      }
+    },
+    {
+      "item_id": "item_torch_bundle",
+      "name": "Torch Bundle",
+      "item_type": "consumable",
+      "sellable": true,
+      "stackable": true,
+      "metadata": {
+        "category": "utility",
+        "effect": "light_source",
+        "charges": 3,
+        "source": "stage15_content_pack_1"
+      }
+    },
+    {
+      "item_id": "item_bandage_roll",
+      "name": "Bandage Roll",
+      "item_type": "consumable",
+      "sellable": true,
+      "stackable": true,
+      "metadata": {
+        "category": "consumable",
+        "effect": "minor_stabilize_or_small_heal",
+        "source": "stage15_content_pack_1"
+      }
+    },
+    {
+      "item_id": "item_mace",
+      "name": "Mace",
+      "item_type": "equipment",
+      "sellable": true,
+      "stackable": false,
+      "equip_slot": "main_hand",
+      "metadata": {
+        "category": "weapon",
+        "weapon_class": "simple_melee",
+        "weapon": {
+          "damage_dice": "1d6",
+          "damage_type": "bludgeoning",
+          "properties": []
+        },
+        "source": "stage15_content_pack_1"
+      }
+    },
+    {
+      "item_id": "item_rapier",
+      "name": "Rapier",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "main_hand",
+      "metadata": {
+        "category": "weapon",
+        "weapon_class": "martial_melee",
+        "weapon": {
+          "damage_dice": "1d8",
+          "damage_type": "piercing",
+          "properties": ["finesse"]
+        },
+        "source": "stage15_content_pack_1"
+      }
+    },
+    {
+      "item_id": "item_warhammer",
+      "name": "Warhammer",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "main_hand",
+      "metadata": {
+        "category": "weapon",
+        "weapon_class": "martial_melee",
+        "weapon": {
+          "damage_dice": "1d8",
+          "damage_type": "bludgeoning",
+          "properties": ["versatile"],
+          "versatile_damage_dice": "1d10"
+        },
+        "source": "stage15_content_pack_1"
+      }
+    },
+    {
+      "item_id": "item_longbow",
+      "name": "Longbow",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "main_hand",
+      "metadata": {
+        "category": "weapon",
+        "weapon_class": "martial_ranged",
+        "weapon": {
+          "damage_dice": "1d8",
+          "damage_type": "piercing",
+          "properties": ["ammunition", "heavy", "two_handed"],
+          "range": {
+            "normal": 150,
+            "long": 600
+          }
+        },
+        "source": "stage15_content_pack_1"
+      }
+    },
+    {
+      "item_id": "item_studded_leather",
+      "name": "Studded Leather Armor",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "body",
+      "metadata": {
+        "category": "armor",
+        "armor_class": "light",
+        "armor": {
+          "base_ac": 12,
+          "dex_cap": null,
+          "stealth_disadvantage": false
+        },
+        "source": "stage15_content_pack_1"
+      }
+    },
+    {
+      "item_id": "item_half_plate",
+      "name": "Half Plate",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "body",
+      "metadata": {
+        "category": "armor",
+        "armor_class": "medium",
+        "armor": {
+          "base_ac": 15,
+          "dex_cap": 2,
+          "stealth_disadvantage": true
+        },
+        "source": "stage15_content_pack_1"
+      }
+    },
+    {
+      "item_id": "item_splint_armor",
+      "name": "Splint Armor",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "body",
+      "metadata": {
+        "category": "armor",
+        "armor_class": "heavy",
+        "armor": {
+          "base_ac": 17,
+          "dex_cap": 0,
+          "stealth_disadvantage": true
+        },
+        "source": "stage15_content_pack_1"
+      }
+    },
+    {
+      "item_id": "item_alchemists_fire",
+      "name": "Alchemist's Fire",
+      "item_type": "consumable",
+      "stackable": true,
+      "metadata": {
+        "category": "consumable",
+        "effect": "on_hit_fire_damage_over_time",
+        "source": "stage15_content_pack_1"
+      }
+    },
+    {
+      "item_id": "item_hempen_rope",
+      "name": "Hempen Rope (50 ft)",
+      "item_type": "consumable",
+      "sellable": true,
+      "stackable": true,
+      "metadata": {
+        "category": "utility",
+        "effect": "traversal_assist",
+        "source": "stage15_content_pack_1"
+      }
+    },
+    {
+      "item_id": "item_ring_of_protection",
+      "name": "Ring of Protection",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "accessory",
+      "metadata": {
+        "category": "misc",
+        "magical": true,
+        "requires_attunement": true,
+        "rarity": "rare",
+        "armor_class_bonus": 1,
+        "magic_property_refs": ["protection_bonus"],
+        "source": "stage16_magical_items"
+      }
+    },
+    {
+      "item_id": "item_mysterious_ring",
+      "name": "Mysterious Ring",
+      "item_type": "unidentified",
+      "stackable": false,
+      "metadata": {
+        "category": "misc",
+        "public_label": "Mysterious Ring",
+        "hidden_item_ref": "item_ring_of_protection",
+        "source": "stage16_magical_items"
+      }
+    }
+  ]
+}

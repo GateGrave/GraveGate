@@ -1,0 +1,87 @@
+GateGrave Bot System - ChatGPT Handoff (Current Layout)
+
+1) What this project is
+GateGrave is an event-driven Discord RPG backend scaffold.
+Current implementation includes major core modules across world systems, combat, dungeon/session, economy, crafting, guilds/raids/events, hunter contracts, rankings, and advanced snapshots/harnesses.
+
+2) Core architecture rules (important)
+- Event-driven architecture only.
+- Discord gateway translates input into events only (no gameplay logic).
+- Systems should not call each other directly for gameplay outcomes.
+- Persistent player/world data belongs in World State.
+- Combat instances are isolated and in-memory.
+- Snapshot/recovery modules exist per subsystem and should stay separated.
+
+3) High-level folder layout
+- apps/gateway/src : gateway input translation scaffolding.
+- apps/controller/src : event router + system routing stubs.
+- apps/queue/src : queue scaffolding.
+- apps/logger/src : event logging scaffolding.
+- apps/database/src/world-storage : in-memory world storage placeholders.
+- apps/combat-system/src : combat engine modules + testing harness.
+- apps/dungeon-exploration/src : dungeon/session models, movement, challenges, snapshots, harness.
+- apps/world-system/src : world-focused modular systems and tests:
+  - currency/
+  - economy/
+  - loot/
+  - crafting/
+  - guild/
+  - raid/
+  - world-events/ (world events, world boss, seasonal events)
+  - hunter-association/ (profiles + contract/hunt board)
+  - ranking/
+  - advanced-systems/ (advanced snapshot + advanced harness)
+
+4) Current advanced systems (Phase 8 line)
+- guild:
+  - core model/manager
+  - membership flow
+  - shared storage flow with duplicate withdrawal protection
+  - progression system
+- raid:
+  - raid core model/manager
+  - multi-party coordination and readiness
+- world-events:
+  - world event core
+  - world boss participation/contribution/defeat/reward trigger/claim protection
+  - seasonal event system with active windows, participation gating, retirement
+- hunter-association:
+  - hunter association core profiles/ranks/contracts lists
+  - contract/hunt board flow (create, claim, cancel, complete, expire)
+- ranking:
+  - ranking entries by type (hunter, guild, dungeon_leaderboard, world_event_contribution)
+  - score update with optional history/audit trail
+- advanced-systems:
+  - snapshot + restore for guild, guild storage, raid, world events, contracts, ranking refs
+  - simulation harness for end-to-end advanced flows
+
+5) Main entry points in world-system
+- apps/world-system/src/index.js exports all world modules and helpers.
+- Each subsystem has an index.js with default managers + helper wrappers.
+
+6) Test and simulation commands
+- npm run test:guild-core
+- npm run test:guild-membership
+- npm run test:guild-storage
+- npm run test:guild-progression
+- npm run test:raid-core
+- npm run test:raid-coordination
+- npm run test:world-events-core
+- npm run test:world-boss-system
+- npm run test:seasonal-events
+- npm run test:hunter-association-core
+- npm run test:contract-hunt-board
+- npm run test:ranking-system
+- npm run test:advanced-systems-snapshot
+- npm run test:advanced-systems-harness
+- npm run simulate:advanced-systems
+
+7) Good prompt to give ChatGPT about this repo
+Use this as a starting context prompt:
+"You are helping on the GateGrave Bot System Node.js monorepo. Follow event-driven architecture rules: gateway has no gameplay logic, systems do not directly call each other for gameplay, and state layers remain separated. Work primarily in apps/world-system/src modular subsystems (guild, raid, world-events, hunter-association, ranking, advanced-systems) and preserve existing in-memory manager/test patterns. Add beginner-readable JavaScript with structured result payloads and matching automated tests in each subsystem's testing/ folder."
+
+8) Notes for future contributors
+- Keep all new logic modular by subsystem.
+- Add/extend tests for every new phase increment.
+- Prefer structured { ok, event_type, payload } results for flow functions.
+- Keep snapshot modules isolated by domain (do not mix systems).

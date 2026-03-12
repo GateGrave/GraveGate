@@ -1,0 +1,107 @@
+﻿GateGrave System Status Handoff
+Generated: 2026-03-10
+
+1) Overall Position
+- Architecture: event-driven, canonical command-to-runtime path active.
+- Current focus: Stage 14 hardening and content-phase readiness.
+- Stability: good. Runtime/controller/gateway core tests recently passed.
+
+2) Canonical Flow
+Discord interaction -> gateway translator -> controller validation -> router -> runtime event bus -> orchestrator chain -> domain handlers -> gateway response event -> Discord reply.
+
+3) What Is Implemented
+
+Gateway (apps/gateway/src)
+- Discord shell, slash command registration, and event mapping.
+- Commands mapped: /ping, /help, /profile, /inventory, /start, /equip, /unequip, /dungeon enter, /leave, /move, /attack, /use.
+- Safe fallback reply path for runtime/controller errors.
+- Ping now uses canonical runtime path.
+
+Controller + Router (apps/controller/src)
+- Validates incoming command events against shared schema/types.
+- Deterministic routing by target_system/event_type.
+- Unknown events now fail clearly with structured routing error.
+- Handlers modularized:
+  - handlers/world.js
+  - handlers/session.js
+  - handlers/combat.js
+  - handlers/controller.js
+  - handlers/shared.js
+  - handlers.js aggregator
+
+Runtime (apps/runtime/src)
+- Event bus supports subscriptions and publishing.
+- Async-safe dispatch behavior for sync and async handlers.
+- Orchestrator processes emitted event chains until completion.
+- Runtime harnesses exist.
+
+Database + Persistence (apps/database/src)
+- Adapter boundary exists (in-memory + sqlite path).
+- Domain bridges in place for:
+  - character
+  - inventory
+  - dungeon session
+  - combat snapshot
+
+Combat System (apps/combat-system/src)
+- Combat model/manager, initiative, turn flow.
+- Actions: attack, move, dodge, use item.
+- Battlefield/movement validation, dice/damage, status scaffolds.
+- Snapshot/persistence bridge and test harnesses.
+
+Dungeon Exploration (apps/dungeon-exploration/src)
+- Session model/manager, room model, movement, room entry.
+- Challenge/object/rest/boss resolvers.
+- Reward hook preparation flow.
+- Session locking/snapshots/persistence bridge.
+- Harnesses including first playable loop.
+
+Inventory System (apps/inventory-system/src)
+- Canonical inventory schema established.
+- Mutation helpers for add/remove/stack/normalize.
+- Persistence bridge and alignment tests.
+
+World System (apps/world-system/src)
+- Character domain: schema/service/repository/persistence/adapters/rule hooks/harness.
+- Loot domain: tables/roll/hooks/grants/logging/harness.
+- Economy domain: currency/shops/transactions/logging/snapshot/harness.
+- Crafting domain: recipe/eligibility/jobs/checks/completion/rollback/logging/snapshot/harness.
+- Advanced domain scaffolds: guild, raid, world events, hunter, contracts, rankings, snapshots/harnesses.
+
+4) Stage Status
+- Stage 13 command layer: implemented.
+- Stage 14 runtime integration: implemented, with ongoing hardening.
+
+5) Aggregate Test Commands (root package.json)
+- test:gateway
+- test:runtime
+- test:persistence
+- test:hardening
+- test:harness
+- test:stage13
+- test:stage14
+- test:all
+
+6) Recent Verification
+- npm run test:runtime -> pass (2026-03-10)
+- npm run test:gateway -> pass (2026-03-10)
+
+7) Current Risks
+High priority
+- Multi-entity split-write consistency still needs continued rollback/atomicity hardening.
+- Potential combat redesign may require migration strategy from current combat scaffolds.
+
+Medium priority
+- Keep event payload contracts stable as content grows.
+- Prevent accidental alternate execution paths outside canonical runtime flow.
+- Maintain behavior parity across in-memory and sqlite adapters.
+
+8) Recommended Next Steps
+1. Run npm run test:stage14 after each hardening/integration chunk.
+2. Run npm run test:all before milestone merges.
+3. Create a combat redesign decision memo (keep/replace/migrate).
+4. Lock event contract versioning for content-phase additions.
+5. Expand persistence parity tests in remaining split-write areas.
+
+9) Suggested Prompt For ChatGPT Planning
+"Using this GateGrave status handoff, propose a milestone-by-milestone content phase plan that preserves Stage 14 canonical runtime architecture and adds combat redesign safely with migration checkpoints."

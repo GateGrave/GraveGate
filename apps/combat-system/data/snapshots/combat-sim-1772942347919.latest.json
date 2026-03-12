@@ -1,0 +1,920 @@
+{
+  "snapshot_id": "snapshot-1772942347925-kow8iy",
+  "combat_id": "combat-sim-1772942347919",
+  "snapshot_timestamp": "2026-03-08T03:59:07.925Z",
+  "round_number": 1,
+  "current_turn_index": 1,
+  "initiative_order": [
+    {
+      "participant_id": "hero-002",
+      "initiative_modifier": 1,
+      "d20_roll": 17,
+      "initiative_total": 18
+    },
+    {
+      "participant_id": "enemy-001",
+      "initiative_modifier": 2,
+      "d20_roll": 9,
+      "initiative_total": 11
+    },
+    {
+      "participant_id": "hero-001",
+      "initiative_modifier": 3,
+      "d20_roll": 6,
+      "initiative_total": 9
+    }
+  ],
+  "grid_positions": [
+    {
+      "participant_id": "hero-001",
+      "position": {
+        "x": 4,
+        "y": 2
+      }
+    },
+    {
+      "participant_id": "hero-002",
+      "position": {
+        "x": 1,
+        "y": 2
+      }
+    },
+    {
+      "participant_id": "enemy-001",
+      "position": {
+        "x": 4,
+        "y": 2
+      }
+    }
+  ],
+  "active_effects": [
+    {
+      "effect_id": "effect-1772942347922-optg4k",
+      "type": "poisoned",
+      "source": {
+        "participant_id": "enemy-001"
+      },
+      "target": {
+        "participant_id": "hero-001"
+      },
+      "duration": {
+        "remaining_turns": 1,
+        "max_turns": 2
+      },
+      "tick_timing": "end_of_turn",
+      "stacking_rules": {
+        "mode": "refresh",
+        "max_stacks": 1
+      },
+      "modifiers": {
+        "attack_penalty": -2
+      },
+      "stacks": 1,
+      "created_at": "2026-03-08T03:59:07.922Z",
+      "updated_at": "2026-03-08T03:59:07.922Z"
+    },
+    {
+      "effect_id": "effect-1772942347925-55m781",
+      "type": "poisoned",
+      "source": {
+        "participant_id": "hero-001"
+      },
+      "target": {
+        "participant_id": "enemy-001"
+      },
+      "duration": {
+        "remaining_turns": 1,
+        "max_turns": 2
+      },
+      "tick_timing": "end_of_turn",
+      "stacking_rules": {
+        "mode": "refresh",
+        "max_stacks": 1
+      },
+      "modifiers": {
+        "attack_penalty": -2
+      },
+      "stacks": 1,
+      "created_at": "2026-03-08T03:59:07.925Z",
+      "updated_at": "2026-03-08T03:59:07.925Z"
+    }
+  ],
+  "combat_state": {
+    "combat_id": "combat-sim-1772942347919",
+    "participants": [
+      {
+        "participant_id": "hero-001",
+        "name": "Aria",
+        "team_id": "heroes",
+        "initiative_modifier": 3,
+        "position": {
+          "x": 4,
+          "y": 2
+        },
+        "movement_speed": 30,
+        "movement_remaining": 20,
+        "action_available": true,
+        "bonus_action_available": true,
+        "reaction_available": true,
+        "current_hp": 28,
+        "armor_class": 14,
+        "constitution_save_modifier": 3,
+        "vulnerabilities": [],
+        "resistances": [
+          "cold"
+        ],
+        "immunities": []
+      },
+      {
+        "participant_id": "hero-002",
+        "name": "Bram",
+        "team_id": "heroes",
+        "initiative_modifier": 1,
+        "position": {
+          "x": 1,
+          "y": 2
+        },
+        "movement_speed": 30,
+        "movement_remaining": 30,
+        "action_available": true,
+        "bonus_action_available": false,
+        "reaction_available": true,
+        "current_hp": 30,
+        "armor_class": 16,
+        "constitution_save_modifier": 2,
+        "vulnerabilities": [],
+        "resistances": [],
+        "immunities": []
+      },
+      {
+        "participant_id": "enemy-001",
+        "name": "Goblin",
+        "team_id": "monsters",
+        "initiative_modifier": 2,
+        "position": {
+          "x": 4,
+          "y": 2
+        },
+        "movement_speed": 30,
+        "movement_remaining": 30,
+        "action_available": true,
+        "bonus_action_available": true,
+        "reaction_available": true,
+        "current_hp": 0,
+        "armor_class": 13,
+        "constitution_save_modifier": 1,
+        "vulnerabilities": [
+          "fire"
+        ],
+        "resistances": [],
+        "immunities": [],
+        "life_state": "stabilized",
+        "unconscious": true,
+        "death_saves": {
+          "successes": 0,
+          "failures": 0
+        }
+      }
+    ],
+    "initiative_order": [
+      {
+        "participant_id": "hero-002",
+        "initiative_modifier": 1,
+        "d20_roll": 17,
+        "initiative_total": 18
+      },
+      {
+        "participant_id": "enemy-001",
+        "initiative_modifier": 2,
+        "d20_roll": 9,
+        "initiative_total": 11
+      },
+      {
+        "participant_id": "hero-001",
+        "initiative_modifier": 3,
+        "d20_roll": 6,
+        "initiative_total": 9
+      }
+    ],
+    "current_turn_index": 1,
+    "round_number": 1,
+    "battlefield_grid": {
+      "width": 9,
+      "height": 9,
+      "tile_size_feet": 5,
+      "max_grid_size": 9,
+      "tiles": [
+        {
+          "x": 0,
+          "y": 0,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 3,
+          "y": 0,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 4,
+          "y": 0,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 5,
+          "y": 0,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 6,
+          "y": 0,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 7,
+          "y": 0,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 8,
+          "y": 0,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 2,
+          "y": 1,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 3,
+          "y": 1,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 4,
+          "y": 1,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 5,
+          "y": 1,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 6,
+          "y": 1,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 7,
+          "y": 1,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 8,
+          "y": 1,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 0,
+          "y": 2,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 1,
+          "y": 2,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 3,
+          "y": 2,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 4,
+          "y": 2,
+          "terrain": "normal",
+          "occupant": "hero-001",
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 5,
+          "y": 2,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 6,
+          "y": 2,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 7,
+          "y": 2,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 8,
+          "y": 2,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 0,
+          "y": 3,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 1,
+          "y": 3,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 2,
+          "y": 3,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 4,
+          "y": 3,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 5,
+          "y": 3,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 6,
+          "y": 3,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 7,
+          "y": 3,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 8,
+          "y": 3,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 0,
+          "y": 4,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 1,
+          "y": 4,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 2,
+          "y": 4,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 3,
+          "y": 4,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 4,
+          "y": 4,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 5,
+          "y": 4,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 7,
+          "y": 4,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 8,
+          "y": 4,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 0,
+          "y": 5,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 1,
+          "y": 5,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 2,
+          "y": 5,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 4,
+          "y": 5,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 5,
+          "y": 5,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 6,
+          "y": 5,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 7,
+          "y": 5,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 8,
+          "y": 5,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 1,
+          "y": 6,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 2,
+          "y": 6,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 4,
+          "y": 6,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 5,
+          "y": 6,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 6,
+          "y": 6,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 7,
+          "y": 6,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 8,
+          "y": 6,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 1,
+          "y": 7,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 4,
+          "y": 7,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 5,
+          "y": 7,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 6,
+          "y": 7,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 7,
+          "y": 7,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 8,
+          "y": 7,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 0,
+          "y": 8,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 1,
+          "y": 8,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 2,
+          "y": 8,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 3,
+          "y": 8,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 4,
+          "y": 8,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 5,
+          "y": 8,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 6,
+          "y": 8,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 7,
+          "y": 8,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        },
+        {
+          "x": 8,
+          "y": 8,
+          "terrain": "normal",
+          "occupant": null,
+          "hazards": [],
+          "status_effects": []
+        }
+      ]
+    },
+    "active_effects": [
+      {
+        "effect_id": "effect-1772942347922-optg4k",
+        "type": "poisoned",
+        "source": {
+          "participant_id": "enemy-001"
+        },
+        "target": {
+          "participant_id": "hero-001"
+        },
+        "duration": {
+          "remaining_turns": 1,
+          "max_turns": 2
+        },
+        "tick_timing": "end_of_turn",
+        "stacking_rules": {
+          "mode": "refresh",
+          "max_stacks": 1
+        },
+        "modifiers": {
+          "attack_penalty": -2
+        },
+        "stacks": 1,
+        "created_at": "2026-03-08T03:59:07.922Z",
+        "updated_at": "2026-03-08T03:59:07.922Z"
+      },
+      {
+        "effect_id": "effect-1772942347925-55m781",
+        "type": "poisoned",
+        "source": {
+          "participant_id": "hero-001"
+        },
+        "target": {
+          "participant_id": "enemy-001"
+        },
+        "duration": {
+          "remaining_turns": 1,
+          "max_turns": 2
+        },
+        "tick_timing": "end_of_turn",
+        "stacking_rules": {
+          "mode": "refresh",
+          "max_stacks": 1
+        },
+        "modifiers": {
+          "attack_penalty": -2
+        },
+        "stacks": 1,
+        "created_at": "2026-03-08T03:59:07.925Z",
+        "updated_at": "2026-03-08T03:59:07.925Z"
+      }
+    ],
+    "combat_status": "active",
+    "lock_flag": true,
+    "lock": {
+      "locked": true,
+      "locked_at": "2026-03-08T03:59:07.924Z",
+      "locked_by": "combat_event_processor",
+      "reason": "resolve_combat_turn"
+    },
+    "created_at": "2026-03-08T03:59:07.919Z",
+    "updated_at": "2026-03-08T03:59:07.925Z"
+  }
+}

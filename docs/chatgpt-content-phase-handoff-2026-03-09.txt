@@ -1,0 +1,120 @@
+GATEGRAVE CONTENT-PHASE HANDOFF (TEXT)
+Generated: 2026-03-09 (America/New_York)
+
+1) PURPOSE
+This handoff is for ChatGPT guidance during the content phase and possible combat redesign.
+It includes current system state, what is stable, what is risky, and step-by-step recommended next actions.
+
+2) CURRENT PROJECT STATUS
+- Monorepo style: Node.js CommonJS
+- Architecture style: event-driven
+- Runtime command path: gateway -> controller validation/router -> runtime event bus/orchestrator -> domain handlers -> gateway response event
+- Latest full validation: PASS (`npm run test:all`)
+
+3) NON-NEGOTIABLE RULES
+- Gateway contains no gameplay logic.
+- Controller handles intake/validation/routing only.
+- Systems should not directly call each other for gameplay outcomes.
+- World, Session, Combat state must stay separated.
+- Inventory mutations only via canonical inventory boundary.
+- Preserve structured result objects and stable event shapes.
+
+4) WHAT IS ALREADY IMPLEMENTED
+A) Gateway (apps/gateway/src)
+- Discord shell, slash registration runner, command translator
+- Runtime wiring for commands
+- Safe fallback reply behavior when runtime/controller errors
+
+B) Controller + Runtime
+- Controller validator + router with explicit unknown-event failure
+- Runtime event bus and orchestrator
+- Runtime flow now async-safe (sync + async handlers supported)
+- Runtime integration tests and harness tests are passing
+
+C) Combat system
+- Core + many advanced scaffolds already built (initiative, actions, grid, status, reactions, damage pipeline, snapshots, persistence bridge)
+- Good coverage and harnesses in place
+
+D) Dungeon system
+- Session manager/model, room model, movement, room resolution, reward hook prep
+- Session lock/snapshot/persistence bridge
+- Dungeon harness and first playable loop harness
+
+E) World system
+- Character, loot, economy, crafting, and advanced systems scaffolds implemented
+- Character persistence + inventory linking + adapters in place
+- Loot/economy/crafting all aligned with canonical inventory mutation boundaries
+
+F) Inventory system
+- Canonical inventory schema
+- Mutation helpers
+- Persistence bridge
+
+G) Database
+- Adapter boundary, inMemory adapter, sqlite adapter, migration tests
+
+5) RECENT HARDENING COMPLETED
+- Runtime event bus/orchestrator were made async-safe.
+- Async handler emissions now continue through canonical chain.
+- Async handler rejection returns structured errors.
+- Gateway interaction boundary now catches runtime/controller throws and sends safe fallback response.
+
+6) TEST STATUS SNAPSHOT
+Aggregate commands available and passing:
+- npm run test:gateway
+- npm run test:persistence
+- npm run test:runtime
+- npm run test:harness
+- npm run test:hardening
+- npm run test:stage13
+- npm run test:stage14
+- npm run test:all
+
+7) CONTENT PHASE GUIDANCE (RECOMMENDED ORDER)
+Step 1: Lock contracts before adding content
+- Build one canonical event map document:
+  command -> event_type -> target_system -> handler entry -> response_type
+- Add contract tests to prevent payload drift
+
+Step 2: Build data-first content packs
+- Add structured JSON content packs for:
+  enemies, encounters, dungeon templates, loot packs, item packs, progression metadata
+- Add strict content validators/loaders (no gameplay logic)
+
+Step 3: Add deterministic content testing
+- Seeded deterministic helpers for encounter and loot outcomes
+- Harness tests validate content results through canonical event flow
+
+Step 4: Integrate content through events only
+- Content selection/emission in domain handlers
+- Keep gateway/controller/runtime plumbing unchanged
+
+8) COMBAT REDO DECISION FRAMEWORK
+Option A (Incremental cleanup)
+- Keep current combat modules, refactor internals in place
+- Lower short-term risk, slower architectural cleanup
+
+Option B (Recommended): Parallel combat v2 behind adapter
+- Build combat v2 boundary and adapter while preserving current event contracts
+- Run parity tests via harness before switching
+- Best balance of safety and long-term maintainability
+
+Option C (Full in-place rewrite)
+- Fastest conceptual reset, highest regression risk
+
+Recommended: Option B
+
+9) RISKS TO WATCH DURING CONTENT PHASE
+- Controller handlers are becoming large and tightly coupled; keep growth modular.
+- Content JSON can drift without strict validation early.
+- Combat complexity can outgrow maintainability if v2 boundary is not defined soon.
+
+10) QUICK CHECKLIST BEFORE EACH MAJOR CONTENT DROP
+1. Event contract unchanged and tested
+2. Content schemas validated
+3. Harness path passes (runtime + dungeon/combat + loot)
+4. Persistence path verified (inMemory + sqlite where applicable)
+5. `npm run test:stage14` (or `npm run test:all` for full gate)
+
+11) CHATGPT STARTER PROMPT
+"Use this handoff as source of truth. Keep CommonJS and strict event-driven boundaries. Avoid gameplay logic in gateway/controller/runtime plumbing. Prioritize data-driven content scaffolding, contract stability, and a combat-v2 migration path behind existing event contracts."

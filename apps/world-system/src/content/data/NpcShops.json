@@ -1,0 +1,74 @@
+{
+  "content_type": "npc_shop",
+  "schema_version": 1,
+  "entries": [
+    {
+      "vendor_id": "vendor_starter_quartermaster",
+      "vendor_name": "Quartermaster Rhel",
+      "stock_items": [
+        "item_healing_potion",
+        "item_bandage_roll",
+        "item_torch_bundle",
+        "item_hempen_rope",
+        "item_antitoxin"
+      ],
+      "price_map": {
+        "item_healing_potion": 50,
+        "item_bandage_roll": 8,
+        "item_torch_bundle": 3,
+        "item_hempen_rope": 5,
+        "item_antitoxin": 25
+      },
+      "quantity_map": {},
+      "infinite_stock_items": [
+        "item_healing_potion",
+        "item_bandage_roll",
+        "item_torch_bundle",
+        "item_hempen_rope",
+        "item_antitoxin"
+      ],
+      "metadata": {
+        "location": "starter_hub",
+        "description": "A practical supplier for delvers heading below.",
+        "source": "starter_slice_v1"
+      }
+    },
+    {
+      "vendor_id": "vendor_starter_armorer",
+      "vendor_name": "Armorer Vexa",
+      "stock_items": [
+        "item_club",
+        "item_dagger",
+        "item_spear",
+        "item_shield",
+        "item_padded_armor",
+        "item_leather_armor",
+        "item_mace"
+      ],
+      "price_map": {
+        "item_club": 2,
+        "item_dagger": 8,
+        "item_spear": 5,
+        "item_shield": 10,
+        "item_padded_armor": 5,
+        "item_leather_armor": 10,
+        "item_mace": 8
+      },
+      "quantity_map": {},
+      "infinite_stock_items": [
+        "item_club",
+        "item_dagger",
+        "item_spear",
+        "item_shield",
+        "item_padded_armor",
+        "item_leather_armor",
+        "item_mace"
+      ],
+      "metadata": {
+        "location": "starter_hub",
+        "description": "A hard-eyed outfitter handling field arms and cheap armor.",
+        "source": "starter_slice_v1"
+      }
+    }
+  ]
+}
