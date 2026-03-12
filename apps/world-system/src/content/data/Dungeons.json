@@ -1,0 +1,220 @@
+{
+  "content_type": "dungeon",
+  "schema_version": 1,
+  "entries": [
+    {
+      "dungeon_id": "dungeon_tutorial_path",
+      "name": "Tutorial Path",
+      "start_room_id": "room_tutorial_entry",
+      "rooms": [
+        {
+          "room_id": "room_tutorial_entry",
+          "name": "Tutorial Entry",
+          "room_type": "empty",
+          "exits": ["room_tutorial_encounter"]
+        },
+        {
+          "room_id": "room_tutorial_encounter",
+          "name": "Tutorial Encounter",
+          "room_type": "encounter",
+          "encounter": {
+            "encounter_id": "enc_tutorial_goblin",
+            "monster_id": "monster_goblin_scout"
+          },
+          "exits": ["room_tutorial_entry", "room_tutorial_exit"]
+        },
+        {
+          "room_id": "room_tutorial_exit",
+          "name": "Tutorial Exit",
+          "room_type": "rest",
+          "exits": ["room_tutorial_encounter"]
+        }
+      ],
+      "metadata": {
+        "recommended_level_min": 1,
+        "recommended_level_max": 1,
+        "difficulty_tier": "starter",
+        "reward_item_id": "item_rat_tail",
+        "tutorial": true,
+        "flow": [
+          "enter",
+          "move_once",
+          "encounter",
+          "reward",
+          "exit"
+        ]
+      }
+    },
+    {
+      "dungeon_id": "dungeon_training_cavern",
+      "name": "Training Cavern",
+      "start_room_id": "room_entrance",
+      "rooms": [
+        {
+          "room_id": "room_entrance",
+          "room_type": "empty",
+          "exits": ["room_crossroads"]
+        },
+        {
+          "room_id": "room_crossroads",
+          "room_type": "encounter",
+          "encounter": {
+            "monster_id": "monster_cave_rat"
+          },
+          "exits": ["room_entrance", "room_boss_lair"]
+        },
+        {
+          "room_id": "room_boss_lair",
+          "room_type": "boss",
+          "encounter": {
+            "monster_id": "monster_tunnel_alpha"
+          },
+          "exits": ["room_crossroads"]
+        }
+      ],
+      "metadata": {
+        "recommended_level_min": 1,
+        "recommended_level_max": 2,
+        "difficulty_tier": "low",
+        "reward_item_id": "item_minor_heal_potion"
+      }
+    },
+    {
+      "dungeon_id": "dungeon_forest_ruins",
+      "name": "Forest Ruins",
+      "start_room_id": "room_forest_gate",
+      "rooms": [
+        {
+          "room_id": "room_forest_gate",
+          "room_type": "empty",
+          "exits": ["room_forest_path"]
+        },
+        {
+          "room_id": "room_forest_path",
+          "room_type": "encounter",
+          "encounter": {
+            "monster_id": "monster_wolf_hunter"
+          },
+          "exits": ["room_forest_gate", "room_forest_camp"]
+        },
+        {
+          "room_id": "room_forest_camp",
+          "room_type": "rest",
+          "exits": ["room_forest_path"]
+        }
+      ],
+      "metadata": {
+        "recommended_level_min": 1,
+        "recommended_level_max": 2,
+        "difficulty_tier": "low",
+        "reward_item_id": "item_bandage_roll",
+        "variant": "starter_pack_1"
+      }
+    },
+    {
+      "dungeon_id": "dungeon_bandit_hideout",
+      "name": "Bandit Hideout",
+      "start_room_id": "room_bandit_entry",
+      "rooms": [
+        {
+          "room_id": "room_bandit_entry",
+          "room_type": "empty",
+          "exits": ["room_bandit_hall"]
+        },
+        {
+          "room_id": "room_bandit_hall",
+          "room_type": "encounter",
+          "encounter": {
+            "monster_id": "monster_bandit_raider"
+          },
+          "exits": ["room_bandit_entry", "room_bandit_cache"]
+        },
+        {
+          "room_id": "room_bandit_cache",
+          "room_type": "rest",
+          "exits": ["room_bandit_hall"]
+        }
+      ],
+      "metadata": {
+        "recommended_level_min": 1,
+        "recommended_level_max": 2,
+        "difficulty_tier": "low",
+        "reward_item_id": "item_throwing_oil",
+        "variant": "starter_pack_1"
+      }
+    },
+    {
+      "dungeon_id": "dungeon_spider_den",
+      "name": "Spider Den",
+      "start_room_id": "room_spider_entrance",
+      "rooms": [
+        {
+          "room_id": "room_spider_entrance",
+          "room_type": "empty",
+          "exits": ["room_spider_nest"]
+        },
+        {
+          "room_id": "room_spider_nest",
+          "room_type": "encounter",
+          "encounter": {
+            "monster_id": "monster_giant_spiderling"
+          },
+          "exits": ["room_spider_entrance", "room_spider_cache"]
+        },
+        {
+          "room_id": "room_spider_cache",
+          "room_type": "rest",
+          "exits": ["room_spider_nest"]
+        }
+      ],
+      "metadata": {
+        "recommended_level_min": 1,
+        "recommended_level_max": 2,
+        "difficulty_tier": "low",
+        "reward_item_id": "item_alchemists_fire",
+        "variant": "starter_pack_2"
+      }
+    },
+    {
+      "dungeon_id": "dungeon_fallen_crypt",
+      "name": "Fallen Crypt",
+      "start_room_id": "room_crypt_entry",
+      "rooms": [
+        {
+          "room_id": "room_crypt_entry",
+          "room_type": "empty",
+          "exits": ["room_crypt_hall"]
+        },
+        {
+          "room_id": "room_crypt_hall",
+          "room_type": "encounter",
+          "encounter": {
+            "monster_id": "monster_cultist_initiate"
+          },
+          "exits": ["room_crypt_entry", "room_crypt_sanctum"]
+        },
+        {
+          "room_id": "room_crypt_sanctum",
+          "room_type": "boss",
+          "encounter": {
+            "monster_id": "monster_wight_captain"
+          },
+          "exits": ["room_crypt_hall"]
+        }
+      ],
+      "metadata": {
+        "recommended_level_min": 2,
+        "recommended_level_max": 3,
+        "difficulty_tier": "veteran",
+        "reward_item_id": "item_smoke_bomb",
+        "reward_curve": {
+          "quantity_multiplier": 1.5,
+          "guaranteed_quantity_bonus": 1,
+          "weighted_bonus_rolls": 1,
+          "xp_multiplier": 1.5
+        },
+        "variant": "starter_pack_2"
+      }
+    }
+  ]
+}

@@ -1,0 +1,233 @@
+GateGrave Bot System - Detailed Status Export
+Generated: 2026-03-09
+
+1) Project Snapshot
+- Monorepo type: Node.js CommonJS
+- Architecture style: Event-driven
+- Total detected test files under apps/: 105
+- Core architectural intent:
+  - Gateway handles transport/translation only
+  - Gameplay systems communicate through events and structured payloads
+  - Domain persistence is moving to adapter boundaries
+  - World/session/combat data concerns are separated
+
+2) Current Top-Level Apps
+advanced-ai
+character-system
+combat-system
+controller
+database
+dungeon-exploration
+economy-crafting
+gateway
+guilds
+inventory-system
+logger
+queue
+raid-bosses
+runtime
+world-system
+
+3) Runtime Layer
+Implemented:
+- apps/runtime/src/eventBus.js
+- apps/runtime/src/orchestrator.js
+- apps/runtime/src/gameLoopHarness.js
+
+Behavior in place:
+- Event bus: subscribe(event_type, handler), publish(event)
+- Publish executes all handlers for event_type
+- Handlers can emit events; emitted events are collected
+- Orchestrator processes queue of events until empty
+- Orchestrator uses max_events guard for loop safety
+
+Runtime tests:
+- apps/runtime/src/testing/eventBus.test.js
+- apps/runtime/src/testing/orchestrator.test.js
+- apps/runtime/src/testing/gameLoopRuntime.test.js
+- apps/runtime/src/testing/gameLoopHarness.test.js
+
+4) Database Adapter Boundary
+Implemented adapter contract and implementations:
+- apps/database/src/adapters/databaseAdapter.interface.js
+- apps/database/src/adapters/inMemoryAdapter.js
+- apps/database/src/adapters/sqliteAdapter.js
+
+Adapter contract methods:
+- getById(collection, id)
+- list(collection)
+- save(collection, id, record)
+- delete(collection, id)
+
+Structured results:
+- { ok, payload, error }
+
+Database adapter tests:
+- apps/database/src/testing/databaseAdapter.test.js
+- apps/database/src/testing/sqliteAdapter.test.js
+
+SQLite notes:
+- sqliteAdapter supports DB path via SQLITE_DB_PATH or default local file path
+- Current implementation supports injected db client and runtime better-sqlite3 path if installed
+- better-sqlite3 is not currently in package.json dependencies by default
+
+5) Inventory System
+Key modules:
+- apps/inventory-system/src/inventory.schema.js
+- apps/inventory-system/src/mutationHelpers.js
+- apps/inventory-system/src/inventory.persistence.js
+
+Capabilities:
+- Canonical inventory schema
+- Mutation helpers:
+  - normalizeInventoryShape
+  - addItemToInventory
+  - removeItemFromInventory
+  - stackInventoryItem
+- Adapter-backed persistence bridge:
+  - saveInventory
+  - loadInventoryById
+  - listInventories
+  - deleteInventory
+
+Tests:
+- inventorySchema.test.js
+- inventoryMutationHelpers.test.js
+- inventoryPersistenceAdapter.test.js
+
+6) Character Domain (World System)
+Key modules:
+- apps/world-system/src/character/character.schema.js
+- apps/world-system/src/character/character.manager.js
+- apps/world-system/src/character/character.service.js
+- apps/world-system/src/character/character.repository.js
+- apps/world-system/src/character/character.persistence.js
+
+Capabilities:
+- Character sheet scaffold with broad baseline fields
+- Service and manager for create/get/list/update
+- Repository bridge for world-storage pattern
+- Adapter-based persistence bridge:
+  - saveCharacter
+  - loadCharacterById
+  - listCharacters
+  - deleteCharacter
+- Character adapters:
+  - toCombatParticipant
+  - toDungeonPartyMember
+- Character inventory linking flow with strict existence checks
+- Rule hooks scaffold:
+  - raceRules
+  - classRules
+  - backgroundRules
+
+Tests include:
+- characterService.test.js
+- characterRepository.test.js
+- characterPersistenceAdapter.test.js
+- characterInventoryLinkValidation.test.js
+- characterHarness.test.js
+
+7) Combat System
+Scope implemented:
+- Combat core model/manager
+- Initiative and turn flow
+- Actions (attack/move/dodge/use-item)
+- Defeated-state handling
+- Grid/movement validation
+- Locking and safe processing wrappers
+- Dice/damage/concentration/reactions/status/death-downed scaffolding
+- Turn resolver and snapshots
+
+Persistence bridge added:
+- apps/combat-system/src/combat.persistence.js
+Methods:
+- saveCombatSnapshot
+- loadCombatSnapshotById
+- listCombatSnapshots
+- deleteCombatSnapshot
+
+Key test:
+- apps/combat-system/src/testing/combatPersistenceAdapter.test.js
+
+8) Dungeon Exploration System
+Scope implemented:
+- Session model + manager
+- Room model
+- Movement + room entry + challenge/object/rest/boss resolvers
+- Reward hook preparation
+- Dungeon harnesses
+
+Persistence bridge added:
+- apps/dungeon-exploration/src/session.persistence.js
+Methods:
+- saveSession
+- loadSessionById
+- listSessions
+- deleteSession
+
+Key test:
+- apps/dungeon-exploration/src/testing/sessionPersistenceAdapter.test.js
+
+9) Loot / Economy / Crafting Alignment
+Loot:
+- grant flow aligned to canonical inventory mutation helpers
+- key test: apps/world-system/src/loot/testing/grantLootMutationAlignment.test.js
+
+Economy:
+- purchase/sell canonical inventory mutation delegated to helper layer
+- hardened sellability checks (no implicit sellable)
+- hardened ownership checks (missing owner fails unless explicitly shared/unowned)
+- key tests:
+  - economyMutationAlignment.test.js
+  - npcShopSellValidation.test.js
+  - npcShopSellOwnership.test.js
+
+Crafting:
+- canonical consume/grant flows delegated to helper layer
+- rollback safety preserved on output grant failure
+- key tests:
+  - craftingMutationAlignment.test.js
+  - craftingInventoryAlignment.test.js
+
+10) Runtime Integration Flow State
+Current repeatable integration foundations:
+- Runtime game loop integration test: apps/runtime/src/testing/gameLoopRuntime.test.js
+- Runtime reusable harness: apps/runtime/src/gameLoopHarness.js
+- Harness validation test: apps/runtime/src/testing/gameLoopHarness.test.js
+
+Game loop event chain covered:
+1. create/load character
+2. start dungeon session
+3. trigger encounter
+4. simulate enemy defeat
+5. emit reward event
+6. resolve loot
+7. grant loot to canonical inventory
+
+11) Persistence Bridges Added So Far
+- Character: apps/world-system/src/character/character.persistence.js
+- Inventory: apps/inventory-system/src/inventory.persistence.js
+- Session: apps/dungeon-exploration/src/session.persistence.js
+- Combat snapshots: apps/combat-system/src/combat.persistence.js
+
+All are adapter-backed and migration-safe with structured results:
+- { ok, event_type, payload, error }
+
+12) Environment and Discord Notes
+- .env and .env.example exist at repo root
+- Discord config module validates required env vars
+- Scripts:
+  - npm run discord:register
+  - npm run gateway:start
+
+13) Suggested Next Milestones
+- Add a single integration test runner that executes critical cross-system tests in sequence
+- Decide and install concrete SQLite driver dependency strategy for real file-backed adapter testing
+- Start wiring persistence bridges into manager/service constructors by dependency injection
+- Add adapter parity tests: same fixtures for in-memory adapter and sqlite adapter
+- Add failure-path runtime integration tests (loot/persistence fail + rollback assertions)
+
+File references for this export:
+- JSON: docs/chatgpt-system-status-2026-03-09.json
+- TXT: docs/chatgpt-system-status-2026-03-09.txt

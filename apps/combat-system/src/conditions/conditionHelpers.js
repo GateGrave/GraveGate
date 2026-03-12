@@ -1,0 +1,153 @@
+"use strict";
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function buildConditionId() {
+  return "condition-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
+}
+
+function normalizeCombatConditions(combatState) {
+  if (!combatState || typeof combatState !== "object") {
+    return [];
+  }
+  return Array.isArray(combatState.conditions) ? combatState.conditions : [];
+}
+
+function createCombatCondition(input) {
+  const data = input || {};
+  return {
+    condition_id: data.condition_id || buildConditionId(),
+    condition_type: String(data.condition_type || data.condition_id || "").trim(),
+    source_actor_id: data.source_actor_id ? String(data.source_actor_id) : null,
+    target_actor_id: data.target_actor_id ? String(data.target_actor_id) : null,
+    applied_at_round: Number.isFinite(Number(data.applied_at_round)) ? Math.max(1, Math.floor(Number(data.applied_at_round))) : null,
+    applied_at_timestamp: data.applied_at_timestamp || new Date().toISOString(),
+    duration: data.duration && typeof data.duration === "object" ? clone(data.duration) : {},
+    expiration_trigger: String(data.expiration_trigger || "manual"),
+    metadata: data.metadata && typeof data.metadata === "object" ? clone(data.metadata) : {}
+  };
+}
+
+function getActiveConditionsForParticipant(combatState, participantId) {
+  const targetId = String(participantId || "").trim();
+  return normalizeCombatConditions(combatState)
+    .filter((condition) => String(condition && condition.target_actor_id || "") === targetId)
+    .map((condition) => clone(condition));
+}
+
+function participantHasCondition(combatState, participantId, conditionType) {
+  const targetId = String(participantId || "").trim();
+  const targetType = String(conditionType || "").trim();
+  if (!targetId || !targetType) {
+    return false;
+  }
+  return normalizeCombatConditions(combatState).some((condition) => {
+    return String(condition && condition.target_actor_id || "") === targetId &&
+      String(condition && condition.condition_type || "") === targetType;
+  });
+}
+
+function applyConditionToCombatState(combatState, input) {
+  const condition = createCombatCondition(input);
+  const existing = normalizeCombatConditions(combatState);
+  const nextConditions = existing.concat([condition]);
+  return {
+    ok: true,
+    condition: clone(condition),
+    next_state: Object.assign({}, combatState, {
+      conditions: nextConditions,
+      updated_at: new Date().toISOString()
+    })
+  };
+}
+
+function removeConditionFromCombatState(combatState, conditionId) {
+  const targetId = String(conditionId || "").trim();
+  const existing = normalizeCombatConditions(combatState);
+  const removed = existing.find((condition) => String(condition && condition.condition_id || "") === targetId) || null;
+  const nextConditions = existing.filter((condition) => String(condition && condition.condition_id || "") !== targetId);
+  return {
+    ok: true,
+    removed_condition: removed ? clone(removed) : null,
+    next_state: Object.assign({}, combatState, {
+      conditions: nextConditions,
+      updated_at: new Date().toISOString()
+    })
+  };
+}
+
+function shouldExpireOnTrigger(condition, trigger) {
+  return String(condition && condition.expiration_trigger || "") === String(trigger || "");
+}
+
+function matchesTriggerTarget(condition, input) {
+  const participantId = String(input && input.participant_id || "").trim();
+  const sourceActorId = String(input && input.source_actor_id || "").trim();
+  const trigger = String(input && input.expiration_trigger || "").trim();
+  if (!trigger || !shouldExpireOnTrigger(condition, trigger)) {
+    return false;
+  }
+
+  if (participantId) {
+    return String(condition && condition.target_actor_id || "") === participantId;
+  }
+  if (sourceActorId) {
+    return String(condition && condition.source_actor_id || "") === sourceActorId;
+  }
+
+  return false;
+}
+
+function expireConditionsForTrigger(combatState, input) {
+  const data = input || {};
+  const existing = normalizeCombatConditions(combatState);
+  const expired = [];
+  const updated = [];
+
+  for (let index = 0; index < existing.length; index += 1) {
+    const condition = existing[index];
+    if (!matchesTriggerTarget(condition, data)) {
+      updated.push(condition);
+      continue;
+    }
+
+    const duration = condition.duration && typeof condition.duration === "object" ? condition.duration : {};
+    const remainingTriggers = Number(duration.remaining_triggers);
+    if (!Number.isFinite(remainingTriggers)) {
+      expired.push(condition);
+      continue;
+    }
+
+    const nextRemaining = Math.max(remainingTriggers - 1, 0);
+    if (nextRemaining <= 0) {
+      expired.push(condition);
+      continue;
+    }
+
+    updated.push(Object.assign({}, condition, {
+      duration: Object.assign({}, duration, {
+        remaining_triggers: nextRemaining
+      })
+    }));
+  }
+
+  return {
+    ok: true,
+    expired_conditions: expired.map((condition) => clone(condition)),
+    next_state: Object.assign({}, combatState, {
+      conditions: updated,
+      updated_at: new Date().toISOString()
+    })
+  };
+}
+
+module.exports = {
+  createCombatCondition,
+  applyConditionToCombatState,
+  removeConditionFromCombatState,
+  expireConditionsForTrigger,
+  getActiveConditionsForParticipant,
+  participantHasCondition
+};

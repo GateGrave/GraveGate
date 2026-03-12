@@ -1,0 +1,35 @@
+{
+  "map_id": "map-12x12",
+  "map_type": "combat",
+  "name": "Map 12x12 Base Map",
+  "instance_id": "map-instance-12x12",
+  "instance_binding": {
+    "instance_type": "combat",
+    "instance_id": "combat-12x12"
+  },
+  "grid": {
+    "width": 12,
+    "height": 12,
+    "tile_size": 70
+  },
+  "asset": {
+    "base_image_path": "apps/map-system/assets/base-maps/map_12x12.png",
+    "terrain_mask_path": "apps/map-system/assets/masks/mask-12x12.png",
+    "terrain_mask_palette_id": "mspaint_basic",
+    "has_embedded_grid": true,
+    "render_width_px": 840,
+    "render_height_px": 840,
+    "grid_origin_x": 0,
+    "grid_origin_y": 0,
+    "grid_width_px": 840,
+    "grid_height_px": 840
+  },
+  "rules": {
+    "diagonal_rule": "alternating"
+  },
+  "blocked_tiles": [],
+  "terrain": [],
+  "terrain_zones": [],
+  "tokens": [],
+  "overlays": []
+}

@@ -1,0 +1,314 @@
+﻿{
+  "project": {
+    "name": "GateGrave-bot-System",
+    "repository_type": "Node.js CommonJS monorepo",
+    "generated_at": "2026-03-10T01:10:00-05:00",
+    "summary": "Event-driven Discord RPG backend with canonical runtime path, broad subsystem scaffolds, persistence adapter boundary, and Stage 13/14 command-to-runtime integration hardening."
+  },
+  "current_focus": {
+    "phase": "Stage 14 hardening and content-phase readiness",
+    "active_objectives": [
+      "Reduce architecture leakage (gateway/controller/router remain thin)",
+      "Enforce canonical runtime event path for command handling",
+      "Improve persistence consistency and rollback safety",
+      "Prepare stable foundation for content expansion and possible combat redesign"
+    ],
+    "recently_completed": [
+      "Router unknown-event fallback removed; structured routing failure now returned",
+      "Controller handlers modularized into world/session/combat/controller modules",
+      "Ping command routed through canonical runtime/controller path",
+      "Runtime async-safe event flow and gateway safe fallback handling verified",
+      "Aggregate Stage 13/14 CI scripts available in root package.json"
+    ]
+  },
+  "architecture": {
+    "style": "event-driven",
+    "canonical_path": [
+      "Discord interaction",
+      "gateway command translator",
+      "controller validation",
+      "event router",
+      "runtime event bus",
+      "runtime orchestrator",
+      "domain handler",
+      "structured gateway response event"
+    ],
+    "hard_rules": [
+      "Gateway contains no gameplay logic",
+      "Controller performs intake/validation/routing coordination only",
+      "Systems should not call each other directly for gameplay outcomes",
+      "World/session/combat state layers remain separate",
+      "Inventory mutation occurs through canonical inventory system",
+      "Persistence remains behind adapter boundaries"
+    ],
+    "event_contract": {
+      "location": "packages/shared-types",
+      "files": [
+        "event-schema.js",
+        "event-types.js",
+        "state-layer-notes.js"
+      ],
+      "core_fields": [
+        "event_id",
+        "event_type",
+        "timestamp",
+        "source",
+        "target_system",
+        "player_id",
+        "session_id",
+        "combat_id",
+        "payload"
+      ]
+    }
+  },
+  "repository_map": {
+    "top_level_apps": [
+      "advanced-ai",
+      "character-system",
+      "combat-system",
+      "controller",
+      "database",
+      "dungeon-exploration",
+      "economy-crafting",
+      "gateway",
+      "guilds",
+      "inventory-system",
+      "logger",
+      "queue",
+      "raid-bosses",
+      "runtime",
+      "world-system"
+    ],
+    "docs": "docs/",
+    "shared_types": "packages/shared-types"
+  },
+  "system_status": {
+    "gateway": {
+      "status": "implemented and integrated",
+      "location": "apps/gateway/src",
+      "capabilities": [
+        "Discord client boot and command registration",
+        "Slash command definitions for read/bootstrap/action flows",
+        "Command-to-canonical-event mapping",
+        "Canonical runtime integration for command processing",
+        "Safe fallback reply path when runtime/controller throws"
+      ],
+      "commands_mapped": [
+        "/ping",
+        "/help",
+        "/profile",
+        "/inventory",
+        "/start",
+        "/equip",
+        "/unequip",
+        "/dungeon enter",
+        "/leave",
+        "/move",
+        "/attack",
+        "/use"
+      ],
+      "notes": [
+        "Ping is routed through runtime/controller path and no longer special-cased as direct gameplay logic",
+        "Gateway remains translation/reply boundary"
+      ]
+    },
+    "controller_and_router": {
+      "status": "implemented and hardened",
+      "location": "apps/controller/src",
+      "capabilities": [
+        "Incoming event validation for supported command events",
+        "Deterministic routing by target_system and event_type",
+        "Structured unknown-event routing failures",
+        "Domain-focused handler modules"
+      ],
+      "handler_modules": [
+        "handlers/world.js",
+        "handlers/session.js",
+        "handlers/combat.js",
+        "handlers/controller.js",
+        "handlers/shared.js",
+        "handlers.js aggregator"
+      ]
+    },
+    "runtime": {
+      "status": "implemented and stable",
+      "location": "apps/runtime/src",
+      "capabilities": [
+        "Event bus subscribe/publish",
+        "Async-safe publish support for sync and async handlers",
+        "Orchestrator processing chained emitted events until completion",
+        "Runtime harnesses for integration loops"
+      ]
+    },
+    "database": {
+      "status": "adapter boundary in place",
+      "location": "apps/database/src",
+      "capabilities": [
+        "database adapter interface-like contract",
+        "in-memory adapter",
+        "sqlite adapter path",
+        "domain persistence bridge compatibility"
+      ],
+      "persistence_bridges_using_adapter": [
+        "world character",
+        "inventory",
+        "dungeon session",
+        "combat snapshot"
+      ]
+    },
+    "combat_system": {
+      "status": "broad scaffold implemented",
+      "location": "apps/combat-system/src",
+      "implemented": [
+        "Combat model and manager",
+        "Initiative and turn order",
+        "Core actions (attack/move/dodge/use item)",
+        "Turn advancement and end checks",
+        "Battlefield/movement validation",
+        "Dice and damage pipeline",
+        "Concentration/reaction/status/death scaffolds",
+        "Combat snapshot and persistence bridge",
+        "Combat harness and tests"
+      ],
+      "notes": [
+        "Recent hardening focused on safer /use item failure behavior and consistency"
+      ]
+    },
+    "dungeon_exploration": {
+      "status": "stage scaffold implemented",
+      "location": "apps/dungeon-exploration/src",
+      "implemented": [
+        "Dungeon session model and manager",
+        "Room model and session room helpers",
+        "Party movement and room entry resolution",
+        "Challenge/object/rest/boss room resolvers",
+        "Reward hook preparation",
+        "Session locking and snapshot support",
+        "Session persistence bridge",
+        "Dungeon harness and first playable loop harness"
+      ]
+    },
+    "inventory_system": {
+      "status": "canonical boundary established",
+      "location": "apps/inventory-system/src",
+      "implemented": [
+        "Canonical inventory schema/factory",
+        "Mutation helpers for add/remove/stack/normalize",
+        "Persistence bridge",
+        "Cross-domain alignment tests"
+      ]
+    },
+    "world_system": {
+      "status": "very broad scaffold implemented",
+      "location": "apps/world-system/src",
+      "domains": {
+        "character": [
+          "schema/manager/service/repository",
+          "persistence bridge",
+          "character-inventory linkage",
+          "progress/equipment flow scaffolds",
+          "adapters to combat and dungeon shapes",
+          "rule hook scaffolds for race/class/background",
+          "character harness"
+        ],
+        "loot": [
+          "loot core schema/manager",
+          "loot tables and rolling",
+          "reward hook consumer",
+          "boss drop resolver",
+          "inventory grant integration",
+          "logging and harness"
+        ],
+        "economy": [
+          "currency core",
+          "transaction schema/logging",
+          "npc and player shop flows",
+          "snapshot and harness",
+          "ownership/sell validation hardening tests"
+        ],
+        "crafting": [
+          "recipe core",
+          "requirements and eligibility",
+          "jobs/checks/completion",
+          "resource consumption with rollback safety",
+          "logging/snapshot/harness"
+        ],
+        "advanced_systems": [
+          "guild/raid/world events/hunter/contracts/ranking scaffolds",
+          "snapshot and harness coverage"
+        ]
+      }
+    }
+  },
+  "integration_status": {
+    "stage13": {
+      "status": "implemented",
+      "summary": "Gateway slash command layer and canonical event mappings completed for read/bootstrap/session/action command set."
+    },
+    "stage14": {
+      "status": "implemented with hardening in progress",
+      "summary": "Runtime integration for read/start/equip/unequip/session lifecycle/active action command flows through canonical path.",
+      "known_hardening_work": [
+        "continue consistency checks on multi-write persistence flows",
+        "maintain strict controller thinness",
+        "keep rollback-safe mutation order in critical actions"
+      ]
+    }
+  },
+  "test_and_ci_status": {
+    "aggregate_scripts": {
+      "test:gateway": "gateway tests",
+      "test:runtime": "runtime + controller tests",
+      "test:persistence": "database + persistence bridge tests",
+      "test:hardening": "economy/ownership/character-inventory/inventory mutation hardening tests",
+      "test:harness": "harness tests across apps",
+      "test:stage13": "gateway + foundation + harness",
+      "test:stage14": "gateway + runtime + persistence + playable loop + hardening",
+      "test:all": "stage13 then stage14"
+    },
+    "recent_verified_runs": [
+      {
+        "command": "npm run test:runtime",
+        "result": "pass",
+        "verified_on": "2026-03-10"
+      },
+      {
+        "command": "npm run test:gateway",
+        "result": "pass",
+        "verified_on": "2026-03-10"
+      }
+    ],
+    "recommended_confidence_run_order": [
+      "npm run test:runtime",
+      "npm run test:persistence",
+      "npm run test:hardening",
+      "npm run test:stage14",
+      "npm run test:all"
+    ]
+  },
+  "risk_register": {
+    "high_priority": [
+      "Multi-entity persistence writes still need ongoing consistency and rollback hardening",
+      "Combat redesign decision could invalidate current combat scaffolds if scope changes significantly"
+    ],
+    "medium_priority": [
+      "Keep event payload contracts stable as new content is added",
+      "Avoid introducing alternate non-canonical execution paths",
+      "Maintain parity across in-memory and sqlite behavior"
+    ],
+    "low_priority": [
+      "Consolidate documentation and remove stale historical status files later"
+    ]
+  },
+  "next_recommended_steps": [
+    "Run npm run test:stage14 after each integration/hardening chunk",
+    "Run npm run test:all before milestone merges",
+    "Produce a combat redesign decision memo (keep/replace/migrate plan)",
+    "Lock canonical event contracts for content phase command additions",
+    "Expand persistence parity tests where split-write paths remain"
+  ],
+  "quick_handoff_prompt": {
+    "usage": "Paste this JSON into ChatGPT, then ask for a milestone-by-milestone implementation plan that preserves canonical event flow and persistence safety.",
+    "example": "Using this system status, propose a phased plan for content phase while preserving Stage 14 runtime architecture and adding combat redesign safely."
+  }
+}

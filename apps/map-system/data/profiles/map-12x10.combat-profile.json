@@ -1,0 +1,124 @@
+{
+  "name": "Map 12x10 Combat Profile",
+  "terrain": [
+    {
+      "x": 2,
+      "y": 1,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 2,
+      "y": 2,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 3,
+      "y": 2,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 4,
+      "y": 2,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 2,
+      "y": 3,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 3,
+      "y": 3,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 4,
+      "y": 3,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 2,
+      "y": 5,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 3,
+      "y": 5,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 4,
+      "y": 5,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 2,
+      "y": 6,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 3,
+      "y": 6,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 4,
+      "y": 6,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    }
+  ],
+  "terrain_zones": [],
+  "tokens": [],
+  "overlays": [],
+  "terrain_mask_metadata": {
+    "palette_id": "mspaint_basic",
+    "tile_count": 120,
+    "generated_terrain_tiles": 15,
+    "unmatched_tiles": 0,
+    "terrain_type_counts": {
+      "open": 105,
+      "wall": 15
+    },
+    "mask_path": "apps/map-system/assets/masks/mask-12x10.png"
+  }
+}

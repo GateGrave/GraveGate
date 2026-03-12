@@ -1,0 +1,131 @@
+"use strict";
+
+const assert = require("assert");
+const { commandDefinitions } = require("../discord/commandDefinitions");
+
+function runTest(name, fn, results) {
+  try {
+    fn();
+    results.push({ name, ok: true });
+  } catch (error) {
+    results.push({ name, ok: false, reason: error.message });
+  }
+}
+
+function runCommandDefinitionsTests() {
+  const results = [];
+
+  runTest("slash_registration_includes_stage_13_commands", () => {
+    const names = commandDefinitions.map(function mapCommand(def) {
+      return def.name;
+    });
+
+    assert.equal(names.includes("ping"), true);
+    assert.equal(names.includes("help"), true);
+    assert.equal(names.includes("profile"), true);
+    assert.equal(names.includes("inventory"), true);
+    assert.equal(names.includes("admin"), true);
+    assert.equal(names.includes("start"), true);
+    assert.equal(names.includes("equip"), true);
+    assert.equal(names.includes("unequip"), true);
+    assert.equal(names.includes("dungeon"), true);
+    assert.equal(names.includes("leave"), true);
+    assert.equal(names.includes("interact"), true);
+    assert.equal(names.includes("move"), true);
+    assert.equal(names.includes("attack"), true);
+    assert.equal(names.includes("cast"), true);
+    assert.equal(names.includes("use"), true);
+    assert.equal(commandDefinitions.length >= 15, true);
+
+    const startDef = commandDefinitions.find(function findStart(def) {
+      return def.name === "start";
+    });
+    const adminDef = commandDefinitions.find(function findAdmin(def) {
+      return def.name === "admin";
+    });
+    assert.equal(Boolean(startDef), true);
+    assert.equal(Boolean(adminDef), true);
+    assert.equal(Array.isArray(startDef.options), true);
+    assert.equal(Array.isArray(adminDef.options), true);
+
+    const equipDef = commandDefinitions.find(function findEquip(def) {
+      return def.name === "equip";
+    });
+    const unequipDef = commandDefinitions.find(function findUnequip(def) {
+      return def.name === "unequip";
+    });
+    const dungeonDef = commandDefinitions.find(function findDungeon(def) {
+      return def.name === "dungeon";
+    });
+    const leaveDef = commandDefinitions.find(function findLeave(def) {
+      return def.name === "leave";
+    });
+    const interactDef = commandDefinitions.find(function findInteract(def) {
+      return def.name === "interact";
+    });
+    const moveDef = commandDefinitions.find(function findMove(def) {
+      return def.name === "move";
+    });
+    const attackDef = commandDefinitions.find(function findAttack(def) {
+      return def.name === "attack";
+    });
+    const castDef = commandDefinitions.find(function findCast(def) {
+      return def.name === "cast";
+    });
+    const useDef = commandDefinitions.find(function findUse(def) {
+      return def.name === "use";
+    });
+    assert.equal(Boolean(equipDef), true);
+    assert.equal(Boolean(unequipDef), true);
+    assert.equal(Boolean(dungeonDef), true);
+    assert.equal(Boolean(leaveDef), true);
+    assert.equal(Boolean(interactDef), true);
+    assert.equal(Boolean(moveDef), true);
+    assert.equal(Boolean(attackDef), true);
+    assert.equal(Boolean(castDef), true);
+    assert.equal(Boolean(useDef), true);
+    assert.equal(Array.isArray(equipDef.options), true);
+    assert.equal(Array.isArray(unequipDef.options), true);
+    assert.equal(Array.isArray(dungeonDef.options), true);
+    assert.equal(Array.isArray(leaveDef.options), true);
+    assert.equal(Array.isArray(interactDef.options), true);
+    assert.equal(Array.isArray(moveDef.options), true);
+    assert.equal(Array.isArray(attackDef.options), true);
+    assert.equal(Array.isArray(castDef.options), true);
+    assert.equal(Array.isArray(useDef.options), true);
+
+    const hasEnterSubcommand = dungeonDef.options.some(function hasEnter(option) {
+      return option && option.name === "enter";
+    });
+    assert.equal(hasEnterSubcommand, true);
+    const interactSpellOption = interactDef.options.find(function findOption(option) {
+      return option && option.name === "spell_id";
+    });
+    assert.equal(Boolean(interactSpellOption), true);
+  }, results);
+
+  const passed = results.filter((x) => x.ok).length;
+  const failed = results.length - passed;
+
+  return {
+    ok: failed === 0,
+    totals: {
+      total: results.length,
+      passed,
+      failed
+    },
+    results
+  };
+}
+
+if (require.main === module) {
+  const summary = runCommandDefinitionsTests();
+  console.log(JSON.stringify(summary, null, 2));
+  if (!summary.ok) {
+    process.exitCode = 1;
+  }
+}
+
+module.exports = {
+  runCommandDefinitionsTests
+};

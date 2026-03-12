@@ -1,0 +1,32 @@
+{
+  "name": "Map 12x12 Alignment Preview",
+  "terrain": [],
+  "terrain_zones": [],
+  "tokens": [
+    {
+      "token_id": "player-a",
+      "token_type": "player",
+      "label": "P1",
+      "badge_text": "1",
+      "position": { "x": 2, "y": 2 },
+      "asset_path": "apps/map-system/assets/tokens/players/processed/asamar-female-01.cleaned.png"
+    },
+    {
+      "token_id": "player-b",
+      "token_type": "player",
+      "label": "P2",
+      "badge_text": "2",
+      "position": { "x": 5, "y": 5 },
+      "asset_path": "apps/map-system/assets/tokens/players/processed/asamar-male.cleaned.png"
+    },
+    {
+      "token_id": "player-c",
+      "token_type": "player",
+      "label": "P3",
+      "badge_text": "3",
+      "position": { "x": 8, "y": 8 },
+      "asset_path": "apps/map-system/assets/tokens/players/processed/dwarf-female-01.cleaned.png"
+    }
+  ],
+  "overlays": []
+}

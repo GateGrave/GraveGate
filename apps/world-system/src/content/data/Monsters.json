@@ -1,0 +1,456 @@
+{
+  "content_type": "monster",
+  "schema_version": 1,
+  "entries": [
+    {
+      "monster_id": "monster_goblin_scout",
+      "name": "Goblin Scout",
+      "level": 1,
+      "max_hp": 7,
+      "armor_class": 15,
+      "attack_bonus": 4,
+      "damage": 5,
+      "loot_table_id": "loot_table_goblin_scout",
+      "metadata": {
+        "source": "srd_5_1_scaffold",
+        "tier": "starter",
+        "role": "skirmisher",
+        "xp_reward": 50,
+        "movement": 30,
+        "stats": {
+          "strength": 8,
+          "dexterity": 14,
+          "constitution": 10,
+          "intelligence": 10,
+          "wisdom": 8,
+          "charisma": 8
+        },
+        "attacks": [
+          {
+            "id": "scimitar",
+            "name": "Scimitar",
+            "to_hit": 4,
+            "damage_dice": "1d6+2",
+            "damage_type": "slashing",
+            "range": "melee"
+          },
+          {
+            "id": "shortbow",
+            "name": "Shortbow",
+            "to_hit": 4,
+            "damage_dice": "1d6+2",
+            "damage_type": "piercing",
+            "range": "80/320"
+          }
+        ]
+      }
+    },
+    {
+      "monster_id": "monster_skeleton_guard",
+      "name": "Skeleton Guard",
+      "level": 1,
+      "max_hp": 13,
+      "armor_class": 13,
+      "attack_bonus": 4,
+      "damage": 5,
+      "loot_table_id": "loot_table_skeleton_guard",
+      "metadata": {
+        "source": "srd_5_1_scaffold",
+        "tier": "starter",
+        "role": "frontliner",
+        "xp_reward": 50,
+        "movement": 30,
+        "stats": {
+          "strength": 10,
+          "dexterity": 14,
+          "constitution": 15,
+          "intelligence": 6,
+          "wisdom": 8,
+          "charisma": 5
+        },
+        "attacks": [
+          {
+            "id": "shortsword",
+            "name": "Shortsword",
+            "to_hit": 4,
+            "damage_dice": "1d6+2",
+            "damage_type": "piercing",
+            "range": "melee"
+          }
+        ]
+      }
+    },
+    {
+      "monster_id": "monster_wolf_hunter",
+      "name": "Wolf Hunter",
+      "level": 1,
+      "max_hp": 11,
+      "armor_class": 13,
+      "attack_bonus": 4,
+      "damage": 7,
+      "loot_table_id": "loot_table_wolf_hunter",
+      "metadata": {
+        "source": "srd_5_1_scaffold",
+        "tier": "starter",
+        "role": "pack_hunter",
+        "xp_reward": 50,
+        "movement": 40,
+        "stats": {
+          "strength": 12,
+          "dexterity": 15,
+          "constitution": 12,
+          "intelligence": 3,
+          "wisdom": 12,
+          "charisma": 6
+        },
+        "attacks": [
+          {
+            "id": "bite",
+            "name": "Bite",
+            "to_hit": 4,
+            "damage_dice": "2d4+2",
+            "damage_type": "piercing",
+            "range": "melee"
+          }
+        ]
+      }
+    },
+    {
+      "monster_id": "monster_bandit_raider",
+      "name": "Bandit Raider",
+      "level": 1,
+      "max_hp": 11,
+      "armor_class": 12,
+      "attack_bonus": 3,
+      "damage": 4,
+      "loot_table_id": "loot_table_bandit_raider",
+      "metadata": {
+        "source": "srd_5_1_scaffold",
+        "tier": "starter",
+        "role": "raider",
+        "xp_reward": 25,
+        "movement": 30,
+        "stats": {
+          "strength": 11,
+          "dexterity": 12,
+          "constitution": 12,
+          "intelligence": 10,
+          "wisdom": 10,
+          "charisma": 10
+        },
+        "attacks": [
+          {
+            "id": "scimitar",
+            "name": "Scimitar",
+            "to_hit": 3,
+            "damage_dice": "1d6+1",
+            "damage_type": "slashing",
+            "range": "melee"
+          }
+        ]
+      }
+    },
+    {
+      "monster_id": "monster_hobgoblin_captain",
+      "name": "Hobgoblin Captain",
+      "level": 3,
+      "max_hp": 39,
+      "armor_class": 17,
+      "attack_bonus": 5,
+      "damage": 8,
+      "loot_table_id": "loot_table_hobgoblin_captain",
+      "metadata": {
+        "source": "srd_5_1_scaffold",
+        "tier": "elite",
+        "role": "miniboss",
+        "reward_curve": {
+          "quantity_multiplier": 1.5,
+          "guaranteed_quantity_bonus": 1,
+          "weighted_bonus_rolls": 1,
+          "xp_multiplier": 1.5
+        },
+        "xp_reward": 450,
+        "movement": 30,
+        "stats": {
+          "strength": 15,
+          "dexterity": 14,
+          "constitution": 13,
+          "intelligence": 12,
+          "wisdom": 10,
+          "charisma": 13
+        },
+        "attacks": [
+          {
+            "id": "longsword",
+            "name": "Longsword",
+            "to_hit": 5,
+            "damage_dice": "1d8+3",
+            "damage_type": "slashing",
+            "range": "melee"
+          }
+        ]
+      }
+    },
+    {
+      "monster_id": "monster_cave_rat",
+      "name": "Cave Rat",
+      "level": 1,
+      "max_hp": 8,
+      "armor_class": 11,
+      "attack_bonus": 2,
+      "damage": 3,
+      "loot_table_id": "loot_table_cave_rat",
+      "metadata": {
+        "source": "starter_legacy",
+        "tier": "starter",
+        "encounter_role": "trash",
+        "xp_reward": 25,
+        "movement": 30,
+        "attacks": [
+          {
+            "id": "bite",
+            "name": "Bite",
+            "to_hit": 2,
+            "damage_dice": "1d4+1",
+            "damage_type": "piercing",
+            "range": "melee"
+          }
+        ]
+      }
+    },
+    {
+      "monster_id": "monster_tunnel_alpha",
+      "name": "Tunnel Alpha",
+      "level": 2,
+      "max_hp": 18,
+      "armor_class": 13,
+      "attack_bonus": 4,
+      "damage": 5,
+      "loot_table_id": "loot_table_tunnel_alpha",
+      "metadata": {
+        "source": "starter_legacy",
+        "tier": "low",
+        "encounter_role": "boss",
+        "reward_curve": {
+          "quantity_multiplier": 1.2,
+          "guaranteed_quantity_bonus": 0,
+          "weighted_bonus_rolls": 0,
+          "xp_multiplier": 1.1
+        },
+        "xp_reward": 90,
+        "movement": 30,
+        "attacks": [
+          {
+            "id": "alpha_claw",
+            "name": "Alpha Claw",
+            "to_hit": 4,
+            "damage_dice": "1d8+1",
+            "damage_type": "slashing",
+            "range": "melee"
+          }
+        ]
+      }
+    },
+    {
+      "monster_id": "monster_kobold_skirmisher",
+      "name": "Kobold Skirmisher",
+      "level": 1,
+      "max_hp": 5,
+      "armor_class": 12,
+      "attack_bonus": 4,
+      "damage": 4,
+      "loot_table_id": "loot_table_kobold_skirmisher",
+      "metadata": {
+        "source": "srd_5_1_scaffold",
+        "tier": "starter",
+        "role": "skirmisher",
+        "xp_reward": 25,
+        "movement": 30,
+        "attacks": [
+          {
+            "id": "dagger",
+            "name": "Dagger",
+            "to_hit": 4,
+            "damage_dice": "1d4+2",
+            "damage_type": "piercing",
+            "range": "melee"
+          }
+        ]
+      }
+    },
+    {
+      "monster_id": "monster_zombie_shambler",
+      "name": "Zombie Shambler",
+      "level": 1,
+      "max_hp": 22,
+      "armor_class": 8,
+      "attack_bonus": 3,
+      "damage": 5,
+      "loot_table_id": "loot_table_zombie_shambler",
+      "metadata": {
+        "source": "srd_5_1_scaffold",
+        "tier": "low",
+        "role": "bruiser",
+        "xp_reward": 50,
+        "movement": 20,
+        "attacks": [
+          {
+            "id": "slam",
+            "name": "Slam",
+            "to_hit": 3,
+            "damage_dice": "1d6+1",
+            "damage_type": "bludgeoning",
+            "range": "melee"
+          }
+        ]
+      }
+    },
+    {
+      "monster_id": "monster_cultist_initiate",
+      "name": "Cultist Initiate",
+      "level": 1,
+      "max_hp": 9,
+      "armor_class": 12,
+      "attack_bonus": 3,
+      "damage": 4,
+      "loot_table_id": "loot_table_cultist_initiate",
+      "metadata": {
+        "source": "srd_5_1_scaffold",
+        "tier": "starter",
+        "role": "caster_support",
+        "xp_reward": 25,
+        "movement": 30,
+        "attacks": [
+          {
+            "id": "ritual_dagger",
+            "name": "Ritual Dagger",
+            "to_hit": 3,
+            "damage_dice": "1d4+1",
+            "damage_type": "piercing",
+            "range": "melee"
+          }
+        ]
+      }
+    },
+    {
+      "monster_id": "monster_orc_brute",
+      "name": "Orc Brute",
+      "level": 2,
+      "max_hp": 16,
+      "armor_class": 13,
+      "attack_bonus": 5,
+      "damage": 9,
+      "loot_table_id": "loot_table_orc_brute",
+      "metadata": {
+        "source": "srd_5_1_scaffold",
+        "tier": "low",
+        "role": "frontliner",
+        "xp_reward": 100,
+        "movement": 30,
+        "attacks": [
+          {
+            "id": "greataxe",
+            "name": "Greataxe",
+            "to_hit": 5,
+            "damage_dice": "1d12+3",
+            "damage_type": "slashing",
+            "range": "melee"
+          }
+        ]
+      }
+    },
+    {
+      "monster_id": "monster_giant_spiderling",
+      "name": "Giant Spiderling",
+      "level": 1,
+      "max_hp": 10,
+      "armor_class": 13,
+      "attack_bonus": 5,
+      "damage": 5,
+      "loot_table_id": "loot_table_giant_spiderling",
+      "metadata": {
+        "source": "stage15_content_pack_1",
+        "tier": "low",
+        "role": "ambusher",
+        "xp_reward": 50,
+        "movement": 30,
+        "attacks": [
+          {
+            "id": "venom_bite",
+            "name": "Venom Bite",
+            "to_hit": 5,
+            "damage_dice": "1d6+2",
+            "damage_type": "piercing",
+            "range": "melee"
+          }
+        ]
+      }
+    },
+    {
+      "monster_id": "monster_gnoll_skullcleaver",
+      "name": "Gnoll Skullcleaver",
+      "level": 2,
+      "max_hp": 22,
+      "armor_class": 15,
+      "attack_bonus": 4,
+      "damage": 8,
+      "loot_table_id": "loot_table_gnoll_skullcleaver",
+      "metadata": {
+        "source": "stage15_content_pack_1",
+        "tier": "veteran",
+        "role": "elite",
+        "reward_curve": {
+          "quantity_multiplier": 1.3,
+          "guaranteed_quantity_bonus": 1,
+          "weighted_bonus_rolls": 1,
+          "xp_multiplier": 1.35
+        },
+        "xp_reward": 150,
+        "movement": 30,
+        "attacks": [
+          {
+            "id": "battleaxe",
+            "name": "Battleaxe",
+            "to_hit": 4,
+            "damage_dice": "1d8+3",
+            "damage_type": "slashing",
+            "range": "melee"
+          }
+        ]
+      }
+    },
+    {
+      "monster_id": "monster_wight_captain",
+      "name": "Wight Captain",
+      "level": 3,
+      "max_hp": 36,
+      "armor_class": 14,
+      "attack_bonus": 6,
+      "damage": 9,
+      "loot_table_id": "loot_table_wight_captain",
+      "metadata": {
+        "source": "stage15_content_pack_1",
+        "tier": "elite",
+        "role": "miniboss",
+        "reward_curve": {
+          "quantity_multiplier": 1.6,
+          "guaranteed_quantity_bonus": 1,
+          "weighted_bonus_rolls": 1,
+          "xp_multiplier": 1.6
+        },
+        "xp_reward": 300,
+        "movement": 30,
+        "attacks": [
+          {
+            "id": "life_drain_blade",
+            "name": "Life Drain Blade",
+            "to_hit": 6,
+            "damage_dice": "1d8+4",
+            "damage_type": "necrotic",
+            "range": "melee"
+          }
+        ]
+      }
+    }
+  ]
+}

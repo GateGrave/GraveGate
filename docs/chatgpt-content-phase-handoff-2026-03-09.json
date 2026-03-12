@@ -1,0 +1,287 @@
+{
+  "handoff_meta": {
+    "project_name": "GateGrave-bot-System",
+    "generated_on": "2026-03-09",
+    "generated_timezone": "America/New_York",
+    "format_version": "2.0",
+    "purpose": "Content-phase planning + system state for ChatGPT guidance",
+    "authoring_note": "Prepared after Stage 14 runtime async hardening and full-suite validation."
+  },
+  "current_status": {
+    "overall_readiness": "stable_for_content_phase_with_known_refactor_choices",
+    "full_test_command": "npm run test:all",
+    "latest_validation_result": "pass",
+    "high_level_summary": [
+      "Gateway command translation exists for read/start/equip/unequip/dungeon lifecycle/active commands.",
+      "Canonical runtime path is wired and now async-safe (eventBus + orchestrator + runtime command processing).",
+      "Persistence boundaries exist for character/inventory/session/combat with inMemory + sqlite adapters.",
+      "Subsystem harnesses exist for combat, dungeon, loot, economy, crafting, and runtime loop.",
+      "System is entering content-heavy phase; combat design can be incrementally improved or rewritten behind adapters."
+    ]
+  },
+  "architecture_contract": {
+    "must_keep": [
+      "Event-driven architecture",
+      "Gateway contains no gameplay logic",
+      "Controller handles intake/validation/routing only",
+      "World, Session, Combat state remain separate",
+      "Inventory mutation goes through canonical inventory boundary",
+      "CommonJS monorepo style",
+      "Structured result objects for flows"
+    ],
+    "shared_event_contract": {
+      "location": "packages/shared-types",
+      "required_fields": [
+        "event_id",
+        "event_type",
+        "timestamp",
+        "source",
+        "target_system",
+        "player_id",
+        "session_id",
+        "combat_id",
+        "payload"
+      ]
+    }
+  },
+  "what_is_implemented": {
+    "gateway": {
+      "path": "apps/gateway/src",
+      "implemented": [
+        "discord client shell",
+        "slash command registration runner",
+        "command-to-event translator for Stage 13 commands",
+        "runtime integration for command handling",
+        "safe fallback reply handling when runtime/controller throws"
+      ],
+      "notes": [
+        "Gateway now forwards command events into canonical runtime path.",
+        "Ping remains a shell command path for bot connectivity checks."
+      ]
+    },
+    "controller_runtime": {
+      "paths": [
+        "apps/controller/src",
+        "apps/runtime/src"
+      ],
+      "implemented": [
+        "controller event validation",
+        "event router with explicit unknown-event failure",
+        "runtime event bus",
+        "runtime orchestrator",
+        "read command runtime integration",
+        "game loop runtime harness"
+      ],
+      "recent_hardening": [
+        "eventBus publish supports sync and async handlers",
+        "orchestrator run awaits publish and preserves deterministic queue ordering",
+        "gateway awaits runtime processing and sends safe fallback reply on exceptions"
+      ]
+    },
+    "combat_system": {
+      "path": "apps/combat-system/src",
+      "implemented_core": [
+        "combat model + manager",
+        "initiative",
+        "start/next turn/end-check",
+        "attack/move/dodge/use item",
+        "defeated-state restrictions"
+      ],
+      "implemented_advanced": [
+        "locking",
+        "grid + movement validation",
+        "target validation",
+        "dice resolver",
+        "damage pipeline",
+        "concentration",
+        "reactions",
+        "status effects",
+        "downed/death saves",
+        "turn resolver sequence",
+        "timeout + snapshots",
+        "persistence bridge"
+      ],
+      "current_assessment": "feature-rich scaffold; good candidate for selective cleanup or full v2 combat core behind same event contracts"
+    },
+    "dungeon_system": {
+      "path": "apps/dungeon-exploration/src",
+      "implemented": [
+        "session model + manager",
+        "room model",
+        "party move flow",
+        "room entry resolution",
+        "challenge/object/rest/boss room resolvers",
+        "reward hook preparation",
+        "session lock + snapshot",
+        "persistence bridge",
+        "dungeon harness + first playable loop harness"
+      ]
+    },
+    "world_system": {
+      "path": "apps/world-system/src",
+      "character": [
+        "schema/service/manager/repository/persistence",
+        "character-inventory linking with validation",
+        "progress + equipment update flows",
+        "adapters to combat and dungeon shapes",
+        "race/class/background hook modules"
+      ],
+      "loot": [
+        "core schema",
+        "loot tables",
+        "roll resolver",
+        "reward hook consumer",
+        "boss + individual assignment",
+        "grant to inventory",
+        "logging + harness"
+      ],
+      "economy": [
+        "currency",
+        "npc + player shop flows",
+        "transaction schema/logging",
+        "snapshot + harness",
+        "hardening tests"
+      ],
+      "crafting": [
+        "recipe + requirements + eligibility",
+        "job/progress/check/completion",
+        "rollback-safe consumption/grant",
+        "logging + snapshot + harness"
+      ],
+      "advanced": [
+        "guilds",
+        "raids",
+        "world events",
+        "hunter/contracts",
+        "rankings",
+        "advanced snapshot/harness"
+      ]
+    },
+    "inventory_system": {
+      "path": "apps/inventory-system/src",
+      "implemented": [
+        "canonical inventory schema",
+        "mutation helpers",
+        "persistence bridge",
+        "alignment with loot/economy/crafting"
+      ]
+    },
+    "database": {
+      "path": "apps/database/src",
+      "implemented": [
+        "adapter interface-like contract",
+        "inMemory adapter",
+        "sqlite adapter",
+        "migration/version tests",
+        "world-storage placeholders"
+      ]
+    }
+  },
+  "test_coverage_snapshot": {
+    "aggregate_commands": [
+      "npm run test:gateway",
+      "npm run test:persistence",
+      "npm run test:runtime",
+      "npm run test:harness",
+      "npm run test:hardening",
+      "npm run test:stage13",
+      "npm run test:stage14",
+      "npm run test:all"
+    ],
+    "status": "all passing",
+    "notable_recent_tests": [
+      "gatewayRuntimeIntegration.test.js",
+      "eventBus.test.js (async scenarios)",
+      "orchestrator.test.js (async chain + rejection)",
+      "readCommandRuntime.test.js",
+      "firstPlayableLoopHarness.test.js",
+      "combatPersistenceAdapter.test.js",
+      "sessionPersistenceAdapter.test.js",
+      "sqliteAdapter.test.js"
+    ]
+  },
+  "known_decisions_for_content_phase": {
+    "recommended_content_principles": [
+      "Do not add new gameplay mutation logic to gateway/controller.",
+      "Content should be data-driven where possible (tables/profiles/templates).",
+      "Preserve event names and payload shape stability where already wired.",
+      "Prefer adding content packs over touching runtime plumbing.",
+      "Use harnesses to validate content behavior before Discord exposure."
+    ],
+    "combat_redo_strategy_options": [
+      {
+        "option": "A - incremental cleanup",
+        "when_to_choose": "If current combat behavior is mostly acceptable and timelines are tight.",
+        "steps": [
+          "freeze current event contracts",
+          "add combat domain service facade",
+          "refactor internals module-by-module",
+          "keep existing tests green while adding behavior snapshots"
+        ],
+        "risk": "medium"
+      },
+      {
+        "option": "B - parallel v2 combat core behind adapter",
+        "when_to_choose": "If current combat needs structural redesign but you want safe migration.",
+        "steps": [
+          "define combat v2 interface contract",
+          "implement v2 in separate folder",
+          "adapter maps existing events to v2",
+          "dual-run selected harnesses",
+          "flip feature flag once parity reached"
+        ],
+        "risk": "medium-high",
+        "benefit": "cleaner long-term foundation"
+      },
+      {
+        "option": "C - full rewrite in place",
+        "when_to_choose": "Only if speed now matters more than migration safety.",
+        "risk": "high",
+        "warning": "Can destabilize current Stage 14 command/runtime integration."
+      }
+    ],
+    "recommended_choice": "B - parallel v2 combat core behind adapter"
+  },
+  "proposed_next_steps_for_chatgpt": {
+    "phase_1_stabilize_contracts": [
+      "Generate one canonical event map doc (command -> event_type -> target_system -> handler entry).",
+      "Lock payload schemas for move/attack/use/equip/unequip/start/session lifecycle.",
+      "Add contract tests that fail on event shape drift."
+    ],
+    "phase_2_content_scaffold": [
+      "Create data folders for enemies, encounters, dungeons, loot packs, items, classes/races/backgrounds metadata.",
+      "Add lightweight loaders/validators (no gameplay logic) for content JSON.",
+      "Add deterministic seed utilities for encounter/loot content testing."
+    ],
+    "phase_3_combat_redo_prep": [
+      "Define combat v2 boundary interface and adapter contract.",
+      "Identify minimal combat v2 MVP: turn state, action validation, resolution order, persistence points.",
+      "Build parity tests against key Stage 14 action flows."
+    ],
+    "phase_4_runtime_integration": [
+      "Route content-driven encounter generation through existing event chain.",
+      "Keep world/session/combat persistence boundaries explicit.",
+      "Add snapshot replay tests for dungeon + combat continuity."
+    ],
+    "phase_5_release_guardrails": [
+      "Use test:stage14 as mandatory pre-merge gate.",
+      "Run harness suites against both inMemory and sqlite where feasible.",
+      "Add one smoke script for gateway command to runtime to persistence path."
+    ]
+  },
+  "current_risks_and_watchlist": [
+    "Controller handlers file is large and highly coupled; consider domain handler registration map for maintainability.",
+    "Runtime logs include expected error output from throw tests; keep this intentional and documented.",
+    "Content growth can create schema drift; add strict content validators early.",
+    "Combat complexity may outpace maintainability without a v2 boundary plan."
+  ],
+  "quick_commands": {
+    "full_validation": "npm run test:all",
+    "stage14_validation": "npm run test:stage14",
+    "gateway_only": "npm run test:gateway",
+    "runtime_controller": "npm run test:runtime",
+    "persistence": "npm run test:persistence",
+    "harness": "npm run test:harness"
+  },
+  "chatgpt_seed_prompt": "Use this handoff as the working baseline. Keep event-driven boundaries strict, avoid gameplay logic in gateway/controller/runtime plumbing, prioritize data-driven content scaffolding, and propose a combat-v2 migration path behind stable event contracts."
+}

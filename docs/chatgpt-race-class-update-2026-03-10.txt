@@ -1,0 +1,162 @@
+GateGrave Content Update Summary (Races + Classes)
+Date: 2026-03-10
+
+Scope of this update
+- Expanded Race content from starter-only to SRD 5.1 base races.
+- Added SRD 5.1 subrace support in race content.
+- Added Dragonborn draconic ancestry selection options.
+- Expanded Class content from starter-only to SRD 5.1 base classes.
+- Added subclass scaffolds (one SRD subclass per class) in class content.
+- Added race/class option lookup helpers in rule hook modules.
+- Added/updated tests to lock these additions.
+
+Files updated
+1) apps/world-system/src/content/data/Race.json
+2) apps/world-system/src/content/data/Class.json
+3) apps/world-system/src/character/rules/raceRules.js
+4) apps/world-system/src/character/rules/classRules.js
+5) apps/world-system/src/character/testing/characterRulesHooks.test.js
+
+----------------------------------------
+RACES: What was added
+----------------------------------------
+Base race list now includes SRD 5.1 set:
+- dragonborn
+- dwarf
+- elf
+- gnome
+- half_elf
+- half_orc
+- halfling
+- human
+- tiefling
+
+Each race entry now includes:
+- id
+- name
+- stat_modifiers
+- features
+- metadata (source + notes)
+
+Subraces added:
+- Dwarf:
+  - hill_dwarf
+  - mountain_dwarf
+- Elf:
+  - high_elf
+  - wood_elf
+- Gnome:
+  - forest_gnome
+  - rock_gnome
+- Halfling:
+  - lightfoot_halfling
+  - stout_halfling
+
+Dragonborn ancestry options added:
+- black
+- blue
+- brass
+- bronze
+- copper
+- gold
+- green
+- red
+- silver
+- white
+
+Each ancestry option includes:
+- damage_type
+- breath_weapon_shape
+- save_ability
+
+Race rule helpers added:
+- getRaceOptions(race_id)
+- getRaceOptionData(race_id, option_id)
+
+These return structured results and support:
+- subrace selection
+- Dragonborn ancestry selection
+
+----------------------------------------
+CLASSES: What was added
+----------------------------------------
+Base class list now includes SRD 5.1 set:
+- barbarian
+- bard
+- cleric
+- druid
+- fighter
+- monk
+- paladin
+- ranger
+- rogue
+- sorcerer
+- warlock
+- wizard
+
+Each class entry includes scaffold-level SRD metadata:
+- hit_die
+- primary_abilities
+- saving_throws
+- armor_proficiencies
+- weapon_proficiencies
+- tool_proficiencies
+- spellcasting_ability
+- notes
+
+Subclass scaffolds added (one per class):
+- Barbarian -> path_of_the_berserker
+- Bard -> college_of_lore
+- Cleric -> life_domain
+- Druid -> circle_of_the_land
+- Fighter -> champion
+- Monk -> way_of_the_open_hand
+- Paladin -> oath_of_devotion
+- Ranger -> hunter
+- Rogue -> thief
+- Sorcerer -> draconic_bloodline
+- Warlock -> the_fiend
+- Wizard -> school_of_evocation
+
+Class rule helpers added:
+- getClassOptions(class_id)
+- getClassOptionData(class_id, option_id)
+
+These return structured results and support subclass lookup/selection.
+
+----------------------------------------
+Behavior/architecture notes
+----------------------------------------
+- No gameplay mutation was moved into gateway/controller.
+- Changes are content + rule-hook lookup only.
+- Existing loader/schema compatibility was preserved.
+- Content remains scaffold-friendly and extensible for future full mechanics.
+
+----------------------------------------
+Tests updated and run
+----------------------------------------
+Updated tests:
+- apps/world-system/src/character/testing/characterRulesHooks.test.js
+
+Added coverage for:
+- race subrace + dragonborn ancestry option lookups
+- full SRD 5.1 class list presence
+- class subclass option lookup
+
+Executed tests (pass):
+- node apps/world-system/src/content/testing/contentLoader.test.js
+- node apps/world-system/src/character/testing/characterRulesHooks.test.js
+
+----------------------------------------
+Current known limitation
+----------------------------------------
+- Subclass coverage is scaffold-level and currently one SRD subclass per class.
+- Full subclass feature progression by level is not implemented yet.
+- Full race/subrace feature mechanics are not fully wired to gameplay effects yet.
+
+----------------------------------------
+Recommended next step
+----------------------------------------
+- Add optional "selection application" helper flow that applies:
+  race + subrace/ancestry + class + subclass choices
+  onto a character profile in one structured call.

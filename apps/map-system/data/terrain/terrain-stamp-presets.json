@@ -1,0 +1,80 @@
+{
+  "presets": [
+    {
+      "preset_id": "tree_cluster",
+      "label": "Tree Cluster",
+      "default_shape": "circle",
+      "terrain_type": "tree",
+      "recommended": {
+        "radius": 1
+      }
+    },
+    {
+      "preset_id": "boulder",
+      "label": "Boulder",
+      "default_shape": "circle",
+      "terrain_type": "boulder",
+      "recommended": {
+        "radius": 0
+      }
+    },
+    {
+      "preset_id": "wall_section",
+      "label": "Wall Section",
+      "default_shape": "rectangle",
+      "terrain_type": "wall",
+      "recommended": {
+        "width": 3,
+        "height": 1
+      }
+    },
+    {
+      "preset_id": "river_section",
+      "label": "River Section",
+      "default_shape": "rectangle",
+      "terrain_type": "river",
+      "recommended": {
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "preset_id": "pit",
+      "label": "Pit",
+      "default_shape": "circle",
+      "terrain_type": "pit",
+      "recommended": {
+        "radius": 0
+      }
+    },
+    {
+      "preset_id": "cliff_edge",
+      "label": "Cliff Edge",
+      "default_shape": "rectangle",
+      "terrain_type": "cliff",
+      "recommended": {
+        "width": 3,
+        "height": 1
+      }
+    },
+    {
+      "preset_id": "mountain_ridge",
+      "label": "Mountain Ridge",
+      "default_shape": "rectangle",
+      "terrain_type": "mountain",
+      "recommended": {
+        "width": 4,
+        "height": 2
+      }
+    },
+    {
+      "preset_id": "brush_patch",
+      "label": "Brush Patch",
+      "default_shape": "circle",
+      "terrain_type": "brush",
+      "recommended": {
+        "radius": 1
+      }
+    }
+  ]
+}

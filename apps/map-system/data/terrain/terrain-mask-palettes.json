@@ -1,0 +1,51 @@
+{
+  "palettes": [
+    {
+      "palette_id": "mspaint_basic",
+      "name": "MS Paint Basic Combat Palette",
+      "description": "Simple flat colors intended for tile masks painted in MS Paint.",
+      "entries": [
+        {
+          "hex": "#FFFFFF",
+          "terrain_type": "open",
+          "label": "Open ground"
+        },
+        {
+          "hex": "#000000",
+          "terrain_type": "wall",
+          "label": "Wall / impassable"
+        },
+        {
+          "hex": "#FF0000",
+          "terrain_type": "impassable",
+          "label": "Impassable terrain"
+        },
+        {
+          "hex": "#0000FF",
+          "terrain_type": "river",
+          "label": "Water / impassable"
+        },
+        {
+          "hex": "#00FF00",
+          "terrain_type": "brush",
+          "label": "Difficult terrain"
+        },
+        {
+          "hex": "#FFFF00",
+          "terrain_type": "tree",
+          "label": "Tree / blocks sight"
+        },
+        {
+          "hex": "#FF00FF",
+          "terrain_type": "pit",
+          "label": "Pit / impassable"
+        },
+        {
+          "hex": "#00FFFF",
+          "terrain_type": "cliff",
+          "label": "Cliff / blocks sight"
+        }
+      ]
+    }
+  ]
+}

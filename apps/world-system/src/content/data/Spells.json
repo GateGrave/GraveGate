@@ -1,0 +1,607 @@
+{
+  "content_type": "spell",
+  "schema_version": 1,
+  "entries": [
+    {
+      "id": "fire_bolt",
+      "spell_id": "fire_bolt",
+      "name": "Fire Bolt",
+      "level": 0,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "120 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "spell_attack",
+        "ability": "spellcasting_ability"
+      },
+      "damage": {
+        "dice": "1d10",
+        "damage_type": "fire"
+      },
+      "class_refs": ["wizard", "sorcerer"],
+      "effect": {
+        "damage_ref": "spell_damage_fire_bolt",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15-starter",
+        "notes": ["Scaffold cantrip damage metadata"],
+        "class_refs": ["wizard", "sorcerer"]
+      }
+    },
+    {
+      "id": "ray_of_frost",
+      "spell_id": "ray_of_frost",
+      "name": "Ray of Frost",
+      "level": 0,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "spell_attack",
+        "ability": "spellcasting_ability"
+      },
+      "damage": {
+        "dice": "1d8",
+        "damage_type": "cold"
+      },
+      "class_refs": ["wizard", "sorcerer"],
+      "effect": {
+        "damage_ref": "spell_damage_ray_of_frost",
+        "targeting": "single",
+        "status_hint": "speed_reduced"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15-starter",
+        "notes": ["Scaffold slow effect metadata"],
+        "class_refs": ["wizard", "sorcerer"]
+      }
+    },
+    {
+      "id": "magic_missile",
+      "spell_id": "magic_missile",
+      "name": "Magic Missile",
+      "level": 1,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "120 feet",
+      "targeting": {
+        "type": "single_or_split_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "auto_hit"
+      },
+      "damage": {
+        "dice": "3d4+3",
+        "damage_type": "force"
+      },
+      "class_refs": ["wizard", "sorcerer"],
+      "effect": {
+        "damage_ref": "spell_damage_magic_missile",
+        "targeting": "single",
+        "projectiles": 3
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15-starter",
+        "notes": ["Scaffold auto-hit projectile metadata"],
+        "class_refs": ["wizard", "sorcerer"]
+      }
+    },
+    {
+      "id": "shield",
+      "spell_id": "shield",
+      "name": "Shield",
+      "level": 1,
+      "school": "abjuration",
+      "casting_time": "1 reaction",
+      "range": "self",
+      "targeting": {
+        "type": "self"
+      },
+      "duration": "1 round",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["wizard", "sorcerer"],
+      "effect": {
+        "defense_ref": "spell_shield_ac_bonus",
+        "ac_bonus": 5
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15-starter",
+        "notes": ["Scaffold defensive reaction metadata"],
+        "class_refs": ["wizard", "sorcerer"]
+      }
+    },
+    {
+      "id": "cure_wounds",
+      "spell_id": "cure_wounds",
+      "name": "Cure Wounds",
+      "level": 1,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "healing": {
+        "dice": "1d8",
+        "bonus": "spellcasting_ability_modifier"
+      },
+      "class_refs": ["cleric", "druid", "bard"],
+      "effect": {
+        "healing_ref": "spell_heal_cure_wounds",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15-starter",
+        "notes": ["Scaffold direct healing metadata"],
+        "class_refs": ["cleric", "druid", "bard"]
+      }
+    },
+    {
+      "id": "sacred_flame",
+      "spell_id": "sacred_flame",
+      "name": "Sacred Flame",
+      "level": 0,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "dexterity"
+      },
+      "damage": {
+        "dice": "1d8",
+        "damage_type": "radiant"
+      },
+      "class_refs": ["cleric"],
+      "effect": {
+        "damage_ref": "spell_damage_sacred_flame",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15-starter",
+        "notes": ["Scaffold save-based cantrip metadata"],
+        "class_refs": ["cleric"]
+      }
+    },
+    {
+      "id": "guiding_bolt",
+      "spell_id": "guiding_bolt",
+      "name": "Guiding Bolt",
+      "level": 1,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "120 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "1 round",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "spell_attack",
+        "ability": "spellcasting_ability"
+      },
+      "damage": {
+        "dice": "4d6",
+        "damage_type": "radiant"
+      },
+      "class_refs": ["cleric"],
+      "effect": {
+        "damage_ref": "spell_damage_guiding_bolt",
+        "targeting": "single",
+        "status_hint": "next_attack_advantage"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15-starter",
+        "notes": ["Scaffold on-hit rider metadata"],
+        "class_refs": ["cleric"]
+      }
+    },
+    {
+      "id": "mage_armor",
+      "spell_id": "mage_armor",
+      "name": "Mage Armor",
+      "level": 1,
+      "school": "abjuration",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "8 hours",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["wizard", "sorcerer"],
+      "effect": {
+        "defense_ref": "spell_mage_armor_base_ac",
+        "base_ac_formula": "13 + dex_mod"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15-starter",
+        "notes": ["Scaffold long-duration defense buff metadata"],
+        "class_refs": ["wizard", "sorcerer"]
+      }
+    },
+    {
+      "id": "acid_splash",
+      "spell_id": "acid_splash",
+      "name": "Acid Splash",
+      "level": 0,
+      "school": "conjuration",
+      "casting_time": "1 action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "single_or_adjacent_pair"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "dexterity"
+      },
+      "damage": {
+        "dice": "1d6",
+        "damage_type": "acid"
+      },
+      "class_refs": ["wizard", "sorcerer"],
+      "effect": {
+        "damage_ref": "spell_damage_acid_splash",
+        "targeting": "single_or_adjacent_pair"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15_content_pack_1",
+        "class_refs": ["wizard", "sorcerer"]
+      }
+    },
+    {
+      "id": "shocking_grasp",
+      "spell_id": "shocking_grasp",
+      "name": "Shocking Grasp",
+      "level": 0,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "spell_attack",
+        "ability": "spellcasting_ability"
+      },
+      "damage": {
+        "dice": "1d8",
+        "damage_type": "lightning"
+      },
+      "class_refs": ["wizard", "sorcerer"],
+      "effect": {
+        "damage_ref": "spell_damage_shocking_grasp",
+        "targeting": "single",
+        "status_hint": "no_reaction_until_next_turn"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15_content_pack_1",
+        "class_refs": ["wizard", "sorcerer"]
+      }
+    },
+    {
+      "id": "bless",
+      "spell_id": "bless",
+      "name": "Bless",
+      "level": 1,
+      "school": "enchantment",
+      "casting_time": "1 action",
+      "range": "30 feet",
+      "targeting": {
+        "type": "up_to_three_allies"
+      },
+      "duration": "1 minute",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["cleric", "paladin"],
+      "effect": {
+        "buff_ref": "spell_bless_attack_and_save_bonus",
+        "dice_bonus": "1d4"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15_content_pack_1",
+        "class_refs": ["cleric", "paladin"]
+      }
+    },
+    {
+      "id": "burning_hands",
+      "spell_id": "burning_hands",
+      "name": "Burning Hands",
+      "level": 1,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "self",
+      "targeting": {
+        "type": "cone_15ft"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "dexterity"
+      },
+      "damage": {
+        "dice": "3d6",
+        "damage_type": "fire"
+      },
+      "class_refs": ["wizard", "sorcerer"],
+      "effect": {
+        "damage_ref": "spell_damage_burning_hands",
+        "targeting": "cone"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15_content_pack_1",
+        "class_refs": ["wizard", "sorcerer"]
+      }
+    },
+    {
+      "id": "thunderwave",
+      "spell_id": "thunderwave",
+      "name": "Thunderwave",
+      "level": 1,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "self",
+      "targeting": {
+        "type": "cube_15ft"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "constitution"
+      },
+      "damage": {
+        "dice": "2d8",
+        "damage_type": "thunder"
+      },
+      "class_refs": ["wizard", "sorcerer", "bard"],
+      "effect": {
+        "damage_ref": "spell_damage_thunderwave",
+        "targeting": "cube",
+        "status_hint": "push_10_feet_on_fail"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15_content_pack_1",
+        "class_refs": ["wizard", "sorcerer", "bard"]
+      }
+    },
+    {
+      "id": "light",
+      "spell_id": "light",
+      "name": "Light",
+      "level": 0,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "object"
+      },
+      "duration": "1 hour",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["cleric", "wizard", "bard", "sorcerer"],
+      "effect": {
+        "utility_ref": "spell_light_emits_bright_light",
+        "targeting": "object"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15_content_pack_1",
+        "class_refs": ["cleric", "wizard", "bard", "sorcerer"]
+      }
+    },
+    {
+      "id": "poison_spray",
+      "spell_id": "poison_spray",
+      "name": "Poison Spray",
+      "level": 0,
+      "school": "conjuration",
+      "casting_time": "1 action",
+      "range": "10 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "constitution"
+      },
+      "damage": {
+        "dice": "1d12",
+        "damage_type": "poison"
+      },
+      "class_refs": ["sorcerer", "wizard", "druid"],
+      "effect": {
+        "damage_ref": "spell_damage_poison_spray",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15_content_pack_1",
+        "class_refs": ["sorcerer", "wizard", "druid"]
+      }
+    },
+    {
+      "id": "thaumaturgy",
+      "spell_id": "thaumaturgy",
+      "name": "Thaumaturgy",
+      "level": 0,
+      "school": "transmutation",
+      "casting_time": "1 action",
+      "range": "30 feet",
+      "targeting": {
+        "type": "utility"
+      },
+      "duration": "up to 1 minute",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["cleric"],
+      "effect": {
+        "utility_ref": "spell_thaumaturgy_minor_wonders",
+        "targeting": "utility"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15_content_pack_1",
+        "class_refs": ["cleric"]
+      }
+    },
+    {
+      "id": "chromatic_orb",
+      "spell_id": "chromatic_orb",
+      "name": "Chromatic Orb",
+      "level": 1,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "90 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "spell_attack",
+        "ability": "spellcasting_ability"
+      },
+      "damage": {
+        "dice": "3d8",
+        "damage_type": "choice_elemental"
+      },
+      "class_refs": ["sorcerer", "wizard"],
+      "effect": {
+        "damage_ref": "spell_damage_chromatic_orb",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15_content_pack_1",
+        "class_refs": ["sorcerer", "wizard"]
+      }
+    },
+    {
+      "id": "healing_word",
+      "spell_id": "healing_word",
+      "name": "Healing Word",
+      "level": 1,
+      "school": "evocation",
+      "casting_time": "1 bonus action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "healing": {
+        "dice": "1d4",
+        "bonus": "spellcasting_ability_modifier"
+      },
+      "class_refs": ["bard", "cleric", "druid"],
+      "effect": {
+        "healing_ref": "spell_heal_healing_word",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15_content_pack_1",
+        "class_refs": ["bard", "cleric", "druid"]
+      }
+    },
+    {
+      "id": "scorching_ray",
+      "spell_id": "scorching_ray",
+      "name": "Scorching Ray",
+      "level": 2,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "120 feet",
+      "targeting": {
+        "type": "single_or_split_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "spell_attack",
+        "ability": "spellcasting_ability"
+      },
+      "damage": {
+        "dice": "3x2d6",
+        "damage_type": "fire"
+      },
+      "class_refs": ["sorcerer", "wizard"],
+      "effect": {
+        "damage_ref": "spell_damage_scorching_ray",
+        "targeting": "single_or_split_target",
+        "projectiles": 3
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15_content_pack_1",
+        "class_refs": ["sorcerer", "wizard"]
+      }
+    }
+  ]
+}

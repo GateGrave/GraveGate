@@ -1,0 +1,97 @@
+{
+  "weapons": [
+    {
+      "weapon_profile_id": "unarmed_strike",
+      "name": "Unarmed Strike",
+      "category": "melee",
+      "mode": "melee",
+      "reach_feet": 5,
+      "requires_line_of_sight": true
+    },
+    {
+      "weapon_profile_id": "longsword",
+      "name": "Longsword",
+      "category": "melee",
+      "mode": "melee",
+      "reach_feet": 5,
+      "requires_line_of_sight": true
+    },
+    {
+      "weapon_profile_id": "rapier",
+      "name": "Rapier",
+      "category": "melee",
+      "mode": "melee",
+      "reach_feet": 5,
+      "requires_line_of_sight": true
+    },
+    {
+      "weapon_profile_id": "glaive",
+      "name": "Glaive",
+      "category": "reach",
+      "mode": "melee",
+      "reach_feet": 10,
+      "requires_line_of_sight": true
+    },
+    {
+      "weapon_profile_id": "halberd",
+      "name": "Halberd",
+      "category": "reach",
+      "mode": "melee",
+      "reach_feet": 10,
+      "requires_line_of_sight": true
+    },
+    {
+      "weapon_profile_id": "whip",
+      "name": "Whip",
+      "category": "reach",
+      "mode": "melee",
+      "reach_feet": 10,
+      "requires_line_of_sight": true
+    },
+    {
+      "weapon_profile_id": "shortbow",
+      "name": "Shortbow",
+      "category": "ranged_weapon",
+      "mode": "ranged_weapon",
+      "range_feet": 80,
+      "long_range_feet": 320,
+      "requires_line_of_sight": true
+    },
+    {
+      "weapon_profile_id": "longbow",
+      "name": "Longbow",
+      "category": "ranged_weapon",
+      "mode": "ranged_weapon",
+      "range_feet": 150,
+      "long_range_feet": 600,
+      "requires_line_of_sight": true
+    },
+    {
+      "weapon_profile_id": "light_crossbow",
+      "name": "Light Crossbow",
+      "category": "ranged_weapon",
+      "mode": "ranged_weapon",
+      "range_feet": 80,
+      "long_range_feet": 320,
+      "requires_line_of_sight": true
+    },
+    {
+      "weapon_profile_id": "heavy_crossbow",
+      "name": "Heavy Crossbow",
+      "category": "ranged_weapon",
+      "mode": "ranged_weapon",
+      "range_feet": 100,
+      "long_range_feet": 400,
+      "requires_line_of_sight": true
+    },
+    {
+      "weapon_profile_id": "javelin",
+      "name": "Javelin",
+      "category": "thrown",
+      "mode": "ranged_weapon",
+      "range_feet": 30,
+      "long_range_feet": 120,
+      "requires_line_of_sight": true
+    }
+  ]
+}

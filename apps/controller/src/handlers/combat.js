@@ -1,0 +1,48 @@
+"use strict";
+
+const { EVENT_TYPES } = require("../../../../packages/shared-types");
+const { createGatewayResponseEvent, createRuntimeDispatchEvent } = require("./shared");
+
+function handleCombatEvent(event, context) {
+  if (!event.combat_id) {
+    return [createGatewayResponseEvent(
+      event,
+      "combat_action",
+      {},
+      false,
+      "combat_id is required for combat action events"
+    )];
+  }
+
+  if (!context.combatManager) {
+    return [createGatewayResponseEvent(
+      event,
+      "combat_action",
+      {},
+      false,
+      "combatManager is not available in controller context"
+    )];
+  }
+
+  if (event.event_type === EVENT_TYPES.PLAYER_ATTACK) {
+    return [createRuntimeDispatchEvent(event, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED, "combat_system")];
+  }
+
+  if (event.event_type === EVENT_TYPES.PLAYER_CAST_SPELL) {
+    return [createRuntimeDispatchEvent(event, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED, "combat_system")];
+  }
+
+  if (event.event_type === EVENT_TYPES.PLAYER_MOVE) {
+    return [createRuntimeDispatchEvent(event, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED, "combat_system")];
+  }
+
+  if (event.event_type === EVENT_TYPES.PLAYER_USE_ITEM) {
+    return [createRuntimeDispatchEvent(event, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED, "combat_system")];
+  }
+
+  return [];
+}
+
+module.exports = {
+  handleCombatEvent
+};

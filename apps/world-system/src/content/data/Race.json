@@ -1,0 +1,324 @@
+{
+  "content_type": "race",
+  "schema_version": 1,
+  "entries": [
+    {
+      "id": "dragonborn",
+      "name": "Dragonborn",
+      "stat_modifiers": {
+        "strength": 2,
+        "charisma": 1
+      },
+      "features": [
+        "draconic_ancestry",
+        "breath_weapon",
+        "damage_resistance"
+      ],
+      "metadata": {
+        "source": "SRD 5.1",
+        "notes": ["Breath weapon and resistance depend on draconic ancestry choice"],
+        "draconic_ancestry_options": [
+          {
+            "id": "black",
+            "name": "Black",
+            "damage_type": "acid",
+            "breath_weapon_shape": "5_by_30_line",
+            "save_ability": "dexterity"
+          },
+          {
+            "id": "blue",
+            "name": "Blue",
+            "damage_type": "lightning",
+            "breath_weapon_shape": "5_by_30_line",
+            "save_ability": "dexterity"
+          },
+          {
+            "id": "brass",
+            "name": "Brass",
+            "damage_type": "fire",
+            "breath_weapon_shape": "5_by_30_line",
+            "save_ability": "dexterity"
+          },
+          {
+            "id": "bronze",
+            "name": "Bronze",
+            "damage_type": "lightning",
+            "breath_weapon_shape": "5_by_30_line",
+            "save_ability": "dexterity"
+          },
+          {
+            "id": "copper",
+            "name": "Copper",
+            "damage_type": "acid",
+            "breath_weapon_shape": "5_by_30_line",
+            "save_ability": "dexterity"
+          },
+          {
+            "id": "gold",
+            "name": "Gold",
+            "damage_type": "fire",
+            "breath_weapon_shape": "15_cone",
+            "save_ability": "dexterity"
+          },
+          {
+            "id": "green",
+            "name": "Green",
+            "damage_type": "poison",
+            "breath_weapon_shape": "15_cone",
+            "save_ability": "constitution"
+          },
+          {
+            "id": "red",
+            "name": "Red",
+            "damage_type": "fire",
+            "breath_weapon_shape": "15_cone",
+            "save_ability": "dexterity"
+          },
+          {
+            "id": "silver",
+            "name": "Silver",
+            "damage_type": "cold",
+            "breath_weapon_shape": "15_cone",
+            "save_ability": "constitution"
+          },
+          {
+            "id": "white",
+            "name": "White",
+            "damage_type": "cold",
+            "breath_weapon_shape": "15_cone",
+            "save_ability": "constitution"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dwarf",
+      "name": "Dwarf",
+      "stat_modifiers": {
+        "constitution": 2
+      },
+      "features": [
+        "darkvision",
+        "dwarven_resilience",
+        "dwarven_combat_training",
+        "tool_proficiency",
+        "stonecunning"
+      ],
+      "metadata": {
+        "source": "SRD 5.1",
+        "notes": ["Subrace bonuses/features apply separately (hill or mountain dwarf)"],
+        "subraces": [
+          {
+            "id": "hill_dwarf",
+            "name": "Hill Dwarf",
+            "stat_modifiers": {
+              "wisdom": 1
+            },
+            "features": [
+              "dwarven_toughness"
+            ]
+          },
+          {
+            "id": "mountain_dwarf",
+            "name": "Mountain Dwarf",
+            "stat_modifiers": {
+              "strength": 2
+            },
+            "features": [
+              "dwarven_armor_training"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "elf",
+      "name": "Elf",
+      "stat_modifiers": {
+        "dexterity": 2
+      },
+      "features": [
+        "darkvision",
+        "keen_senses",
+        "fey_ancestry",
+        "trance"
+      ],
+      "metadata": {
+        "source": "SRD 5.1",
+        "notes": ["Subrace bonuses/features apply separately (high or wood elf)"],
+        "subraces": [
+          {
+            "id": "high_elf",
+            "name": "High Elf",
+            "stat_modifiers": {
+              "intelligence": 1
+            },
+            "features": [
+              "elf_weapon_training",
+              "cantrip",
+              "extra_language"
+            ]
+          },
+          {
+            "id": "wood_elf",
+            "name": "Wood Elf",
+            "stat_modifiers": {
+              "wisdom": 1
+            },
+            "features": [
+              "elf_weapon_training",
+              "fleet_of_foot",
+              "mask_of_the_wild"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "gnome",
+      "name": "Gnome",
+      "stat_modifiers": {
+        "intelligence": 2
+      },
+      "features": [
+        "darkvision",
+        "gnome_cunning"
+      ],
+      "metadata": {
+        "source": "SRD 5.1",
+        "notes": ["Subrace bonuses/features apply separately (forest or rock gnome)"],
+        "subraces": [
+          {
+            "id": "forest_gnome",
+            "name": "Forest Gnome",
+            "stat_modifiers": {
+              "dexterity": 1
+            },
+            "features": [
+              "natural_illusionist",
+              "speak_with_small_beasts"
+            ]
+          },
+          {
+            "id": "rock_gnome",
+            "name": "Rock Gnome",
+            "stat_modifiers": {
+              "constitution": 1
+            },
+            "features": [
+              "artificers_lore",
+              "tinker"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "half_elf",
+      "name": "Half-Elf",
+      "stat_modifiers": {
+        "charisma": 2
+      },
+      "features": [
+        "ability_score_increase_flexible_two_plus1",
+        "darkvision",
+        "fey_ancestry",
+        "skill_versatility"
+      ],
+      "metadata": {
+        "source": "SRD 5.1",
+        "notes": ["Choose two different abilities to increase by +1 (not Charisma)"]
+      }
+    },
+    {
+      "id": "half_orc",
+      "name": "Half-Orc",
+      "stat_modifiers": {
+        "strength": 2,
+        "constitution": 1
+      },
+      "features": [
+        "darkvision",
+        "menacing",
+        "relentless_endurance",
+        "savage_attacks"
+      ],
+      "metadata": {
+        "source": "SRD 5.1",
+        "notes": []
+      }
+    },
+    {
+      "id": "halfling",
+      "name": "Halfling",
+      "stat_modifiers": {
+        "dexterity": 2
+      },
+      "features": [
+        "lucky",
+        "brave",
+        "halfling_nimbleness"
+      ],
+      "metadata": {
+        "source": "SRD 5.1",
+        "notes": ["Subrace bonuses/features apply separately (lightfoot or stout)"],
+        "subraces": [
+          {
+            "id": "lightfoot_halfling",
+            "name": "Lightfoot Halfling",
+            "stat_modifiers": {
+              "charisma": 1
+            },
+            "features": [
+              "naturally_stealthy"
+            ]
+          },
+          {
+            "id": "stout_halfling",
+            "name": "Stout Halfling",
+            "stat_modifiers": {
+              "constitution": 1
+            },
+            "features": [
+              "stout_resilience"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "human",
+      "name": "Human",
+      "stat_modifiers": {
+        "strength": 1,
+        "dexterity": 1,
+        "constitution": 1,
+        "intelligence": 1,
+        "wisdom": 1,
+        "charisma": 1
+      },
+      "features": [],
+      "metadata": {
+        "source": "SRD 5.1",
+        "notes": ["Variant human is an optional rule and not included in base race entry"]
+      }
+    },
+    {
+      "id": "tiefling",
+      "name": "Tiefling",
+      "stat_modifiers": {
+        "charisma": 2,
+        "intelligence": 1
+      },
+      "features": [
+        "darkvision",
+        "hellish_resistance",
+        "infernal_legacy"
+      ],
+      "metadata": {
+        "source": "SRD 5.1",
+        "notes": ["Infernal Legacy grants Thaumaturgy, Hellish Rebuke, and Darkness by level"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,226 @@
+GateGrave Map System Status Update
+=================================
+
+Date
+----
+2026-03-12
+
+Purpose
+-------
+This document is a concise handoff note for the isolated `apps/map-system` work.
+It is meant to help another Codex session or teammate understand:
+- what the map system currently does
+- what assumptions it is using
+- what is working now
+- what still needs to be built next
+
+
+1) Architecture Boundary
+------------------------
+The map system has been kept isolated and intentionally does NOT own authoritative gameplay mutation.
+
+It currently owns:
+- map rendering
+- token rendering and token selection
+- movement preview
+- attack preview
+- spell target/range/area preview
+- terrain and mask authoring helpers
+- normalized action contracts for later handoff
+
+It does NOT currently own:
+- final combat resolution
+- persistence as source of truth
+- canonical event execution outside map-side interaction normalization
+- gateway logic
+
+This is consistent with project rules:
+- event-driven architecture
+- gateway contains no gameplay logic
+- systems do not directly mutate each other
+- combat instances stay isolated
+- database remains source of truth
+
+
+2) Major Completed Work
+-----------------------
+The following foundations are implemented inside `apps/map-system`:
+
+- canonical map state schema
+- grid-based coordinates and movement rules
+- default `1 tile = 5 feet`
+- alternating diagonal movement rule support
+- occupancy rules so only one actor occupies one tile
+- no diagonal corner-cutting through blocked terrain
+- physical attack range preview
+- spell range preview
+- spell area-of-effect preview
+- spell target-selection interaction flow
+- attack target-selection interaction flow
+- unified interaction controller for Move / Attack / Spell / Token / Back / Confirm
+- normalized handoff action contracts
+- player token pipeline
+- enemy token pipeline
+- token cleanup processing
+- token catalog and token selection foundation
+- terrain catalog and terrain stamping helpers
+- MS Paint mask workflow for terrain authoring
+- layered profile support for combining authored terrain with preview/token profiles
+
+
+3) Important Current Conclusion
+-------------------------------
+The tile positioning problem is NOT a general renderer failure.
+
+It was tested against clean control maps:
+- `map_12x12.png` / `mask-12x12.png`
+- `map_12x10.png` / `mask-12x10.png`
+
+On the clean `12x12` map, token placement is correct.
+
+This means:
+- the current renderer can place tokens correctly on mathematically aligned maps
+- earlier placement issues were caused by art/grid calibration problems in specific maps, especially `forest-road` and the first cave test map
+
+
+4) Current Terrain Authoring Reality
+------------------------------------
+Tile-based mask authoring works for:
+- solid obstacles that clearly occupy tiles
+- boulders
+- pillars
+- pits
+- lava / hazards
+- tree tiles
+- fully occupied obstacle shapes
+
+Tile-based mask authoring does NOT model thin line walls well when the wall lives between tiles.
+
+Important design conclusion:
+- thin dungeon walls should eventually use an edge-based wall system
+- tile masks remain the right approach for tile-occupying obstacles
+
+This means the next major feature should be edge-wall detection and edge-wall blocking rules for:
+- movement
+- melee attacks
+- ranged attacks
+- spell targeting / line of sight
+
+
+5) MS Paint Mask Workflow
+-------------------------
+The current palette is:
+- `#FFFFFF` = open ground
+- `#000000` = wall
+- `#FF0000` = impassable terrain
+- `#0000FF` = water / impassable
+- `#00FF00` = difficult terrain
+- `#FFFF00` = tree / blocks sight
+- `#FF00FF` = pit / impassable
+- `#00FFFF` = cliff / blocks sight
+
+Current workflow:
+1. Create map PNG.
+2. Create same-size mask PNG.
+3. Paint tile centers with flat colors.
+4. Run terrain mask conversion.
+5. Render previews or play from generated combat profile.
+
+Current limitation:
+- mask reading is tile-center based, not edge based
+
+
+6) Key Files Added Or Updated
+-----------------------------
+Important map-system areas:
+
+- `apps/map-system/src/core/map-profile-loader.js`
+- `apps/map-system/src/core/terrain-mask-loader.js`
+- `apps/map-system/src/render/render-map-svg.js`
+- `apps/map-system/src/logic/movement.js`
+- `apps/map-system/src/logic/terrain.js`
+- `apps/map-system/src/logic/overlay-builders.js`
+- `apps/map-system/src/logic/actor-movement.js`
+- `apps/map-system/src/interaction/map-interaction-controller.js`
+- `apps/map-system/src/contracts/map-action.contract.js`
+- `apps/map-system/src/contracts/map-integration.contract.js`
+- `apps/map-system/src/spells/spell-targeting.js`
+- `apps/map-system/src/spells/spell-interaction.service.js`
+- `apps/map-system/src/attacks/attack-interaction.service.js`
+- `apps/map-system/src/discord/map-message-builder.js`
+- `apps/map-system/src/cli/render-map.js`
+- `apps/map-system/src/cli/render-actor-movement-preview.js`
+- `apps/map-system/src/cli/apply-terrain-mask.js`
+- `apps/map-system/src/cli/inspect-terrain-mask.js`
+- `apps/map-system/src/testing/mapSystem.test.js`
+
+Important data/config:
+- `apps/map-system/data/terrain/terrain-catalog.json`
+- `apps/map-system/data/terrain/terrain-mask-palettes.json`
+- `apps/map-system/data/terrain/terrain-stamp-presets.json`
+- `apps/map-system/data/attacks/weapon-profiles.json`
+- `apps/map-system/data/tokens/player-token-catalog.json`
+- `apps/map-system/data/tokens/enemy-token-catalog.json`
+
+New control-test maps:
+- `apps/map-system/data/maps/map-12x12.base-map.json`
+- `apps/map-system/data/maps/map-12x10.base-map.json`
+- `apps/map-system/data/profiles/map-12x12.alignment-preview.json`
+- `apps/map-system/data/profiles/map-12x10.combat-profile.json`
+- `apps/map-system/data/profiles/map-12x10.movement-preview.json`
+
+
+7) Recent Fixes
+---------------
+Recent important fixes completed:
+
+- fixed renderer grid duplication on embedded-grid maps
+- fixed actor movement speed reading for players and enemies
+- fixed movement preview using only preview tokens and dropping combat terrain
+- added layered profile loading via comma-separated `--profile=` lists
+- fixed `inspect-terrain-mask` so it now reports real terrain mask metadata
+- changed layered profile semantics so `tokens` and `overlays` merge instead of replacing wholesale
+- changed MS Paint palette so black is a real wall and red is generic impassable terrain
+
+
+8) Current Verification State
+-----------------------------
+The map-system test suite currently passes:
+- `91 / 91`
+
+This includes tests for:
+- movement rules
+- terrain masking
+- layered profiles
+- token centering
+- spell preview logic
+- attack preview logic
+- interaction controller contracts
+
+
+9) Known Remaining Work
+-----------------------
+Highest-value next steps:
+
+1. Edge-wall detection for black wall lines drawn between tiles.
+2. Edge-based LOS and movement blocking.
+3. Cover rules if strict D&D combat fidelity is desired.
+4. PNG export path for Discord delivery.
+5. Integration adapter so normalized map actions become canonical runtime/controller events.
+
+
+10) Practical Advice For Next Session
+-------------------------------------
+When testing placement or movement bugs:
+- use the clean `12x12` and `12x10` control maps first
+- do not debug on painterly maps first
+
+When testing terrain masks:
+- trust tile-center fills for tile obstacles
+- do not expect thin line walls to work correctly until edge-wall support exists
+
+When rendering previews that depend on authored terrain plus preview tokens:
+- use layered profiles
+- example pattern:
+  `combat-profile.json,preview-profile.json`
+

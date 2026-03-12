@@ -1,0 +1,351 @@
+{
+  "content_type": "recipe",
+  "schema_version": 1,
+  "entries": [
+    {
+      "recipe_id": "recipe_minor_healing_tonic",
+      "name": "Minor Healing Tonic",
+      "output_item_id": "item_minor_heal_potion",
+      "output_quantity": 1,
+      "required_materials": [
+        {
+          "item_id": "item_rat_tail",
+          "quantity": 2
+        }
+      ],
+      "output_item_refs": [
+        "item_minor_heal_potion"
+      ],
+      "metadata": {
+        "recipe_type": "alchemy",
+        "required_profession": "alchemist",
+        "required_tool": "tool-alchemy-kit",
+        "required_station": "station-lab",
+        "difficulty": "easy",
+        "source": "starter_slice_v1"
+      }
+    },
+    {
+      "recipe_id": "recipe_bandage_bundle",
+      "name": "Bandage Bundle",
+      "output_item_id": "item_antitoxin",
+      "output_quantity": 1,
+      "required_materials": [
+        {
+          "item_id": "item_rat_tail",
+          "quantity": 1
+        }
+      ],
+      "output_item_refs": [
+        "item_antitoxin"
+      ],
+      "metadata": {
+        "recipe_type": "crafting",
+        "required_profession": null,
+        "required_tool": "tool_healer_kit",
+        "required_station": null,
+        "difficulty": "easy",
+        "source": "starter_slice_v1"
+      }
+    },
+    {
+      "recipe_id": "recipe_torch_bundle",
+      "name": "Torch Bundle",
+      "output_item_id": "item_club",
+      "output_quantity": 1,
+      "required_materials": [
+        {
+          "item_id": "item_rat_tail",
+          "quantity": 1
+        }
+      ],
+      "output_item_refs": [
+        "item_club"
+      ],
+      "metadata": {
+        "recipe_type": "survival",
+        "required_profession": null,
+        "required_tool": null,
+        "required_station": null,
+        "difficulty": "easy",
+        "source": "starter_slice_v1"
+      }
+    },
+    {
+      "recipe_id": "recipe_simple_ration_pack",
+      "name": "Simple Ration Pack",
+      "output_item_id": "item_healing_potion",
+      "output_quantity": 1,
+      "required_materials": [
+        {
+          "item_id": "item_rat_tail",
+          "quantity": 2
+        }
+      ],
+      "output_item_refs": [
+        "item_healing_potion"
+      ],
+      "metadata": {
+        "recipe_type": "cooking",
+        "required_profession": null,
+        "required_tool": "tool_cook_utensils",
+        "required_station": "station_campfire",
+        "difficulty": "easy",
+        "source": "starter_slice_v1"
+      }
+    },
+    {
+      "recipe_id": "recipe_sharpened_blade_kit",
+      "name": "Sharpened Blade Kit",
+      "output_item_id": "item_dagger",
+      "output_quantity": 1,
+      "required_materials": [
+        {
+          "item_id": "item_rat_tail",
+          "quantity": 2
+        }
+      ],
+      "output_item_refs": [
+        "item_dagger"
+      ],
+      "metadata": {
+        "recipe_type": "smithing",
+        "required_profession": "blacksmith",
+        "required_tool": "tool_smith_tools",
+        "required_station": "station_forge",
+        "difficulty": "medium",
+        "source": "starter_slice_v1"
+      }
+    },
+    {
+      "recipe_id": "recipe_field_bandage",
+      "name": "Field Bandage",
+      "output_item_id": "item_bandage_roll",
+      "output_quantity": 2,
+      "required_materials": [
+        {
+          "item_id": "item_rat_tail",
+          "quantity": 1
+        }
+      ],
+      "output_item_refs": [
+        "item_bandage_roll"
+      ],
+      "metadata": {
+        "recipe_type": "survival",
+        "required_profession": null,
+        "required_tool": "tool_healer_kit",
+        "required_station": null,
+        "difficulty": "easy",
+        "source": "stage15_content_pack_1"
+      }
+    },
+    {
+      "recipe_id": "recipe_smoke_bomb_mix",
+      "name": "Smoke Bomb Mix",
+      "output_item_id": "item_smoke_bomb",
+      "output_quantity": 1,
+      "required_materials": [
+        {
+          "item_id": "item_rat_tail",
+          "quantity": 2
+        }
+      ],
+      "output_item_refs": [
+        "item_smoke_bomb"
+      ],
+      "metadata": {
+        "recipe_type": "alchemy",
+        "required_profession": "alchemist",
+        "required_tool": "tool-alchemy-kit",
+        "required_station": "station-lab",
+        "difficulty": "medium",
+        "source": "stage15_content_pack_1"
+      }
+    },
+    {
+      "recipe_id": "recipe_torch_pack",
+      "name": "Torch Pack",
+      "output_item_id": "item_torch_bundle",
+      "output_quantity": 1,
+      "required_materials": [
+        {
+          "item_id": "item_rat_tail",
+          "quantity": 1
+        }
+      ],
+      "output_item_refs": [
+        "item_torch_bundle"
+      ],
+      "metadata": {
+        "recipe_type": "survival",
+        "required_profession": null,
+        "required_tool": null,
+        "required_station": null,
+        "difficulty": "easy",
+        "source": "stage15_content_pack_1"
+      }
+    },
+    {
+      "recipe_id": "recipe_oil_flask",
+      "name": "Oil Flask",
+      "output_item_id": "item_throwing_oil",
+      "output_quantity": 1,
+      "required_materials": [
+        {
+          "item_id": "item_rat_tail",
+          "quantity": 2
+        }
+      ],
+      "output_item_refs": [
+        "item_throwing_oil"
+      ],
+      "metadata": {
+        "recipe_type": "crafting",
+        "required_profession": null,
+        "required_tool": "tool_cook_utensils",
+        "required_station": "station_campfire",
+        "difficulty": "easy",
+        "source": "stage15_content_pack_1"
+      }
+    },
+    {
+      "recipe_id": "recipe_quick_tonic",
+      "name": "Quick Tonic",
+      "output_item_id": "item_healing_potion",
+      "output_quantity": 1,
+      "required_materials": [
+        {
+          "item_id": "item_rat_tail",
+          "quantity": 3
+        }
+      ],
+      "output_item_refs": [
+        "item_healing_potion"
+      ],
+      "metadata": {
+        "recipe_type": "alchemy",
+        "required_profession": "alchemist",
+        "required_tool": "tool-alchemy-kit",
+        "required_station": "station-lab",
+        "difficulty": "medium",
+        "source": "stage15_content_pack_2"
+      }
+    },
+    {
+      "recipe_id": "recipe_hunters_spear",
+      "name": "Hunter's Spear",
+      "output_item_id": "item_spear",
+      "output_quantity": 1,
+      "required_materials": [
+        {
+          "item_id": "item_rat_tail",
+          "quantity": 2
+        }
+      ],
+      "output_item_refs": [
+        "item_spear"
+      ],
+      "metadata": {
+        "recipe_type": "woodworking",
+        "required_profession": null,
+        "required_tool": "tool_woodcarvers_tools",
+        "required_station": null,
+        "difficulty": "easy",
+        "source": "stage15_content_pack_2"
+      }
+    },
+    {
+      "recipe_id": "recipe_guardians_mace",
+      "name": "Guardian's Mace",
+      "output_item_id": "item_mace",
+      "output_quantity": 1,
+      "required_materials": [
+        {
+          "item_id": "item_rat_tail",
+          "quantity": 2
+        }
+      ],
+      "output_item_refs": [
+        "item_mace"
+      ],
+      "metadata": {
+        "recipe_type": "smithing",
+        "required_profession": "blacksmith",
+        "required_tool": "tool_smith_tools",
+        "required_station": "station_forge",
+        "difficulty": "medium",
+        "source": "stage15_content_pack_2"
+      }
+    },
+    {
+      "recipe_id": "recipe_scout_kit",
+      "name": "Scout Kit",
+      "output_item_id": "item_hempen_rope",
+      "output_quantity": 1,
+      "required_materials": [
+        {
+          "item_id": "item_rat_tail",
+          "quantity": 1
+        }
+      ],
+      "output_item_refs": [
+        "item_hempen_rope"
+      ],
+      "metadata": {
+        "recipe_type": "survival",
+        "required_profession": null,
+        "required_tool": null,
+        "required_station": null,
+        "difficulty": "easy",
+        "source": "stage15_content_pack_2"
+      }
+    },
+    {
+      "recipe_id": "recipe_firestarter_mix",
+      "name": "Firestarter Mix",
+      "output_item_id": "item_alchemists_fire",
+      "output_quantity": 1,
+      "required_materials": [
+        {
+          "item_id": "item_rat_tail",
+          "quantity": 2
+        }
+      ],
+      "output_item_refs": [
+        "item_alchemists_fire"
+      ],
+      "metadata": {
+        "recipe_type": "alchemy",
+        "required_profession": "alchemist",
+        "required_tool": "tool-alchemy-kit",
+        "required_station": "station-lab",
+        "difficulty": "medium",
+        "source": "stage15_content_pack_2"
+      }
+    },
+    {
+      "recipe_id": "recipe_smoke_screen_bundle",
+      "name": "Smoke Screen Bundle",
+      "output_item_id": "item_smoke_bomb",
+      "output_quantity": 2,
+      "required_materials": [
+        {
+          "item_id": "item_rat_tail",
+          "quantity": 3
+        }
+      ],
+      "output_item_refs": [
+        "item_smoke_bomb"
+      ],
+      "metadata": {
+        "recipe_type": "alchemy",
+        "required_profession": "alchemist",
+        "required_tool": "tool-alchemy-kit",
+        "required_station": "station-lab",
+        "difficulty": "medium",
+        "source": "stage15_content_pack_2"
+      }
+    }
+  ]
+}

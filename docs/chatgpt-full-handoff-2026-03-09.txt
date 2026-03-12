@@ -1,0 +1,235 @@
+GATEGRAVE BOT SYSTEM - FULL HANDOFF (TEXT)
+Generated: 2026-03-09 (America/New_York)
+
+1) PROJECT SNAPSHOT
+- Repo type: Node.js CommonJS monorepo
+- Language: JavaScript
+- Node requirement: >=18
+- Approx app files: 394
+- Test files under apps/: 105
+
+2) ARCHITECTURE RULES (IMPORTANT)
+- Event-driven architecture only.
+- Discord gateway is translation-only (no gameplay logic).
+- Systems should not directly call each other for gameplay outcomes.
+- Keep state layers separated: World State, Session State, Combat State.
+- Combat instances must remain isolated.
+- Prefer structured return objects for flows:
+  { ok, event_type, payload, error? }
+
+3) SHARED EVENT CONTRACT
+Location:
+- packages/shared-types/event-schema.js
+- packages/shared-types/event-types.js
+- packages/shared-types/state-layer-notes.js
+
+Core event fields:
+- event_id
+- event_type
+- timestamp
+- source
+- target_system
+- player_id
+- session_id
+- combat_id
+- payload
+
+4) MAJOR SUBSYSTEM STATUS
+
+A. Gateway (apps/gateway/src)
+- dotenv config and required env validation
+- discord.js client setup
+- slash command registration runner
+- /ping command shell
+- structured gateway event logging
+
+B. Controller (apps/controller/src)
+- event router module
+- world/session/combat handler stubs
+
+C. Database (apps/database/src)
+- world/session/combat placeholder state modules
+- world-storage stores for characters/inventories/items
+- adapter boundary implemented:
+  - adapters/databaseAdapter.interface.js
+  - adapters/inMemoryAdapter.js
+  - adapters/sqliteAdapter.js
+
+D. Combat System (apps/combat-system/src)
+Core:
+- combat model and manager
+- initiative resolver
+- startCombat / nextTurn / checkCombatEnd
+- actions: attack, move, dodge, use item
+- defeated participants cannot act
+
+Advanced scaffold:
+- locking + safe processing
+- 9x9 battlefield grid + movement validation
+- target validation layer
+- dice resolver
+- damage pipeline
+- concentration checks
+- reaction system
+- status effect system
+- death/downed system
+- turn resolver and timeout
+- snapshots + persistence bridge
+- testing harness + simulation
+
+Persistence bridge:
+- apps/combat-system/src/combat.persistence.js
+
+E. Dungeon Exploration (apps/dungeon-exploration/src)
+- dungeon session model + manager
+- room model support
+- add/set/mark room helpers on session
+- party movement flow with connection checks
+- room entry resolver (empty/encounter/challenge/rest)
+- challenge resolver
+- object interaction resolver
+- rest room resolver
+- boss room resolver
+- reward hook preparation flow
+- session locks + snapshots
+- dungeon harness + first playable loop harness
+
+Persistence bridge:
+- apps/dungeon-exploration/src/session.persistence.js
+
+F. World System (apps/world-system/src)
+Domains:
+1) Character
+- schema, manager, service, repository, persistence bridge
+- inventory link flow with validation
+- update flows (xp/level/stats/equipment/attunement)
+- adapters:
+  - toCombatParticipant
+  - toDungeonPartyMember
+- rule hooks:
+  - raceRules
+  - classRules
+  - backgroundRules
+- character harness
+
+2) Loot
+- loot core schema + manager
+- loot table schema + manager
+- weighted + guaranteed drops
+- roll resolver
+- reward hook consumer
+- boss loot resolver
+- individual assignment
+- loot grant flow
+- loot logging
+- loot harness
+- aligned with canonical inventory mutations
+
+3) Currency
+- account model and balance operations
+
+4) Economy
+- transaction schema + logging
+- NPC shop core + purchase + sell
+- player shop + listing + purchase
+- economy snapshots and harness
+- hardening implemented for:
+  - unsellable checks
+  - ownership checks
+- aligned with canonical inventory mutations
+
+5) Crafting
+- recipe core
+- material requirement validation
+- crafting eligibility checks
+- craft job/progress
+- craft checks
+- completion resolver
+- resource consumption + rollback safety
+- crafting logging
+- crafting snapshot/recovery
+- crafting harness
+- aligned with canonical inventory mutations
+
+6) Advanced domains (Phase 8 scaffold)
+- guild core/membership/storage/progression
+- raid core + coordination
+- world events + world boss + seasonal events
+- hunter association + contracts
+- ranking
+- advanced snapshot/recovery + harness
+
+G. Inventory System (apps/inventory-system/src)
+- canonical inventory schema
+- inventory mutation helpers:
+  - addItemToInventory
+  - removeItemFromInventory
+  - stackInventoryItem
+  - normalizeInventoryShape
+- persistence bridge
+- alignment tests with world-system flows
+
+H. Runtime (apps/runtime/src)
+- eventBus (subscribe/publish)
+- orchestrator (event chain processing)
+- runtime game loop integration test
+- reusable gameLoopHarness
+
+5) RECENT VERIFIED TEST RUNS (2026-03-09)
+All listed below passed:
+- apps/runtime/src/testing/eventBus.test.js
+- apps/runtime/src/testing/orchestrator.test.js
+- apps/runtime/src/testing/gameLoopHarness.test.js
+- apps/runtime/src/testing/gameLoopRuntime.test.js
+- apps/world-system/src/economy/testing/npcShopSellValidation.test.js
+- apps/world-system/src/economy/testing/npcShopSellOwnership.test.js
+- apps/world-system/src/character/testing/characterInventoryLinkValidation.test.js
+- apps/inventory-system/src/testing/inventoryMutationHelpers.test.js
+- apps/database/src/testing/databaseAdapter.test.js
+- apps/database/src/testing/sqliteAdapter.test.js
+- apps/world-system/src/character/testing/characterPersistenceAdapter.test.js
+- apps/inventory-system/src/testing/inventoryPersistenceAdapter.test.js
+- apps/dungeon-exploration/src/testing/sessionPersistenceAdapter.test.js
+- apps/combat-system/src/testing/combatPersistenceAdapter.test.js
+- apps/dungeon-exploration/src/testing/firstPlayableLoopHarness.test.js
+- apps/world-system/src/character/testing/characterHarness.test.js
+
+6) KNOWN CONSTRAINTS / OPEN GAPS
+- Many managers still default to in-memory runtime state.
+- SQLite adapter exists but broad domain switching to adapter-backed persistence is still ongoing.
+- Rules modules (race/class/background and many gameplay details) are intentionally scaffold-level.
+- Gateway command surface is still early-stage shell.
+- Event contracts across all domains can be further consolidated into one canonical runtime map.
+
+7) HIGH-VALUE NEXT STEPS
+1. Route first playable loop through one canonical runtime/controller/queue path.
+2. Expand adapter-backed persistence usage (character/inventory/session/combat already bridged).
+3. Add one aggregate CI smoke command for harnesses + hardening tests.
+4. Consolidate event names and payload schemas in one central reference file.
+5. Audit and remove any remaining direct cross-domain gameplay coupling.
+
+8) QUICK RUN COMMANDS
+Runtime:
+- node apps/runtime/src/testing/eventBus.test.js
+- node apps/runtime/src/testing/orchestrator.test.js
+- node apps/runtime/src/testing/gameLoopHarness.test.js
+
+Playable loop:
+- node apps/dungeon-exploration/src/testing/firstPlayableLoopHarness.test.js
+
+Persistence:
+- node apps/database/src/testing/databaseAdapter.test.js
+- node apps/database/src/testing/sqliteAdapter.test.js
+- node apps/world-system/src/character/testing/characterPersistenceAdapter.test.js
+- node apps/inventory-system/src/testing/inventoryPersistenceAdapter.test.js
+- node apps/dungeon-exploration/src/testing/sessionPersistenceAdapter.test.js
+- node apps/combat-system/src/testing/combatPersistenceAdapter.test.js
+
+Hardening:
+- node apps/world-system/src/economy/testing/npcShopSellValidation.test.js
+- node apps/world-system/src/economy/testing/npcShopSellOwnership.test.js
+- node apps/world-system/src/character/testing/characterInventoryLinkValidation.test.js
+- node apps/inventory-system/src/testing/inventoryMutationHelpers.test.js
+
+9) CHATGPT CONTINUATION SEED
+"Use this handoff as source of truth. Keep CommonJS and event-driven boundaries. Do not put gameplay logic in gateway/runtime. Extend existing subsystem modules and tests instead of creating parallel architectures."

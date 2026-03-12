@@ -1,0 +1,358 @@
+{
+  "project": {
+    "name": "GateGrave-bot-System",
+    "type": "Node.js CommonJS monorepo",
+    "generated_on": "2026-03-09",
+    "generated_by": "Codex status export",
+    "summary": "Event-driven Discord RPG backend scaffold with implemented subsystem modules, extensive test harness coverage, runtime orchestration, and new adapter-based persistence boundaries."
+  },
+  "architecture": {
+    "core_style": "event-driven",
+    "rules_in_use": [
+      "Discord gateway contains translation/transport concerns, not gameplay logic",
+      "Systems are expected to communicate through events and payload contracts",
+      "Persistent domain data is moving behind adapter boundaries",
+      "State remains separated by concern (world/session/combat)"
+    ],
+    "shared_event_contract": {
+      "path": "packages/shared-types",
+      "core_fields": [
+        "event_id",
+        "event_type",
+        "timestamp",
+        "source",
+        "target_system",
+        "player_id",
+        "session_id",
+        "combat_id",
+        "payload"
+      ]
+    }
+  },
+  "repo_layout": {
+    "top_level_apps": [
+      "advanced-ai",
+      "character-system",
+      "combat-system",
+      "controller",
+      "database",
+      "dungeon-exploration",
+      "economy-crafting",
+      "gateway",
+      "guilds",
+      "inventory-system",
+      "logger",
+      "queue",
+      "raid-bosses",
+      "runtime",
+      "world-system"
+    ],
+    "total_test_files_detected": 105
+  },
+  "implemented_subsystems": {
+    "gateway": {
+      "status": "implemented shell",
+      "key_paths": [
+        "apps/gateway/src/config/discordConfig.js",
+        "apps/gateway/src/discord/createClient.js",
+        "apps/gateway/src/discord/commandDefinitions.js",
+        "apps/gateway/src/discord/registerCommands.js",
+        "apps/gateway/src/discord/registerCommandsRunner.js",
+        "apps/gateway/src/index.js"
+      ],
+      "notes": [
+        "dotenv-based config validation",
+        "slash command registration runner",
+        "stage-0 ping flow",
+        "no gameplay logic in gateway"
+      ]
+    },
+    "controller": {
+      "status": "scaffolded",
+      "key_paths": [
+        "apps/controller/src"
+      ],
+      "notes": [
+        "event router and placeholder world/session/combat handler routing"
+      ]
+    },
+    "runtime": {
+      "status": "implemented",
+      "key_paths": [
+        "apps/runtime/src/eventBus.js",
+        "apps/runtime/src/orchestrator.js",
+        "apps/runtime/src/gameLoopHarness.js"
+      ],
+      "features": [
+        "event bus subscribe/publish with emitted event collection",
+        "orchestrator queue loop with max event guard",
+        "repeatable game loop harness",
+        "runtime integration tests for event chain"
+      ],
+      "tests": [
+        "apps/runtime/src/testing/eventBus.test.js",
+        "apps/runtime/src/testing/orchestrator.test.js",
+        "apps/runtime/src/testing/gameLoopRuntime.test.js",
+        "apps/runtime/src/testing/gameLoopHarness.test.js"
+      ]
+    },
+    "database": {
+      "status": "adapter boundary added",
+      "key_paths": [
+        "apps/database/src/adapters/databaseAdapter.interface.js",
+        "apps/database/src/adapters/inMemoryAdapter.js",
+        "apps/database/src/adapters/sqliteAdapter.js"
+      ],
+      "features": [
+        "generic adapter contract: getById/list/save/delete",
+        "in-memory adapter implementation",
+        "sqlite adapter implementation with configurable DB path",
+        "structured result contract for adapter calls"
+      ],
+      "tests": [
+        "apps/database/src/testing/databaseAdapter.test.js",
+        "apps/database/src/testing/sqliteAdapter.test.js"
+      ]
+    },
+    "inventory_system": {
+      "status": "canonical schema + mutation + persistence bridge",
+      "key_paths": [
+        "apps/inventory-system/src/inventory.schema.js",
+        "apps/inventory-system/src/mutationHelpers.js",
+        "apps/inventory-system/src/inventory.persistence.js"
+      ],
+      "features": [
+        "canonical inventory record factory",
+        "mutation helpers (add/remove/stack/normalize)",
+        "adapter-backed inventory persistence bridge"
+      ],
+      "tests": [
+        "apps/inventory-system/src/testing/inventorySchema.test.js",
+        "apps/inventory-system/src/testing/inventoryMutationHelpers.test.js",
+        "apps/inventory-system/src/testing/inventoryPersistenceAdapter.test.js"
+      ]
+    },
+    "world_system_character": {
+      "status": "stage-9 scaffold with persistence bridge",
+      "key_paths": [
+        "apps/world-system/src/character/character.schema.js",
+        "apps/world-system/src/character/character.manager.js",
+        "apps/world-system/src/character/character.service.js",
+        "apps/world-system/src/character/character.repository.js",
+        "apps/world-system/src/character/character.persistence.js"
+      ],
+      "features": [
+        "fuller character sheet scaffold fields",
+        "service layer and repository",
+        "adapter-backed character persistence bridge",
+        "combat and dungeon member adapters",
+        "progress/equipment/attunement update flows",
+        "race/class/background hook modules"
+      ],
+      "tests": [
+        "apps/world-system/src/character/testing/characterService.test.js",
+        "apps/world-system/src/character/testing/characterRepository.test.js",
+        "apps/world-system/src/character/testing/characterPersistenceAdapter.test.js",
+        "apps/world-system/src/character/testing/characterInventoryLinkValidation.test.js",
+        "apps/world-system/src/character/testing/characterHarness.test.js"
+      ]
+    },
+    "combat_system": {
+      "status": "extensive scaffold implemented",
+      "key_paths": [
+        "apps/combat-system/src/core",
+        "apps/combat-system/src/actions",
+        "apps/combat-system/src/initiative",
+        "apps/combat-system/src/flow",
+        "apps/combat-system/src/turn",
+        "apps/combat-system/src/snapshots",
+        "apps/combat-system/src/combat.persistence.js"
+      ],
+      "features": [
+        "combat model/manager and isolated in-memory combats",
+        "initiative, turn flow, attack/move/dodge/use-item",
+        "defeated-state handling",
+        "locking + safe event processing",
+        "movement/grid validation and tile costs",
+        "dice + damage pipeline + concentration",
+        "reactions + status effects + death/downed",
+        "turn resolver and snapshot support",
+        "adapter-backed combat snapshot persistence bridge"
+      ],
+      "tests": [
+        "apps/combat-system/src/testing/combatCore.test.js",
+        "apps/combat-system/src/testing/startCombat.test.js",
+        "apps/combat-system/src/testing/attackAction.test.js",
+        "apps/combat-system/src/testing/moveAction.test.js",
+        "apps/combat-system/src/testing/dodgeAction.test.js",
+        "apps/combat-system/src/testing/useItemAction.test.js",
+        "apps/combat-system/src/testing/combatHarness.test.js",
+        "apps/combat-system/src/testing/combatPersistenceAdapter.test.js"
+      ]
+    },
+    "dungeon_exploration": {
+      "status": "stage-2 scaffold + persistence bridge",
+      "key_paths": [
+        "apps/dungeon-exploration/src/core/dungeonSessionModel.js",
+        "apps/dungeon-exploration/src/core/dungeonSessionManager.js",
+        "apps/dungeon-exploration/src/flow",
+        "apps/dungeon-exploration/src/session.persistence.js"
+      ],
+      "features": [
+        "session core and room model",
+        "party movement and room entry outcome resolver",
+        "challenge/object/rest/boss resolvers",
+        "reward hook preparation",
+        "dungeon harness + first playable harness",
+        "adapter-backed session persistence bridge"
+      ],
+      "tests": [
+        "apps/dungeon-exploration/src/testing/dungeonSessionCore.test.js",
+        "apps/dungeon-exploration/src/testing/sessionRooms.test.js",
+        "apps/dungeon-exploration/src/testing/moveParty.test.js",
+        "apps/dungeon-exploration/src/testing/resolveRoomEntry.test.js",
+        "apps/dungeon-exploration/src/testing/dungeonHarness.test.js",
+        "apps/dungeon-exploration/src/testing/sessionPersistenceAdapter.test.js"
+      ]
+    },
+    "world_system_loot": {
+      "status": "phase 5 scaffold implemented and aligned with canonical inventory helpers",
+      "key_paths": [
+        "apps/world-system/src/loot/core",
+        "apps/world-system/src/loot/tables",
+        "apps/world-system/src/loot/flow",
+        "apps/world-system/src/loot/hooks",
+        "apps/world-system/src/loot/grants"
+      ],
+      "features": [
+        "loot schema/managers/tables/roll resolver",
+        "enemy/boss reward hook processing",
+        "grant flow aligned to inventory mutation helpers",
+        "loot logging and simulation harness"
+      ],
+      "tests": [
+        "apps/world-system/src/loot/testing/grantLootMutationAlignment.test.js",
+        "apps/world-system/src/loot/testing/grantLootInventoryAlignment.test.js",
+        "apps/world-system/src/loot/testing/loot-testing-harness.test.js"
+      ]
+    },
+    "world_system_economy": {
+      "status": "phase 6 scaffold implemented and aligned with canonical inventory helpers",
+      "key_paths": [
+        "apps/world-system/src/economy/npc-shop-purchase.flow.js",
+        "apps/world-system/src/economy/npc-shop-sell.flow.js"
+      ],
+      "features": [
+        "currency + transaction schema",
+        "npc/player shop flows",
+        "snapshot/logging/harness",
+        "purchase/sell mutation path delegated to inventory mutation helpers",
+        "hardened sellability validation",
+        "hardened ownership validation"
+      ],
+      "tests": [
+        "apps/world-system/src/economy/testing/economyMutationAlignment.test.js",
+        "apps/world-system/src/economy/testing/npcShopSellValidation.test.js",
+        "apps/world-system/src/economy/testing/npcShopSellOwnership.test.js"
+      ]
+    },
+    "world_system_crafting": {
+      "status": "phase 7 scaffold implemented and aligned with canonical inventory helpers",
+      "key_paths": [
+        "apps/world-system/src/crafting/craft-resource-consumption.flow.js",
+        "apps/world-system/src/crafting/craft-completion.resolver.js"
+      ],
+      "features": [
+        "recipe requirements/eligibility/jobs/checks/completion",
+        "resource consumption + rollback safety",
+        "logging/snapshot/harness",
+        "canonical inventory mutation helper integration for consume and grant"
+      ],
+      "tests": [
+        "apps/world-system/src/crafting/testing/craftingMutationAlignment.test.js",
+        "apps/world-system/src/crafting/testing/craftingInventoryAlignment.test.js",
+        "apps/world-system/src/crafting/testing/crafting-harness.test.js"
+      ]
+    },
+    "advanced_world_systems": {
+      "status": "phase 8 scaffold implemented",
+      "areas": [
+        "guild",
+        "raid",
+        "world-events",
+        "hunter-association",
+        "ranking",
+        "advanced-systems"
+      ],
+      "tests_present": true
+    }
+  },
+  "new_persistence_bridges": {
+    "character": "apps/world-system/src/character/character.persistence.js",
+    "inventory": "apps/inventory-system/src/inventory.persistence.js",
+    "session": "apps/dungeon-exploration/src/session.persistence.js",
+    "combat_snapshot": "apps/combat-system/src/combat.persistence.js"
+  },
+  "runtime_integration_harnesses": {
+    "runtime_game_loop_test": "apps/runtime/src/testing/gameLoopRuntime.test.js",
+    "runtime_game_loop_harness": "apps/runtime/src/gameLoopHarness.js",
+    "runtime_game_loop_harness_test": "apps/runtime/src/testing/gameLoopHarness.test.js"
+  },
+  "high_value_test_files_by_area": {
+    "runtime": [
+      "apps/runtime/src/testing/eventBus.test.js",
+      "apps/runtime/src/testing/orchestrator.test.js",
+      "apps/runtime/src/testing/gameLoopRuntime.test.js",
+      "apps/runtime/src/testing/gameLoopHarness.test.js"
+    ],
+    "database": [
+      "apps/database/src/testing/databaseAdapter.test.js",
+      "apps/database/src/testing/sqliteAdapter.test.js"
+    ],
+    "inventory": [
+      "apps/inventory-system/src/testing/inventoryMutationHelpers.test.js",
+      "apps/inventory-system/src/testing/inventoryPersistenceAdapter.test.js"
+    ],
+    "character": [
+      "apps/world-system/src/character/testing/characterService.test.js",
+      "apps/world-system/src/character/testing/characterPersistenceAdapter.test.js",
+      "apps/world-system/src/character/testing/characterHarness.test.js"
+    ],
+    "combat": [
+      "apps/combat-system/src/testing/combatHarness.test.js",
+      "apps/combat-system/src/testing/combatPersistenceAdapter.test.js"
+    ],
+    "dungeon": [
+      "apps/dungeon-exploration/src/testing/dungeonHarness.test.js",
+      "apps/dungeon-exploration/src/testing/sessionPersistenceAdapter.test.js"
+    ],
+    "loot_economy_crafting_alignment": [
+      "apps/world-system/src/loot/testing/grantLootMutationAlignment.test.js",
+      "apps/world-system/src/economy/testing/economyMutationAlignment.test.js",
+      "apps/world-system/src/crafting/testing/craftingMutationAlignment.test.js"
+    ]
+  },
+  "operational_notes": {
+    "node_version_seen": "v20.20.0",
+    "sqlite_driver_note": "sqliteAdapter supports injected db client and better-sqlite3 runtime path if installed; project dependencies currently do not include better-sqlite3 by default.",
+    "discord_setup": {
+      "env_vars": [
+        "DISCORD_BOT_TOKEN",
+        "DISCORD_APPLICATION_ID",
+        "DISCORD_GUILD_ID",
+        "DISCORD_DEV_MODE"
+      ],
+      "scripts": [
+        "npm run discord:register",
+        "npm run gateway:start"
+      ]
+    }
+  },
+  "recommended_next_steps": [
+    "Create a top-level integration test runner script that executes runtime + persistence bridge smoke tests in sequence",
+    "Pick a real SQLite driver dependency strategy (better-sqlite3 or sqlite3) and run sqlite adapter against real file-backed DB in CI",
+    "Wire persistence bridges into selected managers/services as optional dependencies for gradual migration",
+    "Add contract tests that run adapter suite against in-memory and sqlite adapters using identical fixtures",
+    "Add failure-path integration tests in runtime harness where reward/loot grant fails and verify state safety"
+  ]
+}

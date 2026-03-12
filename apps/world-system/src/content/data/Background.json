@@ -1,0 +1,98 @@
+{
+  "content_type": "background",
+  "schema_version": 1,
+  "entries": [
+    {
+      "id": "acolyte",
+      "name": "Acolyte",
+      "stat_modifiers": {},
+      "features": ["shelter_of_the_faithful"],
+      "skill_proficiencies": ["insight", "religion"],
+      "tool_refs": [],
+      "language_refs": ["any_language", "any_language"],
+      "feature_refs": ["shelter_of_the_faithful"],
+      "metadata": {
+        "source": "stage15-starter",
+        "notes": ["Starter lore background"],
+        "skill_proficiencies": ["insight", "religion"],
+        "tool_refs": [],
+        "language_refs": ["any_language", "any_language"],
+        "feature_refs": ["shelter_of_the_faithful"]
+      }
+    },
+    {
+      "id": "soldier",
+      "name": "Soldier",
+      "stat_modifiers": {},
+      "features": ["military_rank"],
+      "skill_proficiencies": ["athletics", "intimidation"],
+      "tool_refs": ["gaming_set", "land_vehicles"],
+      "language_refs": [],
+      "feature_refs": ["military_rank"],
+      "metadata": {
+        "source": "stage15-starter",
+        "notes": ["Starter combat background"],
+        "skill_proficiencies": ["athletics", "intimidation"],
+        "tool_refs": ["gaming_set", "land_vehicles"],
+        "language_refs": [],
+        "feature_refs": ["military_rank"]
+      }
+    },
+    {
+      "id": "sage",
+      "name": "Sage",
+      "stat_modifiers": {},
+      "features": ["researcher"],
+      "skill_proficiencies": ["arcana", "history"],
+      "tool_refs": [],
+      "tool_proficiencies": [],
+      "language_refs": ["any_language", "any_language"],
+      "feature_refs": ["researcher"],
+      "metadata": {
+        "source": "stage15-starter",
+        "notes": ["Starter knowledge background"],
+        "skill_proficiencies": ["arcana", "history"],
+        "tool_refs": [],
+        "tool_proficiencies": [],
+        "language_refs": ["any_language", "any_language"],
+        "feature_refs": ["researcher"]
+      }
+    },
+    {
+      "id": "criminal",
+      "name": "Criminal",
+      "stat_modifiers": {},
+      "features": ["criminal_contact"],
+      "skill_proficiencies": ["deception", "stealth"],
+      "tool_refs": ["thieves_tools", "gaming_set"],
+      "language_refs": [],
+      "feature_refs": ["criminal_contact"],
+      "metadata": {
+        "source": "stage15-starter",
+        "notes": ["Starter stealth background"],
+        "skill_proficiencies": ["deception", "stealth"],
+        "tool_refs": ["thieves_tools", "gaming_set"],
+        "language_refs": [],
+        "feature_refs": ["criminal_contact"]
+      }
+    },
+    {
+      "id": "folk_hero",
+      "name": "Folk Hero",
+      "stat_modifiers": {},
+      "features": ["rustic_hospitality"],
+      "skill_proficiencies": ["animal_handling", "survival"],
+      "tool_refs": ["artisan_tools", "land_vehicles"],
+      "language_refs": [],
+      "feature_refs": ["rustic_hospitality"],
+      "metadata": {
+        "source": "stage15-starter",
+        "notes": ["Starter wilderness/community background"],
+        "skill_proficiencies": ["animal_handling", "survival"],
+        "tool_refs": ["artisan_tools", "land_vehicles"],
+        "language_refs": [],
+        "feature_refs": ["rustic_hospitality"]
+      }
+    }
+  ]
+}

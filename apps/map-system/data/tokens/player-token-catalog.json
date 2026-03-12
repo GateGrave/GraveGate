@@ -1,0 +1,184 @@
+{
+  "tokens": [
+    {
+      "token_choice_id": "asamar-female-01",
+      "label": "Asamar Female 01",
+      "category": "players",
+      "file_name": "asamar-female-01.png",
+      "processed_file_name": "processed/asamar-female-01.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed player token."
+    },
+    {
+      "token_choice_id": "asamar-male",
+      "label": "Asamar Male",
+      "category": "players",
+      "file_name": "asamar-male.png",
+      "processed_file_name": "processed/asamar-male.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed player token."
+    },
+    {
+      "token_choice_id": "dwarf-female-01",
+      "label": "Dwarf Female 01",
+      "category": "players",
+      "file_name": "dwarf-female-01.png",
+      "processed_file_name": "processed/dwarf-female-01.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed player token."
+    },
+    {
+      "token_choice_id": "dwarf-male-01",
+      "label": "Dwarf Male 01",
+      "category": "players",
+      "file_name": "dwarf-male-01.png",
+      "processed_file_name": "processed/dwarf-male-01.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed player token."
+    },
+    {
+      "token_choice_id": "elf-female-01",
+      "label": "Elf Female 01",
+      "category": "players",
+      "file_name": "elf-female-01.png",
+      "processed_file_name": "processed/elf-female-01.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed player token."
+    },
+    {
+      "token_choice_id": "elf-male-01",
+      "label": "Elf Male 01",
+      "category": "players",
+      "file_name": "elf-male-01.png",
+      "processed_file_name": "processed/elf-male-01.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed player token."
+    },
+    {
+      "token_choice_id": "female-tiefling-02",
+      "label": "Female Tiefling 02",
+      "category": "players",
+      "file_name": "female-tiefling-02.png",
+      "processed_file_name": "processed/female-tiefling-02.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed player token."
+    },
+    {
+      "token_choice_id": "human-female-01",
+      "label": "Human Female 01",
+      "category": "players",
+      "file_name": "human-female-01.png",
+      "processed_file_name": "processed/human-female-01.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed player token."
+    },
+    {
+      "token_choice_id": "human-male-01",
+      "label": "Human Male 01",
+      "category": "players",
+      "file_name": "human-male-01.png",
+      "processed_file_name": "processed/human-male-01.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed player token."
+    },
+    {
+      "token_choice_id": "male-tiefling-01",
+      "label": "Male Tiefling",
+      "category": "players",
+      "file_name": "male-tiefling-01.png",
+      "processed_file_name": "processed/male-tiefling-01.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Portrait-style player token sized for single-tile use."
+    },
+    {
+      "token_choice_id": "male-tiefling-02",
+      "label": "Male Tiefling II",
+      "category": "players",
+      "file_name": "male-tiefling-02.png",
+      "processed_file_name": "processed/male-tiefling-02.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Revised tiefling portrait token."
+    },
+    {
+      "token_choice_id": "male-tiefling-03",
+      "label": "Male Tiefling III",
+      "category": "players",
+      "file_name": "male-tiefling-03.png",
+      "processed_file_name": "processed/male-tiefling-03.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Chroma-background tiefling portrait prepared for automatic cleanup."
+    },
+    {
+      "token_choice_id": "orc-female-02",
+      "label": "Orc Female 02",
+      "category": "players",
+      "file_name": "orc-female-02.png",
+      "processed_file_name": "processed/orc-female-02.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed player token."
+    },
+    {
+      "token_choice_id": "orc-male-01",
+      "label": "Orc Male 01",
+      "category": "players",
+      "file_name": "orc-male-01.png",
+      "processed_file_name": "processed/orc-male-01.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed player token."
+    },
+    {
+      "token_choice_id": "tiefling-female-01",
+      "label": "Tiefling Female 01",
+      "category": "players",
+      "file_name": "tiefling-female-01.png",
+      "processed_file_name": "processed/tiefling-female-01.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed player token."
+    },
+    {
+      "token_choice_id": "tielfing-male-01",
+      "label": "Tielfing Male 01",
+      "category": "players",
+      "file_name": "tielfing-male-01.png",
+      "processed_file_name": "processed/tielfing-male-01.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed player token."
+    },
+    {
+      "token_choice_id": "tielfing-male-02",
+      "label": "Tielfing Male 02",
+      "category": "players",
+      "file_name": "tielfing-male-02.png",
+      "processed_file_name": "processed/tielfing-male-02.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed player token."
+    },
+    {
+      "token_choice_id": "tielfing-male-03",
+      "label": "Tielfing Male 03",
+      "category": "players",
+      "file_name": "tielfing-male-03.png",
+      "processed_file_name": "processed/tielfing-male-03.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed player token."
+    }
+  ]
+}

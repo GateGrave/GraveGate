@@ -1,0 +1,28 @@
+{
+  "name": "Map 12x10 Movement Preview",
+  "terrain": [],
+  "terrain_zones": [],
+  "tokens": [
+    {
+      "token_id": "movement-player-12x10",
+      "token_type": "player",
+      "label": "P1",
+      "badge_text": "30",
+      "actor_id": "movement-player-12x10",
+      "position": { "x": 1, "y": 4 },
+      "asset_path": "apps/map-system/assets/tokens/players/processed/asamar-female-01.cleaned.png",
+      "movement_speed_feet": 30
+    },
+    {
+      "token_id": "movement-player-12x10-b",
+      "token_type": "player",
+      "label": "P2",
+      "badge_text": "15",
+      "actor_id": "movement-player-12x10-b",
+      "position": { "x": 8, "y": 8 },
+      "asset_path": "apps/map-system/assets/tokens/players/processed/asamar-male.cleaned.png",
+      "movement_speed_feet": 15
+    }
+  ],
+  "overlays": []
+}
