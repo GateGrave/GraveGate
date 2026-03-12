@@ -1,0 +1,68 @@
+{
+  "tokens": [
+    {
+      "token_choice_id": "goblin-01",
+      "label": "Goblin 01",
+      "category": "enemies",
+      "file_name": "goblin-01.png",
+      "processed_file_name": "processed/goblin-01.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed enemy token."
+    },
+    {
+      "token_choice_id": "goblin-skirmisher",
+      "label": "Goblin Skirmisher",
+      "category": "enemies",
+      "file_name": "goblin-skirmisher.svg",
+      "notes": "Starter enemy token"
+    },
+    {
+      "token_choice_id": "rat-01",
+      "label": "Rat 01",
+      "category": "enemies",
+      "file_name": "rat-01.png",
+      "processed_file_name": "processed/rat-01.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed enemy token."
+    },
+    {
+      "token_choice_id": "skeleton-archer",
+      "label": "Skeleton Archer",
+      "category": "enemies",
+      "file_name": "skeleton-archer.svg",
+      "notes": "Starter enemy token"
+    },
+    {
+      "token_choice_id": "slime-01",
+      "label": "Slime 01",
+      "category": "enemies",
+      "file_name": "slime-01.png",
+      "processed_file_name": "processed/slime-01.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed enemy token."
+    },
+    {
+      "token_choice_id": "wolf-01",
+      "label": "Wolf 01",
+      "category": "enemies",
+      "file_name": "wolf-01.png",
+      "processed_file_name": "processed/wolf-01.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed enemy token."
+    },
+    {
+      "token_choice_id": "zombie-01",
+      "label": "Zombie 01",
+      "category": "enemies",
+      "file_name": "zombie-01.png",
+      "processed_file_name": "processed/zombie-01.cleaned.png",
+      "shape": "circle",
+      "badge_text": "",
+      "notes": "Batch-processed enemy token."
+    }
+  ]
+}

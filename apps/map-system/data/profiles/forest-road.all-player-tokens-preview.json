@@ -1,0 +1,156 @@
+{
+  "name": "Forest Road All Player Tokens Preview",
+  "terrain_zones": [
+    {
+      "zone_id": "tree-west-mid",
+      "shape": "circle",
+      "x": 8,
+      "y": 13,
+      "radius": 1,
+      "terrain_type": "tree_cluster",
+      "blocks_movement": true,
+      "blocks_sight": true
+    },
+    {
+      "zone_id": "tree-east-mid",
+      "shape": "circle",
+      "x": 14,
+      "y": 12,
+      "radius": 1,
+      "terrain_type": "tree_cluster",
+      "blocks_movement": true,
+      "blocks_sight": true
+    }
+  ],
+  "tokens": [
+    {
+      "token_id": "preview-01",
+      "token_type": "player",
+      "label": "AF1",
+      "position": { "x": 2, "y": 2 },
+      "badge_text": "1",
+      "asset_path": "apps/map-system/assets/tokens/players/processed/asamar-female-01.cleaned.png"
+    },
+    {
+      "token_id": "preview-02",
+      "token_type": "player",
+      "label": "AM",
+      "position": { "x": 6, "y": 2 },
+      "badge_text": "2",
+      "asset_path": "apps/map-system/assets/tokens/players/processed/asamar-male.cleaned.png"
+    },
+    {
+      "token_id": "preview-03",
+      "token_type": "player",
+      "label": "DF1",
+      "position": { "x": 10, "y": 2 },
+      "badge_text": "3",
+      "asset_path": "apps/map-system/assets/tokens/players/processed/dwarf-female-01.cleaned.png"
+    },
+    {
+      "token_id": "preview-04",
+      "token_type": "player",
+      "label": "DM1",
+      "position": { "x": 14, "y": 2 },
+      "badge_text": "4",
+      "asset_path": "apps/map-system/assets/tokens/players/processed/dwarf-male-01.cleaned.png"
+    },
+    {
+      "token_id": "preview-05",
+      "token_type": "player",
+      "label": "EF1",
+      "position": { "x": 18, "y": 2 },
+      "badge_text": "5",
+      "asset_path": "apps/map-system/assets/tokens/players/processed/elf-female-01.cleaned.png"
+    },
+    {
+      "token_id": "preview-06",
+      "token_type": "player",
+      "label": "EM1",
+      "position": { "x": 2, "y": 7 },
+      "badge_text": "6",
+      "asset_path": "apps/map-system/assets/tokens/players/processed/elf-male-01.cleaned.png"
+    },
+    {
+      "token_id": "preview-07",
+      "token_type": "player",
+      "label": "FT2",
+      "position": { "x": 6, "y": 7 },
+      "badge_text": "7",
+      "asset_path": "apps/map-system/assets/tokens/players/processed/female-tiefling-02.cleaned.png"
+    },
+    {
+      "token_id": "preview-08",
+      "token_type": "player",
+      "label": "HF1",
+      "position": { "x": 10, "y": 7 },
+      "badge_text": "8",
+      "asset_path": "apps/map-system/assets/tokens/players/processed/human-female-01.cleaned.png"
+    },
+    {
+      "token_id": "preview-09",
+      "token_type": "player",
+      "label": "HM1",
+      "position": { "x": 14, "y": 7 },
+      "badge_text": "9",
+      "asset_path": "apps/map-system/assets/tokens/players/processed/human-male-01.cleaned.png"
+    },
+    {
+      "token_id": "preview-10",
+      "token_type": "player",
+      "label": "MT3",
+      "position": { "x": 18, "y": 7 },
+      "badge_text": "10",
+      "asset_path": "apps/map-system/assets/tokens/players/processed/male-tiefling-03.cleaned.png"
+    },
+    {
+      "token_id": "preview-11",
+      "token_type": "player",
+      "label": "OF2",
+      "position": { "x": 2, "y": 23 },
+      "badge_text": "11",
+      "asset_path": "apps/map-system/assets/tokens/players/processed/orc-female-02.cleaned.png"
+    },
+    {
+      "token_id": "preview-12",
+      "token_type": "player",
+      "label": "OM1",
+      "position": { "x": 6, "y": 23 },
+      "badge_text": "12",
+      "asset_path": "apps/map-system/assets/tokens/players/processed/orc-male-01.cleaned.png"
+    },
+    {
+      "token_id": "preview-13",
+      "token_type": "player",
+      "label": "TF1",
+      "position": { "x": 10, "y": 23 },
+      "badge_text": "13",
+      "asset_path": "apps/map-system/assets/tokens/players/processed/tiefling-female-01.cleaned.png"
+    },
+    {
+      "token_id": "preview-14",
+      "token_type": "player",
+      "label": "TM1",
+      "position": { "x": 14, "y": 23 },
+      "badge_text": "14",
+      "asset_path": "apps/map-system/assets/tokens/players/processed/tielfing-male-01.cleaned.png"
+    },
+    {
+      "token_id": "preview-15",
+      "token_type": "player",
+      "label": "TM2",
+      "position": { "x": 18, "y": 23 },
+      "badge_text": "15",
+      "asset_path": "apps/map-system/assets/tokens/players/processed/tielfing-male-02.cleaned.png"
+    },
+    {
+      "token_id": "preview-16",
+      "token_type": "player",
+      "label": "TM3",
+      "position": { "x": 10, "y": 26 },
+      "badge_text": "16",
+      "asset_path": "apps/map-system/assets/tokens/players/processed/tielfing-male-03.cleaned.png"
+    }
+  ],
+  "overlays": []
+}

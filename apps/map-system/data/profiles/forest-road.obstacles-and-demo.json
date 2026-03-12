@@ -1,0 +1,137 @@
+{
+  "name": "Forest Road Annotated Demo",
+  "terrain": [
+    { "x": 2, "y": 6, "terrain_type": "tree" },
+    { "x": 7, "y": 3, "terrain_type": "tree" },
+    { "x": 17, "y": 6, "terrain_type": "tree" },
+    { "x": 14, "y": 7, "terrain_type": "tree" },
+    { "x": 17, "y": 8, "terrain_type": "tree" },
+    { "x": 1, "y": 10, "terrain_type": "tree" },
+    { "x": 5, "y": 10, "terrain_type": "tree" },
+    { "x": 3, "y": 4, "terrain_type": "tree" },
+    { "x": 17, "y": 4, "terrain_type": "tree" },
+    { "x": 8, "y": 13, "terrain_type": "tree" },
+    { "x": 14, "y": 12, "terrain_type": "tree" },
+    { "x": 15, "y": 12, "terrain_type": "tree" },
+    { "x": 18, "y": 12, "terrain_type": "tree" },
+    { "x": 20, "y": 15, "terrain_type": "tree" },
+    { "x": 8, "y": 15, "terrain_type": "tree" },
+    { "x": 4, "y": 17, "terrain_type": "tree" },
+    { "x": 5, "y": 17, "terrain_type": "tree" },
+    { "x": 3, "y": 18, "terrain_type": "tree" },
+    { "x": 14, "y": 17, "terrain_type": "tree" },
+    { "x": 16, "y": 19, "terrain_type": "tree" },
+    { "x": 17, "y": 19, "terrain_type": "tree" },
+    { "x": 19, "y": 18, "terrain_type": "tree" },
+    { "x": 5, "y": 21, "terrain_type": "tree" },
+    { "x": 13, "y": 22, "terrain_type": "tree" },
+    { "x": 14, "y": 22, "terrain_type": "tree" },
+    { "x": 16, "y": 22, "terrain_type": "tree" },
+    { "x": 17, "y": 22, "terrain_type": "tree" },
+    { "x": 18, "y": 23, "terrain_type": "tree" },
+    { "x": 5, "y": 23, "terrain_type": "tree" },
+    { "x": 3, "y": 23, "terrain_type": "tree" },
+    { "x": 7, "y": 23, "terrain_type": "tree" },
+    { "x": 3, "y": 24, "terrain_type": "tree" },
+    { "x": 2, "y": 27, "terrain_type": "tree" },
+    { "x": 4, "y": 26, "terrain_type": "tree" },
+    { "x": 6, "y": 26, "terrain_type": "tree" },
+    { "x": 8, "y": 26, "terrain_type": "tree" },
+    { "x": 14, "y": 25, "terrain_type": "tree" },
+    { "x": 13, "y": 26, "terrain_type": "tree" },
+    { "x": 16, "y": 26, "terrain_type": "tree" },
+    { "x": 18, "y": 26, "terrain_type": "tree" },
+    { "x": 20, "y": 27, "terrain_type": "tree" }
+  ],
+  "terrain_zones": [
+    {
+      "zone_id": "fence-north-left",
+      "shape": "rectangle",
+      "x": 9,
+      "y": 3,
+      "width": 1,
+      "height": 2,
+      "terrain_type": "fence",
+      "blocks_movement": true,
+      "blocks_sight": false
+    },
+    {
+      "zone_id": "fence-north-right",
+      "shape": "rectangle",
+      "x": 12,
+      "y": 4,
+      "width": 1,
+      "height": 2,
+      "terrain_type": "fence",
+      "blocks_movement": true,
+      "blocks_sight": false
+    }
+  ],
+  "tokens": [
+    {
+      "token_id": "player-demo-001",
+      "token_type": "player",
+      "label": "P1",
+      "position": { "x": 10, "y": 20 },
+      "color": "#1e88e5",
+      "border_color": "#ffffff",
+      "image_border_color": "#d4af37",
+      "badge_text": "1",
+      "asset_path": "apps/map-system/assets/tokens/players/processed/male-tiefling-03.cleaned.png"
+    },
+    {
+      "token_id": "enemy-demo-001",
+      "token_type": "enemy",
+      "label": "E1",
+      "position": { "x": 10, "y": 19 },
+      "color": "#c62828",
+      "badge_text": "G1",
+      "asset_path": "apps/map-system/assets/tokens/enemies/processed/goblin-01.cleaned.png"
+    }
+  ],
+  "overlays": [
+    {
+      "overlay_id": "sample-move",
+      "kind": "move",
+      "color": "#34c759",
+      "opacity": 0.5,
+      "tiles": [
+        { "x": 9, "y": 20 },
+        { "x": 10, "y": 21 },
+        { "x": 11, "y": 20 }
+      ]
+    },
+    {
+      "overlay_id": "sample-physical-range",
+      "kind": "physical_range",
+      "color": "#ff3b30",
+      "opacity": 0.5,
+      "tiles": [
+        { "x": 10, "y": 19 }
+      ]
+    },
+    {
+      "overlay_id": "sample-spell-range",
+      "kind": "spell_range",
+      "color": "#ffd60a",
+      "opacity": 0.45,
+      "tiles": [
+        { "x": 10, "y": 18 },
+        { "x": 10, "y": 17 },
+        { "x": 10, "y": 16 },
+        { "x": 9, "y": 19 },
+        { "x": 11, "y": 19 }
+      ]
+    },
+    {
+      "overlay_id": "sample-selected-targets",
+      "kind": "selection",
+      "color": "#ffd60a",
+      "opacity": 0.18,
+      "tiles": [
+        { "x": 10, "y": 19, "label": "ATK" },
+        { "x": 10, "y": 18, "label": "X" }
+      ]
+    }
+  ]
+}

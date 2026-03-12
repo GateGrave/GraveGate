@@ -1,0 +1,1348 @@
+{
+  "name": "Cave Map 01 Combat Profile",
+  "terrain": [
+    {
+      "x": 0,
+      "y": 0,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 1,
+      "y": 0,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 2,
+      "y": 0,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 10,
+      "y": 0,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 11,
+      "y": 0,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 0,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 25,
+      "y": 0,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 0,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 10,
+      "y": 1,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 11,
+      "y": 1,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 19,
+      "y": 1,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 1,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 1,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 10,
+      "y": 2,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 11,
+      "y": 2,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 19,
+      "y": 2,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 2,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 2,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 3,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 10,
+      "y": 3,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 11,
+      "y": 3,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 19,
+      "y": 3,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 3,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 3,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 4,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 10,
+      "y": 4,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 11,
+      "y": 4,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 4,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 5,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 10,
+      "y": 5,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 11,
+      "y": 5,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 5,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 6,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 10,
+      "y": 6,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 11,
+      "y": 6,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 6,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 7,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 10,
+      "y": 7,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 11,
+      "y": 7,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 19,
+      "y": 7,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 7,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 7,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 8,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 10,
+      "y": 8,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 11,
+      "y": 8,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 8,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 8,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 1,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 2,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 7,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 8,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 9,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 10,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 11,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 12,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 13,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 16,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 17,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 18,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 19,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 21,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 22,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 23,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 24,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 26,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 27,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 28,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 29,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 30,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 31,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 32,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 33,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 9,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 1,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 2,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 7,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 8,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 9,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 10,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 11,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 12,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 13,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 16,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 17,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 18,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 19,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 21,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 22,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 23,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 24,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 25,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 26,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 27,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 28,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 33,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 10,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 11,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 19,
+      "y": 11,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 11,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 11,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 12,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 19,
+      "y": 12,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 12,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 12,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 13,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 19,
+      "y": 13,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 13,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 13,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 14,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 19,
+      "y": 14,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 14,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 14,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 15,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 19,
+      "y": 15,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 15,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 15,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 16,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 16,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 16,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 17,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 17,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 18,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 18,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 19,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 19,
+      "y": 19,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 19,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 20,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 19,
+      "y": 20,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 20,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 20,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 21,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 21,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 21,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 22,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 19,
+      "y": 22,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 22,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 22,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 23,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 19,
+      "y": 23,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 23,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 23,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 24,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 2,
+      "y": 24,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 3,
+      "y": 24,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 5,
+      "y": 24,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 19,
+      "y": 24,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 24,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 29,
+      "y": 24,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 24,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 0,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 1,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 2,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 3,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 4,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 5,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 6,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 7,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 8,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 9,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 10,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 11,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 12,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 13,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 14,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 15,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 16,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 17,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 18,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 19,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 20,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 21,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 22,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 23,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 24,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 25,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 26,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 27,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 28,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 29,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 30,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 31,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 32,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 33,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    },
+    {
+      "x": 34,
+      "y": 25,
+      "terrain_type": "wall",
+      "mask_color": "#000000",
+      "mask_generated": true
+    }
+  ],
+  "terrain_zones": [],
+  "tokens": [],
+  "overlays": [],
+  "terrain_mask_metadata": {
+    "palette_id": "mspaint_basic",
+    "tile_count": 910,
+    "generated_terrain_tiles": 190,
+    "unmatched_tiles": 720,
+    "terrain_type_counts": {
+      "wall": 190
+    },
+    "mask_path": "apps/map-system/assets/masks/cave-mask-01.png"
+  }
+}

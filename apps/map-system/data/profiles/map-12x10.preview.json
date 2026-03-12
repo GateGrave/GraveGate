@@ -1,0 +1,24 @@
+{
+  "name": "Map 12x10 Obstacle Preview",
+  "terrain": [],
+  "terrain_zones": [],
+  "tokens": [
+    {
+      "token_id": "player-a",
+      "token_type": "player",
+      "label": "P1",
+      "badge_text": "1",
+      "position": { "x": 1, "y": 1 },
+      "asset_path": "apps/map-system/assets/tokens/players/processed/asamar-female-01.cleaned.png"
+    },
+    {
+      "token_id": "player-b",
+      "token_type": "player",
+      "label": "P2",
+      "badge_text": "2",
+      "position": { "x": 9, "y": 8 },
+      "asset_path": "apps/map-system/assets/tokens/players/processed/elf-female-01.cleaned.png"
+    }
+  ],
+  "overlays": []
+}

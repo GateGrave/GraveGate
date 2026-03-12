@@ -1,0 +1,42 @@
+{
+  "map_id": "forest-road-22x28-demo",
+  "map_type": "combat",
+  "name": "Forest Road Base Map",
+  "instance_id": "map-instance-demo-001",
+  "instance_binding": {
+    "instance_type": "combat",
+    "instance_id": "combat-demo-001"
+  },
+  "grid": {
+    "width": 22,
+    "height": 28,
+    "tile_size": 70
+  },
+  "asset": {
+    "base_image_path": "apps/map-system/assets/base-maps/forest-road-22x28.png",
+    "has_embedded_grid": true,
+    "render_width_px": 1024,
+    "render_height_px": 1536,
+    "grid_origin_x": 4,
+    "grid_origin_y": 1,
+    "grid_width_px": 1012,
+    "grid_height_px": 1534
+  },
+  "rules": {
+    "diagonal_rule": "alternating"
+  },
+  "blocked_tiles": [],
+  "terrain": [
+    { "x": 10, "y": 12, "terrain_type": "road", "movement_cost": 1 },
+    { "x": 10, "y": 13, "terrain_type": "road", "movement_cost": 1 },
+    { "x": 10, "y": 14, "terrain_type": "road", "movement_cost": 1 },
+    { "x": 10, "y": 15, "terrain_type": "road", "movement_cost": 1 },
+    { "x": 11, "y": 12, "terrain_type": "road", "movement_cost": 1 },
+    { "x": 11, "y": 13, "terrain_type": "road", "movement_cost": 1 },
+    { "x": 11, "y": 14, "terrain_type": "road", "movement_cost": 1 },
+    { "x": 11, "y": 15, "terrain_type": "road", "movement_cost": 1 }
+  ],
+  "terrain_zones": [],
+  "tokens": [],
+  "overlays": []
+}

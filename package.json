@@ -10,6 +10,15 @@
     "gateway:start": "node apps/gateway/src/index.js",
     "discord:register": "node apps/gateway/src/discord/registerCommandsRunner.js",
     "phase1:flow": "node src/phase1-mock-flow.js",
+    "map:test": "node scripts/map-system-cli.js test",
+    "map:apply-terrain-mask": "node scripts/map-system-cli.js apply-terrain-mask",
+    "map:inspect-terrain-mask": "node scripts/map-system-cli.js inspect-terrain-mask",
+    "map:render": "node scripts/map-system-cli.js render-map",
+    "map:movement-preview": "node scripts/map-system-cli.js render-movement-preview",
+    "map:process-token": "node scripts/map-system-cli.js process-token",
+    "map:process-player-tokens": "node scripts/map-system-cli.js process-player-tokens",
+    "map:process-enemy-tokens": "node scripts/map-system-cli.js process-enemy-tokens",
+    "map:stamp-terrain": "node scripts/map-system-cli.js stamp-terrain",
     "test": "node -e \"console.log('Test placeholder: no automated tests added yet for Phase 1.')\"",
     "test:loot-core": "node apps/world-system/src/loot/testing/loot-core-schema.test.js",
     "test:loot-table": "node apps/world-system/src/loot/testing/loot-table-system.test.js",
@@ -84,6 +93,7 @@
   },
   "dependencies": {
     "discord.js": "^14.25.1",
-    "dotenv": "^17.3.1"
+    "dotenv": "^17.3.1",
+    "jimp": "^1.6.0"
   }
 }

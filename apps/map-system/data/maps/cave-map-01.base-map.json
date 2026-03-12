@@ -1,0 +1,35 @@
+{
+  "map_id": "cave-map-01",
+  "map_type": "combat",
+  "name": "Cave Map 01 Base Map",
+  "instance_id": "map-instance-cave-01",
+  "instance_binding": {
+    "instance_type": "combat",
+    "instance_id": "combat-cave-01"
+  },
+  "grid": {
+    "width": 35,
+    "height": 26,
+    "tile_size": 70
+  },
+  "asset": {
+    "base_image_path": "apps/map-system/assets/base-maps/cave-map-01.png",
+    "terrain_mask_path": "apps/map-system/assets/masks/cave-mask-01.png",
+    "terrain_mask_palette_id": "mspaint_basic",
+    "has_embedded_grid": true,
+    "render_width_px": 2450,
+    "render_height_px": 1820,
+    "grid_origin_x": 0,
+    "grid_origin_y": 35,
+    "grid_width_px": 2450,
+    "grid_height_px": 1820
+  },
+  "rules": {
+    "diagonal_rule": "alternating"
+  },
+  "blocked_tiles": [],
+  "terrain": [],
+  "terrain_zones": [],
+  "tokens": [],
+  "overlays": []
+}

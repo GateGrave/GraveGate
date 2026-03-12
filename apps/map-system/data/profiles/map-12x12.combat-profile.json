@@ -1,0 +1,17 @@
+{
+  "name": "Map 12x12 Combat Profile",
+  "terrain": [],
+  "terrain_zones": [],
+  "tokens": [],
+  "overlays": [],
+  "terrain_mask_metadata": {
+    "palette_id": "mspaint_basic",
+    "tile_count": 144,
+    "generated_terrain_tiles": 0,
+    "unmatched_tiles": 0,
+    "terrain_type_counts": {
+      "open": 144
+    },
+    "mask_path": "apps/map-system/assets/masks/mask-12x12.png"
+  }
+}

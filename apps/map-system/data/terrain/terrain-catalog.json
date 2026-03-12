@@ -1,0 +1,109 @@
+{
+  "definitions": [
+    {
+      "terrain_type": "open",
+      "aliases": ["ground", "road", "path", "grass", "field"],
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "movement_cost": 1
+    },
+    {
+      "terrain_type": "brush",
+      "aliases": ["bush", "brush_patch", "thicket_light"],
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "movement_cost": 2
+    },
+    {
+      "terrain_type": "tree",
+      "aliases": ["tree_cluster", "copse", "forest_tree"],
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "movement_cost": 1
+    },
+    {
+      "terrain_type": "rock",
+      "aliases": ["stone", "rocks", "rubble_large"],
+      "blocks_movement": true,
+      "blocks_sight": false,
+      "movement_cost": 1
+    },
+    {
+      "terrain_type": "boulder",
+      "aliases": ["boulder_large", "boulder_small"],
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "movement_cost": 1
+    },
+    {
+      "terrain_type": "pillar",
+      "aliases": ["column", "obelisk"],
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "movement_cost": 1
+    },
+    {
+      "terrain_type": "fence",
+      "aliases": ["hedge", "barricade_low"],
+      "blocks_movement": true,
+      "blocks_sight": false,
+      "movement_cost": 1
+    },
+    {
+      "terrain_type": "wall",
+      "aliases": ["stone_wall", "wood_wall", "brick_wall"],
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "movement_cost": 1
+    },
+    {
+      "terrain_type": "impassable",
+      "aliases": ["blocked", "solid", "obstacle", "hazard_blocker"],
+      "blocks_movement": true,
+      "blocks_sight": false,
+      "movement_cost": 1
+    },
+    {
+      "terrain_type": "river",
+      "aliases": ["stream", "rapids", "deep_water"],
+      "blocks_movement": true,
+      "blocks_sight": false,
+      "movement_cost": 1
+    },
+    {
+      "terrain_type": "pit",
+      "aliases": ["hole", "sinkhole", "trap_pit"],
+      "blocks_movement": true,
+      "blocks_sight": false,
+      "movement_cost": 1
+    },
+    {
+      "terrain_type": "chasm",
+      "aliases": ["void", "ravine", "crevasse"],
+      "blocks_movement": true,
+      "blocks_sight": false,
+      "movement_cost": 1
+    },
+    {
+      "terrain_type": "cliff",
+      "aliases": ["ledge", "dropoff", "escarpment"],
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "movement_cost": 1
+    },
+    {
+      "terrain_type": "mountain",
+      "aliases": ["mountain_ridge", "peak", "crag"],
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "movement_cost": 1
+    },
+    {
+      "terrain_type": "lava",
+      "aliases": ["magma", "molten"],
+      "blocks_movement": true,
+      "blocks_sight": false,
+      "movement_cost": 1
+    }
+  ]
+}

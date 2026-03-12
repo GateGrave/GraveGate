@@ -18,6 +18,11 @@ coverage/
 dist/
 build/
 
+# Local backups and generated map renders
+backups/
+apps/map-system/output/*
+!apps/map-system/output/.gitkeep
+
 # Environment files
 .env
 .env.*
