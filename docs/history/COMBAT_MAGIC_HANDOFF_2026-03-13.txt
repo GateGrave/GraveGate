@@ -1,5 +1,5 @@
-GateGrave Local Backup
-======================
+GateGrave Combat And Magic Handoff
+==================================
 
 Date
 ----
@@ -7,8 +7,8 @@ Date
 
 Purpose
 -------
-This is a local handoff/backup note for the current non-map work in progress.
-It is meant to make resuming easy later even if branch context is lost.
+This is a historical handoff note for the non-map combat and magical item work in progress.
+It is meant to make resuming and understanding that workstream easier later.
 
 
 1) Current Focus
@@ -137,5 +137,4 @@ Avoid next:
 
 8) Practical Note
 -----------------
-This backup note is local repo state documentation.
-It is meant to survive a pause even if branch context is not immediately available.
+This historical handoff note documents repo state for that workstream at the time it was written.

@@ -1,6 +1,7 @@
 "use strict";
 
 const assert = require("assert");
+const path = require("path");
 const { handleGatewayInteraction, __test } = require("../index");
 const { buildDungeonMapState } = require("../dungeonMapView");
 
@@ -1989,9 +1990,9 @@ async function runGatewayRuntimeIntegrationTests() {
         }
       },
       map_config: {
-        map_path: "C:\\Users\\Broy_\\Desktop\\GraveGatebot\\GateGrave-bot-System\\apps\\map-system\\data\\maps\\dungeon\\map-12x10.base-map.json",
-        profile_path: "C:\\Users\\Broy_\\Desktop\\GraveGatebot\\GateGrave-bot-System\\apps\\map-system\\data\\profiles\\dungeon\\map-12x10.dungeon-profile.json",
-        output_dir: "C:\\Users\\Broy_\\Desktop\\GraveGatebot\\GateGrave-bot-System\\apps\\map-system\\output\\live",
+        map_path: path.resolve(process.cwd(), "apps/map-system/data/maps/dungeon/map-12x10.base-map.json"),
+        profile_path: path.resolve(process.cwd(), "apps/map-system/data/profiles/dungeon/map-12x10.dungeon-profile.json"),
+        output_dir: path.resolve(process.cwd(), "apps/map-system/output/live"),
         dungeon_map: {
           map_path: "apps/map-system/data/maps/dungeon/map-12x10.base-map.json",
           party_position: { x: 1, y: 5 },

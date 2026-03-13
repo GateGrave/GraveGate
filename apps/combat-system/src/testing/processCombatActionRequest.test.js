@@ -34,6 +34,16 @@ function createSpellProvider(spells) {
   };
 }
 
+function createMoveRequestContext(combatManager, overrides) {
+  return Object.assign({
+    combatManager,
+    opportunityAttackAttackRollFn: () => 18,
+    opportunityAttackDamageRollFn: () => 3,
+    aiMonsterAttackRollFn: () => 1,
+    aiMonsterDamageRollFn: () => 3
+  }, overrides || {});
+}
+
 class FakeSqliteDb {
   constructor() {
     this.tables = new Map();
@@ -739,11 +749,7 @@ function runProcessCombatActionRequestTests() {
     const manager = createCombatReadyForMove(combatId, playerId);
 
     const out = processCombatMoveRequest({
-      context: {
-        combatManager: manager,
-        opportunityAttackAttackRollFn: () => 18,
-        opportunityAttackDamageRollFn: () => 3
-      },
+      context: createMoveRequestContext(manager),
       player_id: playerId,
       combat_id: combatId,
       payload: {
@@ -771,11 +777,7 @@ function runProcessCombatActionRequestTests() {
     const manager = createCombatReadyForMove(combatId, playerId);
 
     const out = processCombatMoveRequest({
-      context: {
-        combatManager: manager,
-        opportunityAttackAttackRollFn: () => 18,
-        opportunityAttackDamageRollFn: () => 3
-      },
+      context: createMoveRequestContext(manager),
       player_id: playerId,
       combat_id: combatId,
       payload: {
@@ -800,11 +802,7 @@ function runProcessCombatActionRequestTests() {
     });
 
     const out = processCombatMoveRequest({
-      context: {
-        combatManager: manager,
-        opportunityAttackAttackRollFn: () => 18,
-        opportunityAttackDamageRollFn: () => 3
-      },
+      context: createMoveRequestContext(manager),
       player_id: playerId,
       combat_id: combatId,
       payload: {
@@ -837,11 +835,7 @@ function runProcessCombatActionRequestTests() {
     });
 
     const out = processCombatMoveRequest({
-      context: {
-        combatManager: manager,
-        opportunityAttackAttackRollFn: () => 18,
-        opportunityAttackDamageRollFn: () => 3
-      },
+      context: createMoveRequestContext(manager),
       player_id: playerId,
       combat_id: combatId,
       payload: {
@@ -875,8 +869,7 @@ function runProcessCombatActionRequestTests() {
     manager.combats.set(combatId, combat);
 
     const out = processCombatMoveRequest({
-      context: {
-        combatManager: manager,
+      context: createMoveRequestContext(manager, {
         loadContentBundle: createSpellProvider([{
           spell_id: "shocking_grasp",
           name: "Shocking Grasp",
@@ -892,7 +885,7 @@ function runProcessCombatActionRequestTests() {
         },
         spellAttackRollFn: () => ({ final_total: 18 }),
         opportunityAttackDamageRollFn: () => 0
-      },
+      }),
       player_id: playerId,
       combat_id: combatId,
       payload: {
@@ -930,11 +923,7 @@ function runProcessCombatActionRequestTests() {
     });
 
     const out = processCombatMoveRequest({
-      context: {
-        combatManager: manager,
-        opportunityAttackAttackRollFn: () => 18,
-        opportunityAttackDamageRollFn: () => 3
-      },
+      context: createMoveRequestContext(manager),
       player_id: playerId,
       combat_id: combatId,
       payload: {
@@ -953,11 +942,7 @@ function runProcessCombatActionRequestTests() {
     const manager = createCombatReadyForMove(combatId, playerId);
 
     const out = processCombatMoveRequest({
-      context: {
-        combatManager: manager,
-        opportunityAttackAttackRollFn: () => 18,
-        opportunityAttackDamageRollFn: () => 3
-      },
+      context: createMoveRequestContext(manager),
       player_id: playerId,
       combat_id: combatId,
       payload: {
@@ -984,11 +969,7 @@ function runProcessCombatActionRequestTests() {
     manager.combats.set(combatId, combat);
 
     const out = processCombatMoveRequest({
-      context: {
-        combatManager: manager,
-        opportunityAttackAttackRollFn: () => 18,
-        opportunityAttackDamageRollFn: () => 3
-      },
+      context: createMoveRequestContext(manager),
       player_id: playerId,
       combat_id: combatId,
       payload: {

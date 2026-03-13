@@ -20,6 +20,7 @@
     "map:process-enemy-tokens": "node scripts/map-system-cli.js process-enemy-tokens",
     "map:stamp-terrain": "node scripts/map-system-cli.js stamp-terrain",
     "review:combat-map": "node apps/map-system/src/testing/mapSystem.test.js && node apps/gateway/src/testing/gatewayRuntimeIntegration.test.js && node apps/runtime/src/testing/readCommandRuntime.test.js && node apps/combat-system/src/testing/processCombatActionRequest.test.js",
+    "gate:main": "node apps/gateway/src/testing/commandDefinitions.test.js && node apps/gateway/src/testing/commandEventMapper.test.js && node apps/map-system/src/testing/mapSystem.test.js && node apps/gateway/src/testing/gatewayRuntimeIntegration.test.js && node apps/runtime/src/testing/readCommandRuntime.test.js && node apps/combat-system/src/testing/processCombatActionRequest.test.js",
     "test": "node -e \"console.log('Test placeholder: no automated tests added yet for Phase 1.')\"",
     "test:loot-core": "node apps/world-system/src/loot/testing/loot-core-schema.test.js",
     "test:loot-table": "node apps/world-system/src/loot/testing/loot-table-system.test.js",

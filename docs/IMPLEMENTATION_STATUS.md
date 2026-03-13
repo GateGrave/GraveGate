@@ -1,4 +1,4 @@
-# GateGrave Roadmap
+# GateGrave Implementation Status
 
 Last updated: 2026-03-13
 
@@ -10,6 +10,7 @@ Rules for this file:
 - `[ ]` means not implemented in a player-ready way
 - Keep this file aligned to canonical paths only
 - Do not mark scaffold-only systems as done
+- Repo-wide operating rules live in `docs/CONSTITUTION.md`
 
 ## Current Position
 
@@ -17,47 +18,51 @@ Current supported slice:
 - Character creation
 - Profile and inventory readback
 - Dungeon session entry and movement
+- Dungeon map attachments with party/object/enemy/encounter marker support
 - Combat handoff and return
 - Core combat actions
+- Combat map attachments with movement, attack, and supported-spell preview support
 - Reward grant and persistence
 - Session leave and cleanup
 
 Current immediate build direction:
-1. Deepen combat rules
-2. Improve player-facing combat/session UX
-3. Add richer dungeon interactions
-4. Expand itemization and economy depth
-5. Expand MMO/social/world systems into real gameplay
+1. Improve player-facing combat and dungeon map UX
+2. Deepen combat rules through central hooks only
+3. Expand dungeon interaction depth and content consistency
+4. Improve progression, item, and economy UX to match backend capability
+5. Expand MMO/social/world systems only after the core loop is stable
 
 ## Current Working Focus
 
-Active branch focus right now:
-- Non-map combat completion
-- Magical item combat depth
-- Canonical spell/action coverage only
+Main-branch focus right now:
+- Combat and dungeon map usability
+- Combat depth through canonical combat rules
+- Dungeon session UX and content readability
+- Keeping shared `main` stable and integration-safe
 
-Current branch-side goals in progress:
-1. Push combat as close to full 5e-supported slice as possible without touching `apps/map-system`
-2. Reuse central hooks instead of adding one-off logic:
+Current goals in progress:
+1. Keep combat moving toward a strong supported 5e slice without creating one-off rule paths
+2. Reuse central hooks instead of adding ad hoc logic:
    - conditions
    - saving throws
    - typed damage
    - concentration
    - action economy
-3. Keep magic items on canonical world -> character -> combat paths
-4. Keep button-first UX where it removes real player friction
+3. Keep map rendering, selection, and preview logic in `apps/map-system` while leaving authoritative mutation outside it
+4. Keep magic items on canonical world -> character -> combat paths
+5. Keep button-first UX where it removes real player friction
 
 Most recent completed chunk:
-- Multi-target spell support on the canonical combat path
-  - `up_to_three_allies` / `up_to_three_enemies` support for current non-damaging support-control spells
-  - split-target `magic_missile`
-  - cast payload now supports `target_ids`
+- Map-system and combat-depth work were integrated onto `main`
+  - combat and dungeon map flows now exist on the shared branch
+  - clean control-map and mask workflow is now the intended authoring path
+  - opportunity-attack range regression caused by the new attack range guard was fixed on `main`
 
 Next recommended resume point:
-1. Continue non-map combat completion through central rule hooks
-2. Add more safe support/control/defensive spells that fit the existing runtime/combat model
-3. Add more feat hooks only where central combat rules already exist
-4. Add more magical item combat behaviors only if they reuse existing hooks cleanly
+1. Improve combat-map and dungeon-map live UX
+2. Add better map authoring/debug validation for masks, markers, and edge walls
+3. Continue combat completion through central combat hooks
+4. Keep dungeon interaction depth growing from content/session metadata instead of gateway logic
 
 ## Core Architecture
 
@@ -210,7 +215,9 @@ Next recommended resume point:
 - [x] Removed/defeated actors stop rendering
 - [x] Player-facing combat output readability
 - [x] Canonical `/combat` battle-state read path
-- [ ] Cleaner combat screen UX in Discord
+- [~] Cleaner combat screen UX in Discord
+  - live map attachments, preview flows, and PNG output exist
+  - selected-state readability and richer summary polish are still pending
 - [ ] Better spell/action result summaries
 
 ## Dungeon and Exploration
@@ -229,7 +236,9 @@ Next recommended resume point:
 - [x] Locked chest gameplay loop
 - [x] Locked door gameplay loop
 - [x] Utility-spell dungeon interactions
-- [ ] Rich visual dungeon map layer
+- [~] Rich visual dungeon map layer
+  - dungeon map attachments, party token, typed markers, and mask-driven markers are in
+  - live readability, larger export tuning, and richer authoring/debug support are still pending
 - [~] More non-combat room interactions
   - Shrines can now grant blessings, reveal rooms, and clear movement locks
   - Lore objects can now record discoveries and reveal rooms

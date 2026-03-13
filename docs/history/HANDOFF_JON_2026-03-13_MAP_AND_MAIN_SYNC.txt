@@ -1,0 +1,131 @@
+# GateGrave Handoff For Jon
+Date: 2026-03-13
+
+## Current git state
+- `main` on GitHub and local `main` are now synced.
+- Current shared commit on `main`:
+  - `0d91190` `Fix opportunity attack range checks after main sync`
+
+## What landed on main
+- Your merged combat-depth / magic-item work is on `main`.
+- The map and dungeon work is also now on `main`.
+- The one real compatibility regression found during integration was fixed before push:
+  - opportunity attacks were being skipped because the new range guard was evaluating against the mover's new square instead of the square being left
+  - fix location:
+    - `apps/combat-system/src/flow/opportunityAttackFlow.js`
+
+## High-level map-system status
+- One shared `apps/map-system` is still the design.
+- Combat and dungeon are now separated by inputs/outputs/profiles, not by separate engines.
+
+### Separated folders
+- Combat:
+  - `apps/map-system/assets/base-maps/combat`
+  - `apps/map-system/assets/masks/combat`
+  - `apps/map-system/data/maps/combat`
+  - `apps/map-system/data/profiles/combat`
+  - `apps/map-system/output/live/combat`
+- Dungeon:
+  - `apps/map-system/assets/base-maps/dungeon`
+  - `apps/map-system/assets/masks/dungeon`
+  - `apps/map-system/data/maps/dungeon`
+  - `apps/map-system/data/profiles/dungeon`
+  - `apps/map-system/output/live/dungeon`
+
+## Combat-map state
+- Combat map system is live on the map-engine side:
+  - movement
+  - targeting
+  - supported spell-slice previews
+  - PNG rendering
+  - edge walls
+  - cover
+  - terrain masks
+  - canonical map event adapters
+- Gateway dry-run combat map flow exists and passes.
+- Important combat map files:
+  - `apps/gateway/src/combatMapView.js`
+  - `apps/map-system/src/contracts/map-event-adapter.js`
+  - `apps/map-system/src/logic/edge-walls.js`
+  - `apps/map-system/src/logic/cover.js`
+  - `apps/map-system/src/render/render-map-png.js`
+
+## Dungeon-map state
+- Dungeon map chunks 1-4 are complete enough to render authoritative dungeon/session-driven maps.
+- Party is rendered as a single leader-controlled group token.
+- Dungeon maps can show:
+  - party position
+  - typed object markers
+  - visible enemies
+  - encounter markers
+  - exits
+  - traps
+- Dungeon map move preview/back are local map actions.
+- Dungeon move dispatch goes through canonical session event adaptation, not gateway gameplay logic.
+- Important dungeon map files:
+  - `apps/gateway/src/dungeonMapView.js`
+  - `apps/gateway/src/cli/render-dungeon-preview.js`
+  - `apps/map-system/src/contracts/dungeon-map-action.contract.js`
+  - `apps/map-system/src/contracts/dungeon-map-event-adapter.js`
+  - `apps/map-system/src/core/dungeon-mask-loader.js`
+  - `apps/map-system/data/dungeon/dungeon-mask-palettes.json`
+
+## Dungeon mask rules currently supported
+- The dungeon marker mask system is separate from combat terrain masks.
+- Current marker meanings:
+  - red = enemy marker
+  - yellow = party position
+  - blue = trap
+  - purple = exit
+
+## Test maps and authoring notes
+- Clean control maps are being used as the reliable testbed:
+  - `12x12`
+  - `12x10`
+  - `26x24` dungeon test map
+- Important lesson from validation:
+  - clean MS Paint style maps with flat primary colors work reliably
+  - painterly maps were retired from active use because they created ambiguity
+
+## Token notes
+- New processed player tokens were added under:
+  - `apps/map-system/assets/tokens/players/processed`
+- The default dungeon party token is now:
+  - `apps/map-system/assets/tokens/players/processed/party-token.cleaned.png`
+
+## Validation run before push
+- `apps/map-system/src/testing/mapSystem.test.js`
+  - `110/110`
+- `apps/gateway/src/testing/gatewayRuntimeIntegration.test.js`
+  - `34/34`
+  - note: still prints the known intentional `gateway_interaction_internal_error ... runtime exploded` line
+- `apps/runtime/src/testing/readCommandRuntime.test.js`
+  - `58/58`
+- `apps/combat-system/src/testing/processCombatActionRequest.test.js`
+  - `19/19`
+
+## Recommended next step for Jon
+- Pull latest `main`.
+- Do not continue from older side branches.
+- Start any new work from a fresh branch off `main`.
+
+## Suggested pull commands
+```powershell
+git switch main
+git pull --ff-only origin main
+```
+
+## Recommended caution areas
+- `apps/gateway/src/index.js`
+- `apps/runtime/src/domainCommandDispatchHandlers.js`
+- `apps/combat-system/src/actions/attackAction.js`
+- `apps/combat-system/src/actions/castSpellAction.js`
+- `apps/combat-system/src/flow/opportunityAttackFlow.js`
+- `apps/gateway/src/combatMapView.js`
+- `apps/gateway/src/dungeonMapView.js`
+
+## Short summary
+- Main is synced.
+- Opportunity-attack regression is fixed.
+- Combat map and dungeon map foundations are both now on `main`.
+- Clean-map / mask workflow is the intended path going forward.
