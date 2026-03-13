@@ -268,8 +268,18 @@ function resolveOpportunityAttacksForMove(input) {
     combat.participants = reactionConsumed.next_state.participants;
     combat.event_log = reactionConsumed.next_state.event_log;
 
+    const combatForOpportunityAttack = clone(combat);
+    const moverIndexForAttack = Array.isArray(combatForOpportunityAttack.participants)
+      ? combatForOpportunityAttack.participants.findIndex((entry) => String(entry && entry.participant_id || "") === moverId)
+      : -1;
+    if (moverIndexForAttack !== -1) {
+      combatForOpportunityAttack.participants[moverIndexForAttack] = Object.assign({}, combatForOpportunityAttack.participants[moverIndexForAttack], {
+        position: clone(fromPosition)
+      });
+    }
+
     const attackOut = resolveAttackAgainstCombatState({
-      combat,
+      combat: combatForOpportunityAttack,
       attacker_id: reactorId,
       target_id: moverId,
       attack_roll_fn: attackRollFn,
