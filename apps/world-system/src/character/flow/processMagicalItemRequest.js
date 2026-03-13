@@ -1,6 +1,7 @@
 "use strict";
 
 const { loadItemContent } = require("../../content/contentLoader");
+const { applyResolvedItemEffectState } = require("../rules/magicalItemRules");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -237,7 +238,8 @@ function processIdentifyItemRequest(input) {
     requires_attunement: Boolean(revealedItem.metadata && revealedItem.metadata.requires_attunement === true)
   };
 
-  const persisted = persistWriteSet(context, clone(character), inventory, originalCharacter, originalInventory, "player_identify_failed");
+  const nextCharacter = applyResolvedItemEffectState(character, inventory);
+  const persisted = persistWriteSet(context, nextCharacter, inventory, originalCharacter, originalInventory, "player_identify_failed");
   if (!persisted.ok) {
     return persisted;
   }
@@ -356,8 +358,9 @@ function processAttunementRequest(input) {
     attuned_items: Array.from(attunedItems),
     slots_used: attunedItems.size
   };
+  const resolvedCharacter = applyResolvedItemEffectState(nextCharacter, inventory);
 
-  const persisted = persistWriteSet(context, nextCharacter, inventory, originalCharacter, originalInventory, failureType);
+  const persisted = persistWriteSet(context, resolvedCharacter, inventory, originalCharacter, originalInventory, failureType);
   if (!persisted.ok) {
     return persisted;
   }

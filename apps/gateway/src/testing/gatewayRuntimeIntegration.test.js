@@ -242,6 +242,11 @@ async function runGatewayRuntimeIntegrationTests() {
                         slots_used: 1,
                         attuned_items: ["item_ring_of_protection"]
                       },
+                      item_effects: {
+                        armor_class_bonus: 1,
+                        saving_throw_bonus: 1,
+                        active_item_names: ["Ring of Protection"]
+                      },
                       base_stats: {
                         strength: 15,
                         dexterity: 12,
@@ -290,6 +295,7 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(interaction._replyCalls[0].embeds[0].data.fields.some((field) => field.name === "Combat Core" && String(field.value).includes("HP: 38/42 (+5 temp)")), true);
     assert.equal(interaction._replyCalls[0].embeds[0].data.fields.some((field) => field.name === "Saving Throws" && String(field.value).includes("STR +5")), true);
     assert.equal(interaction._replyCalls[0].embeds[0].data.fields.some((field) => field.name === "Origin" && String(field.value).includes("soldier")), true);
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields.some((field) => field.name === "Relic Resonance" && String(field.value).includes("Ring of Protection")), true);
   }, results);
 
   await runTest("gateway_routes_feat_command_to_runtime_path", async () => {
@@ -418,7 +424,11 @@ async function runGatewayRuntimeIntegrationTests() {
                         { item_id: "potion", item_name: "Potion", quantity: 2 }
                       ],
                       magical_preview: [
-                        { item_id: "item_ring_of_protection", item_name: "Ring of Protection" }
+                        {
+                          item_id: "item_ring_of_protection",
+                          item_name: "Ring of Protection",
+                          effect_summary: ["AC +1"]
+                        }
                       ],
                       unidentified_preview: [],
                       attuned_items: ["item_ring_of_protection"]
@@ -521,7 +531,11 @@ async function runGatewayRuntimeIntegrationTests() {
                         { item_id: "potion", item_name: "Potion", quantity: 2 }
                       ],
                       magical_preview: [
-                        { item_id: "item_ring_of_protection", item_name: "Ring of Protection" }
+                        {
+                          item_id: "item_ring_of_protection",
+                          item_name: "Ring of Protection",
+                          effect_summary: ["AC +1"]
+                        }
                       ],
                       unidentified_preview: [],
                       attuned_items: ["item_ring_of_protection"]
@@ -687,11 +701,42 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(magicalButton._updateCalls[0].embeds[0].data.fields.some((field) => String(field.value).includes("Mysterious Ring")), true);
   }, results);
 
-  await runTest("gateway_inventory_magical_actions_use_button_driven_identify_and_attune_flow", async () => {
+  await runTest("gateway_inventory_magical_actions_use_button_driven_identify_attune_and_use_flow", async () => {
     const receivedEvents = [];
     const runtime = {
       processGatewayReadCommandEvent(event) {
         receivedEvents.push(event);
+        if (event.event_type === "player_use_item") {
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "use",
+                    ok: true,
+                    data: {
+                      use_status: "consumed",
+                      item_id: "item_potion_of_heroism",
+                      inventory_id: "inv-gateway-magical-actions-001",
+                      hp_before: 7,
+                      hp_after: 7,
+                      temporary_hp_before: 0,
+                      temporary_hp_after: 10,
+                      temporary_hitpoints_granted: 10
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
         if (event.event_type === "player_identify_item_requested") {
           return {
             ok: true,
@@ -787,6 +832,13 @@ async function runGatewayRuntimeIntegrationTests() {
                       stackable_preview: [],
                       magical_preview: [
                         {
+                          item_id: "item_potion_of_heroism",
+                          item_name: "Potion of Heroism",
+                          item_type: "consumable",
+                          usable: true,
+                          unidentified: false
+                        },
+                        {
                           item_id: "item_ring_of_protection",
                           item_name: "Ring of Protection",
                           requires_attunement: true,
@@ -820,6 +872,12 @@ async function runGatewayRuntimeIntegrationTests() {
     await handleGatewayInteraction(magicalButton, runtime);
     assert.equal(
       magicalButton._updateCalls[0].components.some((row) =>
+        Array.isArray(row.components) && row.components.some((button) => String(button.data.custom_id).startsWith("inventory:view:use:"))
+      ),
+      true
+    );
+    assert.equal(
+      magicalButton._updateCalls[0].components.some((row) =>
         Array.isArray(row.components) && row.components.some((button) => String(button.data.custom_id).startsWith("inventory:view:identify:"))
       ),
       true
@@ -846,6 +904,11 @@ async function runGatewayRuntimeIntegrationTests() {
       ),
       true
     );
+
+    const useButton = createButtonInteraction("inventory:view:use:item_potion_of_heroism", "player-gateway-magical-actions-001");
+    const useOut = await handleGatewayInteraction(useButton, runtime);
+    assert.equal(useOut.ok, true);
+    assert.equal(String(useButton._updateCalls[0].content).includes("Temp HP: 0 -> 10"), true);
   }, results);
 
   await runTest("gateway_inventory_equipment_actions_use_button_driven_equip_and_unequip_flow", async () => {
@@ -2025,6 +2088,59 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(interaction._replyCalls[0].content.includes("Result: Hit for 4"), true);
     assert.equal(interaction._replyCalls[0].content.includes("Next Turn: hero-001"), true);
     assert.equal(interaction._replyCalls[0].content.includes("monster-001 struck at hero-001"), true);
+  }, results);
+
+  await runTest("gateway_formats_dodge_response_with_combat_state", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "dodge",
+                  ok: true,
+                  data: {
+                    participant_id: "hero-001",
+                    is_dodging: true,
+                    active_participant_id: "monster-001",
+                    combat_completed: false,
+                    ai_turns: [],
+                    combat_summary: {
+                      combat_id: "combat-gateway-dodge-001",
+                      round: 2,
+                      active_participant_id: "monster-001",
+                      participants: [
+                        { participant_id: "hero-001", current_hp: 9, max_hp: 12 },
+                        { participant_id: "monster-001", current_hp: 7, max_hp: 7 }
+                      ]
+                    }
+                  },
+                  error: null
+                }
+              }
+            ],
+            events_processed: [event],
+            final_state: {}
+          },
+          error: null
+        };
+      }
+    };
+
+    const interaction = createInteraction("dodge", [
+      { name: "combat_id", value: "combat-gateway-dodge-001" }
+    ], "player-gateway-dodge-001");
+    const out = await handleGatewayInteraction(interaction, runtime);
+
+    assert.equal(out.ok, true);
+    assert.equal(interaction._replyCalls.length, 1);
+    assert.equal(interaction._replyCalls[0].embeds[0].data.title, "Dodge Taken");
+    assert.equal(interaction._replyCalls[0].embeds[1].data.title, "Combat State");
+    assert.equal(String(interaction._replyCalls[0].content).includes("Status: Dodging"), true);
   }, results);
 
   await runTest("gateway_formats_spell_effect_details_in_cast_response", async () => {

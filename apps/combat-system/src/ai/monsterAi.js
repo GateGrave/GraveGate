@@ -2,6 +2,7 @@
 
 const { performAttackAction } = require("../actions/attackAction");
 const { performMoveAction } = require("../actions/moveAction");
+const { participantHasCondition } = require("../conditions/conditionHelpers");
 const { resolveOpportunityAttacksForMove } = require("../flow/opportunityAttackFlow");
 
 function clone(value) {
@@ -232,6 +233,16 @@ function resolveMonsterAiTurn(input) {
     return failure("monster_ai_turn_failed", "active AI participant is defeated", {
       combat_id: String(combatId),
       participant_id: String(actor.participant_id || "")
+    });
+  }
+  if (participantHasCondition(combat, actor.participant_id, "stunned") || participantHasCondition(combat, actor.participant_id, "paralyzed")) {
+    const reason = participantHasCondition(combat, actor.participant_id, "paralyzed") ? "paralyzed" : "stunned";
+    appendAiWaitEvent(combatManager, combatId, actor.participant_id, reason);
+    return success("monster_ai_turn_resolved", {
+      combat_id: String(combatId),
+      actor_id: String(actor.participant_id || ""),
+      action_type: "wait",
+      reason
     });
   }
 

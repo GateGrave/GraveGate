@@ -2,7 +2,7 @@
 
 const { resolveConcentrationSave } = require("./resolve-concentration-save");
 const { getConcentrationDC } = require("./check-concentration");
-const { computeSavingThrowModifier } = require("../spells/spellcastingHelpers");
+const { computeSavingThrowModifier, rollConditionDiceModifier } = require("../spells/spellcastingHelpers");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -184,9 +184,16 @@ function resolveConcentrationDamageCheck(combatState, participantId, damageTaken
 
   const dc = getConcentrationDC(damage);
   const modifier = computeSavingThrowModifier(participant, "constitution");
+  const conditionBonus = rollConditionDiceModifier({
+    combat_state: nextCombat,
+    participant_id: participantId,
+    positive_condition: "bless",
+    negative_condition: "bane",
+    rng
+  });
   const saveResult = resolveConcentrationSave({
     dc,
-    constitution_save_modifier: modifier,
+    constitution_save_modifier: modifier + conditionBonus.total,
     advantage: participantHasFeatFlag(participant, "war_caster"),
     rng
   });

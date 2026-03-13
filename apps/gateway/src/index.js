@@ -56,6 +56,7 @@ const CUSTOM_IDS = {
   inventoryMagical: "inventory:view:magical",
   inventoryEquip: "inventory:view:equip",
   inventoryUnequip: "inventory:view:unequip",
+  inventoryUse: "inventory:view:use",
   inventoryIdentify: "inventory:view:identify",
   inventoryAttune: "inventory:view:attune",
   inventoryUnattune: "inventory:view:unattune",
@@ -442,8 +443,19 @@ function summarizeInventoryPreview(entries) {
     }
     const suffix = tags.length > 0 ? ` [${tags.join(", ")}]` : "";
     const label = quantity && quantity > 1 ? `${name} x${quantity}` : name;
-    return `${label}${suffix}`;
+    const effects = Array.isArray(safe.effect_summary) ? safe.effect_summary.filter(Boolean) : [];
+    const effectSuffix = effects.length > 0 ? ` - ${effects.slice(0, 2).join(", ")}` : "";
+    return `${label}${suffix}${effectSuffix}`;
   }).join(" | ");
+}
+
+function summarizeTargetSelection(data) {
+  const safe = data && typeof data === "object" ? data : {};
+  const targetIds = Array.isArray(safe.target_ids) ? safe.target_ids.filter(Boolean) : [];
+  if (targetIds.length > 1) {
+    return targetIds.map((entry) => cleanText(entry, "unknown")).join(", ");
+  }
+  return cleanText(safe.target_id, "(none)");
 }
 
 function summarizeRoomExits(exits) {
@@ -786,6 +798,42 @@ function summarizeFeatPreview(feats) {
     .join(", ");
 }
 
+function summarizeItemEffects(itemEffects) {
+  const safe = itemEffects && typeof itemEffects === "object" ? itemEffects : {};
+  const lines = [];
+  const acBonus = Number(safe.armor_class_bonus);
+  const saveBonus = Number(safe.saving_throw_bonus);
+  const spellDcBonus = Number(safe.spell_save_dc_bonus);
+  const spellAttackBonus = Number(safe.spell_attack_bonus);
+  const speedBonus = Number(safe.speed_bonus);
+  const resistances = Array.isArray(safe.resistances) ? safe.resistances : [];
+  const activeNames = Array.isArray(safe.active_item_names) ? safe.active_item_names : [];
+
+  if (Number.isFinite(acBonus) && acBonus !== 0) {
+    lines.push(`AC Ward: +${acBonus}`);
+  }
+  if (Number.isFinite(saveBonus) && saveBonus !== 0) {
+    lines.push(`Saves: +${saveBonus}`);
+  }
+  if (Number.isFinite(spellDcBonus) && spellDcBonus !== 0) {
+    lines.push(`Spell DC: +${spellDcBonus}`);
+  }
+  if (Number.isFinite(spellAttackBonus) && spellAttackBonus !== 0) {
+    lines.push(`Spell Attack: +${spellAttackBonus}`);
+  }
+  if (Number.isFinite(speedBonus) && speedBonus !== 0) {
+    lines.push(`Speed: +${speedBonus} ft`);
+  }
+  if (resistances.length > 0) {
+    lines.push(`Resists: ${resistances.map((entry) => humanizeIdentifier(entry, entry)).join(", ")}`);
+  }
+  if (activeNames.length > 0) {
+    lines.push(`Sources: ${activeNames.slice(0, 3).join(", ")}`);
+  }
+
+  return lines.length > 0 ? lines.join("\n") : "No active magical item effects";
+}
+
 function toDisplayTag(value, fallback) {
   const safe = cleanText(value, fallback || "(none)");
   return safe === "(none)" ? safe : `\`${safe}\``;
@@ -868,6 +916,11 @@ function buildProfileEmbed(data) {
           `Spellcasting: ${toDisplayTag(character.spellcasting_ability, "(none)")}`,
           `Feats: ${summarizeFeatPreview(feats)}`
         ].join("\n"),
+        inline: false
+      },
+      {
+        name: "Relic Resonance",
+        value: summarizeItemEffects(character.item_effects),
         inline: false
       }
     )
@@ -981,6 +1034,19 @@ function buildMagicalInventoryActionButtons(data) {
   const magical = Array.isArray(inventory.magical_preview) ? inventory.magical_preview : [];
   const unidentified = Array.isArray(inventory.unidentified_preview) ? inventory.unidentified_preview : [];
   const buttons = [];
+
+  magical.slice(0, 3).forEach((entry) => {
+    const itemId = cleanText(entry && entry.item_id, "");
+    if (!itemId || entry.unidentified === true || entry.usable !== true) {
+      return;
+    }
+    buttons.push(
+      new ButtonBuilder()
+        .setCustomId(`${CUSTOM_IDS.inventoryUse}:${itemId}`)
+        .setLabel(`Use ${abbreviate(cleanText(entry && entry.item_name, itemId), 20)}`)
+        .setStyle(ButtonStyle.Success)
+    );
+  });
 
   unidentified.slice(0, 2).forEach((entry) => {
     const itemId = cleanText(entry && entry.item_id, "");
@@ -1498,6 +1564,9 @@ function summarizeSpellResolution(data) {
   const damage = data && data.damage_result && Number.isFinite(Number(data.damage_result.final_damage))
     ? Number(data.damage_result.final_damage)
     : 0;
+  const temporaryHitPoints = data && data.vitality_result && Number.isFinite(Number(data.vitality_result.temporary_hitpoints_granted))
+    ? Number(data.vitality_result.temporary_hitpoints_granted)
+    : 0;
   if (resolutionType === "save") {
     return data && data.saved === true
       ? `Save succeeded${damage > 0 ? ` | ${damage} damage` : ""} - the target weathers the effect`
@@ -1512,6 +1581,9 @@ function summarizeSpellResolution(data) {
       : "Spell missed - the cast slips wide";
   }
   if (resolutionType === "none") {
+    if (temporaryHitPoints > 0) {
+      return `Effect applied | ${temporaryHitPoints} temp HP - the ward settles in`;
+    }
     return "Effect applied - the magic settles in";
   }
   return resolutionType;
@@ -2517,14 +2589,21 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
   if (responseType === "cast") {
     const combatSummary = data.combat_summary && typeof data.combat_summary === "object" ? data.combat_summary : null;
     const appliedConditions = Array.isArray(data.applied_conditions) ? data.applied_conditions : [];
+    const removedConditions = Array.isArray(data.removed_conditions) ? data.removed_conditions : [];
     const conditionSummary = appliedConditions.length > 0
       ? appliedConditions.map((entry) => cleanText(entry.condition_type, "condition")).join(", ")
+      : "(none)";
+    const removedConditionSummary = removedConditions.length > 0
+      ? removedConditions.map((entry) => cleanText(entry.condition_type, "condition")).join(", ")
       : "(none)";
     const damageSummary = data.damage_result && Number.isFinite(Number(data.damage_result.final_damage))
       ? String(Number(data.damage_result.final_damage))
       : "(none)";
     const healingSummary = data.healing_result && Number.isFinite(Number(data.healing_result.healed_for))
       ? String(Number(data.healing_result.healed_for))
+      : "(none)";
+    const vitalitySummary = data.vitality_result && Number.isFinite(Number(data.vitality_result.temporary_hitpoints_granted))
+      ? `${String(data.vitality_result.temporary_hp_before)} -> ${String(data.vitality_result.temporary_hp_after)}`
       : "(none)";
     const defenseSummary = data.defense_result && data.defense_result.armor_class_after !== undefined
       ? `${String(data.defense_result.armor_class_before)} -> ${String(data.defense_result.armor_class_after)}`
@@ -2535,12 +2614,14 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
         buildCombatActionEmbed("Spell Cast", 0x8b5cf6, [
           `Caster: ${cleanText(data.caster_id, "unknown")}`,
           `Spell: ${cleanText(data.spell_name, data.spell_id || "unknown")}`,
-          `Target: ${cleanText(data.target_id, "(none)")}`,
+          `Target: ${summarizeTargetSelection(data)}`,
           `Result: ${summarizeSpellResolution(data)}`,
           `Damage: ${damageSummary} ${cleanText(data.damage_type, "")}`.trim(),
           `Healing: ${healingSummary}`,
+          `Temp HP: ${vitalitySummary}`,
           `Defense: ${defenseSummary}`,
           `Conditions: ${conditionSummary}`,
+          `Cleansed: ${removedConditionSummary}`,
           ...summarizeConcentrationUpdate(data),
           combatSummary ? `Round: ${Number.isFinite(Number(combatSummary.round)) ? Number(combatSummary.round) : 1}` : null,
           combatSummary ? `Participants: ${summarizeCombatParticipantsForReply(combatSummary)}` : null,
@@ -2554,15 +2635,17 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
       content: [
         `Spell: ${cleanText(data.spell_name, data.spell_id || "unknown")}`,
         `Caster: ${cleanText(data.caster_id, "unknown")}`,
-        `Target: ${cleanText(data.target_id, "(none)")}`,
+        `Target: ${summarizeTargetSelection(data)}`,
         `Result: ${summarizeSpellResolution(data)}`,
         `Damage Type: ${cleanText(data.damage_type, "(none)")}`,
         `Hit: ${data.hit === null || data.hit === undefined ? "(n/a)" : String(Boolean(data.hit))}`,
         `Saved: ${data.saved === null || data.saved === undefined ? "(n/a)" : String(Boolean(data.saved))}`,
         `Damage: ${damageSummary}`,
         `Healing: ${healingSummary}`,
+        `Temp HP: ${vitalitySummary}`,
         `Defense: ${defenseSummary}`,
         `Conditions: ${conditionSummary}`,
+        `Cleansed: ${removedConditionSummary}`,
         ...summarizeConcentrationUpdate(data),
         `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
         `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
@@ -2598,6 +2681,34 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
         `Result: ${summarizeAttackResult(data)}`,
         `Target HP After: ${data.target_hp_after === undefined ? "(unknown)" : String(data.target_hp_after)}`,
         ...summarizeConcentrationUpdate(data),
+        `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
+        `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
+        `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
+      ].join("\n"),
+      data
+    };
+  }
+
+  if (responseType === "dodge") {
+    const combatSummary = data.combat_summary && typeof data.combat_summary === "object" ? data.combat_summary : null;
+    return {
+      ok: true,
+      embeds: [
+        buildCombatActionEmbed("Dodge Taken", 0xf1c40f, [
+          `Actor: ${cleanText(data.participant_id, "unknown")}`,
+          `Status: ${data.is_dodging === true ? "Guard raised and focus tightened" : "Dodge not active"}`,
+          combatSummary ? `Round: ${Number.isFinite(Number(combatSummary.round)) ? Number(combatSummary.round) : 1}` : null,
+          combatSummary ? `Participants: ${summarizeCombatParticipantsForReply(combatSummary)}` : null,
+          `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
+          `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
+          `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
+        ], "Combat Dodge Feed"),
+        ...(combatSummary ? [buildCombatStateEmbed(combatSummary)] : [])
+      ],
+      components: buildCombatStatusComponents({ combat_id: data.combat_id || (combatSummary && combatSummary.combat_id) || null }),
+      content: [
+        `Actor: ${cleanText(data.participant_id, "unknown")}`,
+        `Status: ${data.is_dodging === true ? "Dodging" : "Not dodging"}`,
         `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
         `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
         `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
@@ -2695,6 +2806,10 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
 
   if (responseType === "use") {
     if (data.use_status === "resolved" && data.combat_id) {
+      const appliedConditions = Array.isArray(data.applied_conditions) ? data.applied_conditions : [];
+      const conditionSummary = appliedConditions.length > 0
+        ? appliedConditions.map((entry) => cleanText(entry.condition_type, "condition")).join(", ")
+        : "(none)";
       return {
         ok: true,
         embeds: [
@@ -2703,6 +2818,8 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
             `Item: ${cleanText(data.item_id, "unknown")}`,
             `HP: ${data.hp_before === undefined ? "(unknown)" : String(data.hp_before)} -> ${data.hp_after === undefined ? "(unknown)" : String(data.hp_after)}`,
             `Healed For: ${data.healed_for === undefined ? 0 : String(data.healed_for)}`,
+            `Temp HP: ${data.temporary_hp_before === undefined ? 0 : String(data.temporary_hp_before)} -> ${data.temporary_hp_after === undefined ? 0 : String(data.temporary_hp_after)}`,
+            `Conditions: ${conditionSummary}`,
             data.combat_summary ? `Round: ${Number.isFinite(Number(data.combat_summary.round)) ? Number(data.combat_summary.round) : 1}` : null,
             data.combat_summary ? `Participants: ${summarizeCombatParticipantsForReply(data.combat_summary)}` : null,
             `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
@@ -2717,6 +2834,8 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
           `Item: ${cleanText(data.item_id, "unknown")}`,
           `HP: ${data.hp_before === undefined ? "(unknown)" : String(data.hp_before)} -> ${data.hp_after === undefined ? "(unknown)" : String(data.hp_after)}`,
           `Healed For: ${data.healed_for === undefined ? 0 : String(data.healed_for)}`,
+          `Temp HP: ${data.temporary_hp_before === undefined ? 0 : String(data.temporary_hp_before)} -> ${data.temporary_hp_after === undefined ? 0 : String(data.temporary_hp_after)}`,
+          `Conditions: ${conditionSummary}`,
           `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
           `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
           `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
@@ -2730,7 +2849,9 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
       content: [
         `Use status: ${cleanText(data.use_status, "resolved")}`,
         `Item: ${cleanText(data.item_id, "unknown")}`,
-        `Inventory: ${cleanText(data.inventory_id, "(none)")}`
+        `Inventory: ${cleanText(data.inventory_id, "(none)")}`,
+        `HP: ${data.hp_before === undefined ? "(unknown)" : String(data.hp_before)} -> ${data.hp_after === undefined ? "(unknown)" : String(data.hp_after)}`,
+        `Temp HP: ${data.temporary_hp_before === undefined ? 0 : String(data.temporary_hp_before)} -> ${data.temporary_hp_after === undefined ? 0 : String(data.temporary_hp_after)}`
       ].join("\n"),
       data
     };
@@ -3169,12 +3290,14 @@ async function handleInventoryComponent(interaction, runtime) {
     return;
   }
 
+  const useActionPrefix = `${CUSTOM_IDS.inventoryUse}:`;
   const magicalActionPrefix = `${CUSTOM_IDS.inventoryIdentify}:`;
   const attuneActionPrefix = `${CUSTOM_IDS.inventoryAttune}:`;
   const unattuneActionPrefix = `${CUSTOM_IDS.inventoryUnattune}:`;
   const equipActionPrefix = `${CUSTOM_IDS.inventoryEquip}:`;
   const unequipActionPrefix = `${CUSTOM_IDS.inventoryUnequip}:`;
   if (
+    customId.startsWith(useActionPrefix) ||
     customId.startsWith(equipActionPrefix) ||
     customId.startsWith(unequipActionPrefix) ||
     customId.startsWith(magicalActionPrefix) ||
@@ -3182,9 +3305,12 @@ async function handleInventoryComponent(interaction, runtime) {
     customId.startsWith(unattuneActionPrefix)
   ) {
     const segments = customId.split(":");
+    const isUseAction = customId.startsWith(useActionPrefix);
     const isEquipAction = customId.startsWith(equipActionPrefix);
     const isUnequipAction = customId.startsWith(unequipActionPrefix);
-    const action = isEquipAction
+    const action = isUseAction
+      ? "use"
+      : isEquipAction
       ? "equip"
       : isUnequipAction
         ? "unequip"
@@ -3201,7 +3327,9 @@ async function handleInventoryComponent(interaction, runtime) {
     }
 
     const eventType =
-      action === "equip"
+      action === "use"
+        ? EVENT_TYPES.PLAYER_USE_ITEM
+        : action === "equip"
         ? EVENT_TYPES.PLAYER_EQUIP_REQUESTED
         : action === "unequip"
           ? EVENT_TYPES.PLAYER_UNEQUIP_REQUESTED

@@ -373,6 +373,24 @@ function runCommandEventMapperTests() {
     assert.equal(isValidEvent(out.payload.event), true);
   }, results);
 
+  runTest("dodge_command_maps_to_canonical_event_shape", () => {
+    const out = mapSlashCommandToGatewayEvent(
+      createInteraction("dodge", {
+        options: {
+          data: [
+            { name: "combat_id", value: "combat-207" }
+          ]
+        }
+      })
+    );
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.event.event_type, "player_dodge");
+    assert.equal(out.payload.event.target_system, "combat_system");
+    assert.equal(out.payload.event.combat_id, "combat-207");
+    assert.equal(isValidEvent(out.payload.event), true);
+  }, results);
+
   runTest("cast_command_maps_to_canonical_event_shape", () => {
     const out = mapSlashCommandToGatewayEvent(
       createInteraction("cast", {
@@ -392,7 +410,26 @@ function runCommandEventMapperTests() {
     assert.equal(out.payload.event.combat_id, "combat-209");
     assert.equal(out.payload.event.payload.spell_id, "magic_missile");
     assert.equal(out.payload.event.payload.target_id, "enemy-009");
+    assert.deepEqual(out.payload.event.payload.target_ids, ["enemy-009"]);
     assert.equal(isValidEvent(out.payload.event), true);
+  }, results);
+
+  runTest("cast_command_maps_additional_target_ids", () => {
+    const out = mapSlashCommandToGatewayEvent(
+      createInteraction("cast", {
+        options: {
+          data: [
+            { name: "spell_id", value: "bless" },
+            { name: "target_id", value: "ally-001" },
+            { name: "additional_target_ids", value: "ally-002, ally-003" },
+            { name: "combat_id", value: "combat-209" }
+          ]
+        }
+      })
+    );
+
+    assert.equal(out.ok, true);
+    assert.deepEqual(out.payload.event.payload.target_ids, ["ally-001", "ally-002", "ally-003"]);
   }, results);
 
   runTest("use_command_maps_to_canonical_event_shape", () => {

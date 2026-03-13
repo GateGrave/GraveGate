@@ -184,6 +184,14 @@ async function runReadCommandRuntimeTests() {
         slots_used: 1,
         attuned_items: ["item_ring_of_protection"]
       },
+      item_effects: {
+        armor_class_bonus: 1,
+        saving_throw_bonus: 1,
+        spell_save_dc_bonus: 1,
+        active_item_names: ["Ring of Protection"]
+      },
+      effective_armor_class: 18,
+      effective_speed: 35,
       feat_slots: {
         total_slots: 1,
         used_slots: 1,
@@ -225,9 +233,10 @@ async function runReadCommandRuntimeTests() {
     assert.equal(response.payload.data.character.feats.length, 2);
     assert.equal(response.payload.data.character.feats[0].name, "Alert");
     assert.equal(response.payload.data.character.feat_slots.total_slots, 1);
-    assert.equal(response.payload.data.character.armor_class, 17);
+    assert.equal(response.payload.data.character.armor_class, 18);
     assert.equal(response.payload.data.character.hp_summary.current, 38);
-    assert.equal(response.payload.data.character.saving_throws.strength, 5);
+    assert.equal(response.payload.data.character.saving_throws.strength, 6);
+    assert.equal(response.payload.data.character.item_effects.active_item_names[0], "Ring of Protection");
     assert.equal(typeof response.payload.data.character, "object");
   }, results);
 
@@ -377,7 +386,8 @@ async function runReadCommandRuntimeTests() {
             magical: true,
             requires_attunement: true,
             equipped: true,
-            equipped_slot: "ring"
+            equipped_slot: "ring",
+            armor_class_bonus: 1
           }
         }]
       })
@@ -410,6 +420,7 @@ async function runReadCommandRuntimeTests() {
     assert.equal(response.payload.data.inventory.equipment_preview[0].equipped, true);
     assert.equal(response.payload.data.inventory.equipment_preview[0].equipped_slot, "ring");
     assert.equal(response.payload.data.inventory.equipment_preview[0].equip_slot, "ring");
+    assert.equal(response.payload.data.inventory.magical_preview[0].effect_summary.includes("AC +1"), true);
     assert.equal(Array.isArray(response.payload.data.inventory.tradeable_items), true);
     assert.equal(response.payload.data.inventory.tradeable_items[0].item_id, "potion");
   }, results);
@@ -2903,11 +2914,26 @@ async function runReadCommandRuntimeTests() {
   await runTest("end_to_end_use_runtime_flow_through_world_domain_without_combat_id", async () => {
     const adapter = createInMemoryAdapter();
     const inventoryPersistence = new InventoryPersistenceBridge({ adapter });
+    const characterPersistence = new CharacterPersistenceBridge({ adapter });
     const runtime = createReadCommandRuntime({
-      inventoryPersistence
+      inventoryPersistence,
+      characterPersistence
     });
     const playerId = "player-runtime-world-use-001";
     const inventoryId = "inv-runtime-world-use-001";
+    const characterId = "char-runtime-world-use-001";
+
+    characterPersistence.saveCharacter(
+      createCharacterRecord({
+        character_id: characterId,
+        player_id: playerId,
+        name: "Runtime Use Hero",
+        inventory_id: inventoryId,
+        current_hitpoints: 4,
+        hitpoint_max: 10,
+        temporary_hitpoints: 1
+      })
+    );
 
     inventoryPersistence.saveInventory(
       createInventoryRecord({
@@ -2922,7 +2948,8 @@ async function runReadCommandRuntimeTests() {
             quantity: 2,
             owner_player_id: playerId,
             metadata: {
-              heal_amount: 5
+              heal_amount: 5,
+              temporary_hitpoints: 6
             }
           }
         ]
@@ -2940,6 +2967,10 @@ async function runReadCommandRuntimeTests() {
     assert.equal(response.payload.ok, true);
     assert.equal(response.combat_id, null);
     assert.equal(response.payload.data.item_id, "item-runtime-world-heal-001");
+    assert.equal(response.payload.data.hp_before, 4);
+    assert.equal(response.payload.data.hp_after, 9);
+    assert.equal(response.payload.data.temporary_hp_before, 1);
+    assert.equal(response.payload.data.temporary_hp_after, 6);
 
     const listed = inventoryPersistence.listInventories();
     const playerInventory = listed.payload.inventories.find((inventory) => {
@@ -2947,6 +2978,38 @@ async function runReadCommandRuntimeTests() {
     });
     assert.equal(Boolean(playerInventory), true);
     assert.equal(playerInventory.stackable_items[0].quantity, 1);
+
+    const loadedCharacter = characterPersistence.loadCharacterById(characterId);
+    assert.equal(loadedCharacter.ok, true);
+    assert.equal(loadedCharacter.payload.character.current_hitpoints, 9);
+    assert.equal(loadedCharacter.payload.character.temporary_hitpoints, 6);
+  }, results);
+
+  await runTest("player_dodge_request_is_processed_on_canonical_combat_path", async () => {
+    const adapter = createInMemoryAdapter();
+    const combatManager = new CombatManager();
+    const combatPersistence = new CombatPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({ combatManager, combatPersistence });
+    const playerId = "player-runtime-dodge-001";
+    const combatId = "combat-runtime-dodge-001";
+    createActiveCombat(combatManager, combatId, playerId, "enemy-runtime-dodge-001");
+
+    const event = createEvent(EVENT_TYPES.PLAYER_DODGE, {
+      command_name: "dodge",
+      request_id: "dodge-request-001"
+    }, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: playerId,
+      combat_id: combatId
+    });
+
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    const response = findResponse(out, "dodge");
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.ok, true);
+    assert.equal(response.payload.data.is_dodging, true);
+    assert.equal(response.payload.data.combat_summary.combat_id, combatId);
   }, results);
 
   await runTest("invalid_state_rejections_for_active_action_commands", async () => {

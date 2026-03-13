@@ -1,5 +1,11 @@
 "use strict";
 
+const {
+  ACTION_TYPES,
+  consumeParticipantAction,
+  validateParticipantActionAvailability
+} = require("./actionEconomy");
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -86,7 +92,20 @@ function performDodgeAction(input) {
     });
   }
 
-  actor.is_dodging = true;
+  const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.DODGE);
+  if (!availability.ok) {
+    return failure("dodge_action_failed", availability.error || "action is not available", availability.payload);
+  }
+
+  const consumed = consumeParticipantAction(actor, ACTION_TYPES.DODGE);
+  if (!consumed.ok) {
+    return failure("dodge_action_failed", consumed.error || "failed to consume action", consumed.payload);
+  }
+
+  const updatedActor = consumed.payload.participant;
+  updatedActor.is_dodging = true;
+  const actorIndex = participants.findIndex((entry) => String(entry.participant_id) === String(participantId));
+  participants[actorIndex] = updatedActor;
   combat.event_log = Array.isArray(combat.event_log) ? combat.event_log : [];
   combat.event_log.push({
     event_type: "dodge_action",
@@ -104,6 +123,7 @@ function performDodgeAction(input) {
     combat_id: String(combatId),
     participant_id: String(participantId),
     is_dodging: true,
+    action_available_after: updatedActor.action_available,
     combat: clone(combat)
   });
 }

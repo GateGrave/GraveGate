@@ -6,6 +6,7 @@ const { validationSuccess, validationFailure } = require("./validation-result");
 
 const ACTION_TYPES = {
   ATTACK: "attack",
+  DODGE: "dodge",
   CAST_SPELL: "cast_spell",
   MOVE: "move",
   USE_ITEM: "use_item",
@@ -187,6 +188,7 @@ function validateActionAvailability(input) {
 
   const requiresAction = [
     ACTION_TYPES.ATTACK,
+    ACTION_TYPES.DODGE,
     ACTION_TYPES.CAST_SPELL,
     ACTION_TYPES.GRAPPLE,
     ACTION_TYPES.SHOVE

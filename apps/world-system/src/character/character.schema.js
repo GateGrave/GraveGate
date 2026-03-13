@@ -30,6 +30,7 @@ const CHARACTER_SCHEMA = {
   inventory: "object|null",
   equipment: "object",
   attunement: "object",
+  item_effects: "object",
   multiclass: "object",
   gestalt_progression: "object",
   status_flags: "array",
@@ -134,6 +135,7 @@ function createCharacterRecord(input) {
     inventory: data.inventory && typeof data.inventory === "object" ? data.inventory : null,
     equipment: data.equipment && typeof data.equipment === "object" ? data.equipment : {},
     attunement: data.attunement && typeof data.attunement === "object" ? data.attunement : {},
+    item_effects: data.item_effects && typeof data.item_effects === "object" ? data.item_effects : {},
     multiclass: data.multiclass && typeof data.multiclass === "object" ? data.multiclass : {},
     gestalt_progression:
       data.gestalt_progression && typeof data.gestalt_progression === "object"

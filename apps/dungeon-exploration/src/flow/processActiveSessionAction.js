@@ -32,6 +32,16 @@ function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function resolveMonsterAttackProfile(monsterMetadata) {
+  const metadata = monsterMetadata && typeof monsterMetadata === "object" ? monsterMetadata : {};
+  const attacks = Array.isArray(metadata.attacks) ? metadata.attacks : [];
+  const primaryAttack = attacks[0] && typeof attacks[0] === "object" ? attacks[0] : null;
+  return {
+    damage_formula: primaryAttack && primaryAttack.damage_dice ? String(primaryAttack.damage_dice) : null,
+    damage_type: primaryAttack && primaryAttack.damage_type ? String(primaryAttack.damage_type) : null
+  };
+}
+
 function findRoomById(session, roomId) {
   const rooms = Array.isArray(session.rooms) ? session.rooms : [];
   return rooms.find((room) => String(room.room_id || "") === String(roomId)) || null;
@@ -577,6 +587,7 @@ function activateEncounterCombat(input) {
       }
     }
 
+    const enemyAttackProfile = resolveMonsterAttackProfile(encounter.metadata || {});
     const addEnemy = context.combatManager.addParticipant({
       combat_id: combatId,
       participant: {
@@ -588,6 +599,8 @@ function activateEncounterCombat(input) {
         max_hp: 12,
         attack_bonus: 2,
         damage: 3,
+        damage_formula: enemyAttackProfile.damage_formula,
+        damage_type: enemyAttackProfile.damage_type,
         position: { x: Math.max(1, actorIds.length), y: 0 }
       }
     });

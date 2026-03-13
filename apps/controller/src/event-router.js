@@ -207,6 +207,7 @@ class EventRouter {
       [EVENT_TYPES.PLAYER_MOVE]: "session",
       [EVENT_TYPES.LOOT_GENERATED]: "session",
       [EVENT_TYPES.PLAYER_ATTACK]: "combat",
+      [EVENT_TYPES.PLAYER_DODGE]: "combat",
       [EVENT_TYPES.PLAYER_CAST_SPELL]: "combat",
       [EVENT_TYPES.COMBAT_STARTED]: "combat"
     };

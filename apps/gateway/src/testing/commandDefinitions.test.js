@@ -41,9 +41,10 @@ function runCommandDefinitionsTests() {
     assert.equal(names.includes("interact"), true);
     assert.equal(names.includes("move"), true);
     assert.equal(names.includes("attack"), true);
+    assert.equal(names.includes("dodge"), true);
     assert.equal(names.includes("cast"), true);
     assert.equal(names.includes("use"), true);
-    assert.equal(commandDefinitions.length >= 23, true);
+    assert.equal(commandDefinitions.length >= 24, true);
 
     const startDef = commandDefinitions.find(function findStart(def) {
       return def.name === "start";
@@ -98,6 +99,9 @@ function runCommandDefinitionsTests() {
     const attackDef = commandDefinitions.find(function findAttack(def) {
       return def.name === "attack";
     });
+    const dodgeDef = commandDefinitions.find(function findDodge(def) {
+      return def.name === "dodge";
+    });
     const castDef = commandDefinitions.find(function findCast(def) {
       return def.name === "cast";
     });
@@ -118,6 +122,7 @@ function runCommandDefinitionsTests() {
     assert.equal(Boolean(craftDef), true);
     assert.equal(Boolean(tradeDef), true);
     assert.equal(Boolean(attackDef), true);
+    assert.equal(Boolean(dodgeDef), true);
     assert.equal(Boolean(castDef), true);
     assert.equal(Boolean(useDef), true);
     assert.equal(Array.isArray(equipDef.options), true);
@@ -134,6 +139,7 @@ function runCommandDefinitionsTests() {
     assert.equal(Array.isArray(craftDef.options), true);
     assert.equal(Array.isArray(tradeDef.options), true);
     assert.equal(Array.isArray(attackDef.options), true);
+    assert.equal(Array.isArray(dodgeDef.options), true);
     assert.equal(Array.isArray(castDef.options), true);
     assert.equal(Array.isArray(useDef.options), true);
 

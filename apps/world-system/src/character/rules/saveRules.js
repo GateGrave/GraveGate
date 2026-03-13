@@ -83,6 +83,10 @@ function deriveSavingThrowState(character) {
   const proficiencyBonus = Number.isFinite(Number(safeCharacter.proficiency_bonus))
     ? Number(safeCharacter.proficiency_bonus)
     : 2;
+  const itemEffects = toSafeObject(safeCharacter.item_effects);
+  const savingThrowBonus = Number.isFinite(Number(itemEffects.saving_throw_bonus))
+    ? Number(itemEffects.saving_throw_bonus)
+    : 0;
   const proficientSaves = new Set(collectSavingThrowProficiencies(safeCharacter));
   const savingThrows = {};
   const explicitFields = {};
@@ -90,7 +94,7 @@ function deriveSavingThrowState(character) {
   for (let index = 0; index < SAVE_ABILITIES.length; index += 1) {
     const abilityId = SAVE_ABILITIES[index];
     const baseModifier = computeAbilityModifier(getAbilityScore(safeCharacter, abilityId));
-    const modifier = baseModifier + (proficientSaves.has(abilityId) ? proficiencyBonus : 0);
+    const modifier = baseModifier + (proficientSaves.has(abilityId) ? proficiencyBonus : 0) + savingThrowBonus;
     savingThrows[abilityId] = modifier;
     explicitFields[abilityId + "_save_modifier"] = modifier;
   }

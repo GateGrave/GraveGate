@@ -1,12 +1,25 @@
 "use strict";
 
-const { rollSavingThrow } = require("../dice");
+const { rollSavingThrow, rollDiceFormula } = require("../dice");
+const { getActiveConditionsForParticipant } = require("../conditions/conditionHelpers");
 
 const SAVE_ABILITIES = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"];
 const SUPPORTED_SPELL_TARGET_TYPES = new Set([
   "single_target",
   "single_or_split_target",
-  "self"
+  "self",
+  "up_to_three_allies",
+  "up_to_three_enemies"
+]);
+
+const AREA_TEMPLATE_TARGET_TYPES = new Set([
+  "cone_15ft",
+  "cube_15ft",
+  "line_100ft_5ft",
+  "sphere_20ft",
+  "sphere_10ft",
+  "aura_15ft",
+  "cylinder_20ft"
 ]);
 
 function clone(value) {
@@ -153,6 +166,77 @@ function getSpellTargetType(spell) {
   return targetingType || "single_target";
 }
 
+function getSpellAreaTemplate(spell) {
+  const effect = spell && spell.effect && typeof spell.effect === "object" ? spell.effect : {};
+  const metadata = spell && spell.metadata && typeof spell.metadata === "object" ? spell.metadata : {};
+  const configuredTemplate = metadata.area_template && typeof metadata.area_template === "object"
+    ? metadata.area_template
+    : effect.area_template && typeof effect.area_template === "object"
+      ? effect.area_template
+      : null;
+  if (configuredTemplate) {
+    return clone(configuredTemplate);
+  }
+
+  const targetType = getSpellTargetType(spell);
+  if (!AREA_TEMPLATE_TARGET_TYPES.has(targetType)) {
+    return null;
+  }
+
+  if (targetType === "cone_15ft") {
+    return {
+      shape: "cone",
+      size_feet: 15,
+      origin: "self"
+    };
+  }
+  if (targetType === "cube_15ft") {
+    return {
+      shape: "cube",
+      size_feet: 15,
+      origin: "self"
+    };
+  }
+  if (targetType === "line_100ft_5ft") {
+    return {
+      shape: "line",
+      length_feet: 100,
+      width_feet: 5,
+      origin: "self"
+    };
+  }
+  if (targetType === "sphere_20ft") {
+    return {
+      shape: "sphere",
+      radius_feet: 20,
+      origin: "point_within_range"
+    };
+  }
+  if (targetType === "sphere_10ft") {
+    return {
+      shape: "sphere",
+      radius_feet: 10,
+      origin: "point_within_range"
+    };
+  }
+  if (targetType === "aura_15ft") {
+    return {
+      shape: "aura",
+      radius_feet: 15,
+      origin: "self"
+    };
+  }
+  if (targetType === "cylinder_20ft") {
+    return {
+      shape: "cylinder",
+      radius_feet: 20,
+      origin: "point_within_range"
+    };
+  }
+
+  return null;
+}
+
 function resolveSpellActionCost(spell) {
   const actionCost = spell && spell.action_cost ? String(spell.action_cost).trim().toLowerCase() : "";
   if (actionCost === "action" || actionCost === "bonus_action" || actionCost === "reaction") {
@@ -207,6 +291,32 @@ function validateSpellTargeting(spell, caster, target) {
       return {
         ok: false,
         error: "self-target spell must target the caster"
+      };
+    }
+  } else if (targetType === "up_to_three_allies") {
+    if (!target) {
+      return {
+        ok: false,
+        error: "spell requires a valid ally target"
+      };
+    }
+    if (String(caster && caster.team || "") !== String(target && target.team || "")) {
+      return {
+        ok: false,
+        error: "spell requires an allied target"
+      };
+    }
+  } else if (targetType === "up_to_three_enemies") {
+    if (!target) {
+      return {
+        ok: false,
+        error: "spell requires a valid enemy target"
+      };
+    }
+    if (String(caster && caster.team || "") === String(target && target.team || "")) {
+      return {
+        ok: false,
+        error: "spell requires a hostile target"
       };
     }
   } else if (!target) {
@@ -286,6 +396,85 @@ function consumeSpellAction(participant, actionCost) {
   return next;
 }
 
+function resolveConditionDiceValues(conditions, metadataKey, rng) {
+  if (!metadataKey) {
+    return [];
+  }
+  const rolls = [];
+  for (let index = 0; index < conditions.length; index += 1) {
+    const condition = conditions[index];
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object"
+      ? condition.metadata
+      : {};
+    const formula = String(metadata[metadataKey] || "").trim();
+    if (!formula) {
+      continue;
+    }
+    rolls.push(rollDiceFormula(formula, rng));
+  }
+  return rolls;
+}
+
+function rollConditionDiceModifier(input) {
+  const data = input || {};
+  const combatState = data.combat_state;
+  const participantId = data.participant_id;
+  const positiveCondition = String(data.positive_condition || "").trim();
+  const negativeCondition = String(data.negative_condition || "").trim();
+  const positiveMetadataKey = String(data.positive_metadata_key || "").trim();
+  const negativeMetadataKey = String(data.negative_metadata_key || "").trim();
+  const rng = data.rng;
+  const conditions = getActiveConditionsForParticipant(combatState, participantId);
+  const positive = positiveCondition
+    ? conditions.find((condition) => String(condition && condition.condition_type || "") === positiveCondition)
+    : null;
+  const negative = negativeCondition
+    ? conditions.find((condition) => String(condition && condition.condition_type || "") === negativeCondition)
+    : null;
+
+  let total = 0;
+  let positiveRoll = null;
+  let negativeRoll = null;
+  const positiveRolls = [];
+  const negativeRolls = [];
+
+  if (positive) {
+    const formula = String(positive.metadata && positive.metadata.dice_bonus || "1d4");
+    positiveRoll = rollDiceFormula(formula, rng);
+    total += Number(positiveRoll.subtotal || 0);
+    positiveRolls.push(positiveRoll);
+  }
+  if (negative) {
+    const formula = String(negative.metadata && negative.metadata.dice_bonus || "1d4");
+    negativeRoll = rollDiceFormula(formula, rng);
+    total -= Number(negativeRoll.subtotal || 0);
+    negativeRolls.push(negativeRoll);
+  }
+
+  const metadataPositiveRolls = resolveConditionDiceValues(conditions, positiveMetadataKey, rng);
+  for (let index = 0; index < metadataPositiveRolls.length; index += 1) {
+    const roll = metadataPositiveRolls[index];
+    total += Number(roll.subtotal || 0);
+    positiveRolls.push(roll);
+  }
+  const metadataNegativeRolls = resolveConditionDiceValues(conditions, negativeMetadataKey, rng);
+  for (let index = 0; index < metadataNegativeRolls.length; index += 1) {
+    const roll = metadataNegativeRolls[index];
+    total -= Number(roll.subtotal || 0);
+    negativeRolls.push(roll);
+  }
+
+  return {
+    total,
+    positive_roll: positiveRoll,
+    negative_roll: negativeRoll,
+    positive_rolls: positiveRolls,
+    negative_rolls: negativeRolls,
+    positive_condition: positive ? positive.condition_type : null,
+    negative_condition: negative ? negative.condition_type : null
+  };
+}
+
 function resolveSavingThrowOutcome(input) {
   const participant = input && input.participant ? input.participant : null;
   const saveAbility = normalizeAbilityKey(input && input.save_ability);
@@ -302,14 +491,74 @@ function resolveSavingThrowOutcome(input) {
   }
 
   const modifier = computeSavingThrowModifier(participant, saveAbility);
+  const activeConditions = getActiveConditionsForParticipant(input && input.combat_state, participant && participant.participant_id);
+  const participantIsRestrained = activeConditions.some((condition) => String(condition && condition.condition_type || "") === "restrained");
+  const participantIsParalyzed = activeConditions.some((condition) => String(condition && condition.condition_type || "") === "paralyzed");
+  const saveDisadvantage = participantIsRestrained && saveAbility === "dexterity";
+  if (participantIsParalyzed && (saveAbility === "strength" || saveAbility === "dexterity")) {
+    return {
+      ok: true,
+      payload: {
+        save_ability: saveAbility,
+        modifier: computeSavingThrowModifier(participant, saveAbility),
+        bonus_modifier: 0,
+        flat_condition_bonus: 0,
+        disadvantage: false,
+        dc,
+        roll: { final_total: 0, rolled_value: 0 },
+        success: false,
+        auto_failed: true,
+        blessing_roll: null,
+        bane_roll: null,
+        blessing_rolls: [],
+        bane_rolls: []
+      },
+      error: null
+    };
+  }
+  const conditionBonus = rollConditionDiceModifier({
+    combat_state: input && input.combat_state,
+    participant_id: participant && participant.participant_id,
+    positive_condition: "bless",
+    negative_condition: "bane",
+    positive_metadata_key: "saving_throw_bonus_dice",
+    negative_metadata_key: "saving_throw_penalty_dice",
+    rng: input && input.bonus_rng
+  });
+  const flatConditionBonus = activeConditions.reduce((sum, condition) => {
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
+    const genericBonus = Number(metadata.saving_throw_bonus);
+    const abilityBonus = Number(
+      metadata.save_bonus_by_ability && typeof metadata.save_bonus_by_ability === "object"
+        ? metadata.save_bonus_by_ability[saveAbility]
+        : metadata[saveAbility + "_save_bonus"]
+    );
+    const genericPenalty = Number(metadata.saving_throw_penalty);
+    const abilityPenalty = Number(
+      metadata.save_penalty_by_ability && typeof metadata.save_penalty_by_ability === "object"
+        ? metadata.save_penalty_by_ability[saveAbility]
+        : metadata[saveAbility + "_save_penalty"]
+    );
+    return sum
+      + (Number.isFinite(genericBonus) ? genericBonus : 0)
+      + (Number.isFinite(abilityBonus) ? abilityBonus : 0)
+      - (Number.isFinite(genericPenalty) ? genericPenalty : 0)
+      - (Number.isFinite(abilityPenalty) ? abilityPenalty : 0);
+  }, 0);
   const roll = savingThrowFn
     ? savingThrowFn({
         participant: clone(participant),
         save_ability: saveAbility,
         modifier,
-        dc
+        dc,
+        bonus_modifier: conditionBonus.total + flatConditionBonus,
+        advantage: false,
+        disadvantage: saveDisadvantage
       })
-    : rollSavingThrow({ modifier });
+    : rollSavingThrow({
+        modifier,
+        disadvantage: saveDisadvantage
+      });
 
   const finalTotal = Number(roll && roll.final_total);
   if (!Number.isFinite(finalTotal)) {
@@ -324,9 +573,104 @@ function resolveSavingThrowOutcome(input) {
     payload: {
       save_ability: saveAbility,
       modifier,
+      bonus_modifier: conditionBonus.total + flatConditionBonus,
+      flat_condition_bonus: flatConditionBonus,
+      disadvantage: saveDisadvantage,
       dc,
       roll,
-      success: finalTotal >= dc
+      success: finalTotal + conditionBonus.total + flatConditionBonus >= dc,
+      blessing_roll: conditionBonus.positive_roll,
+      bane_roll: conditionBonus.negative_roll,
+      blessing_rolls: conditionBonus.positive_rolls,
+      bane_rolls: conditionBonus.negative_rolls
+    },
+    error: null
+  };
+}
+
+function resolveTargetingProtectionOutcome(input) {
+  const combatState = input && input.combat_state;
+  const sourceParticipant = input && input.source_participant ? input.source_participant : null;
+  const targetParticipant = input && input.target_participant ? input.target_participant : null;
+  const protectionKind = String(input && input.protection_kind || "").trim().toLowerCase();
+  const savingThrowFn = typeof input.saving_throw_fn === "function"
+    ? input.saving_throw_fn
+    : null;
+
+  if (!combatState || !sourceParticipant || !targetParticipant || !protectionKind) {
+    return {
+      ok: true,
+      payload: {
+        blocked: false,
+        gate_result: null,
+        gating_condition: null
+      },
+      error: null
+    };
+  }
+
+  const activeConditions = getActiveConditionsForParticipant(combatState, targetParticipant.participant_id);
+  const metadataKey = protectionKind === "attack"
+    ? "blocks_attack_targeting"
+    : protectionKind === "harmful_spell"
+      ? "blocks_harmful_spell_targeting"
+      : "";
+  if (!metadataKey) {
+    return {
+      ok: true,
+      payload: {
+        blocked: false,
+        gate_result: null,
+        gating_condition: null
+      },
+      error: null
+    };
+  }
+
+  for (let index = 0; index < activeConditions.length; index += 1) {
+    const condition = activeConditions[index];
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object"
+      ? condition.metadata
+      : {};
+    if (metadata[metadataKey] !== true) {
+      continue;
+    }
+
+    const saveAbility = normalizeAbilityKey(metadata.targeting_save_ability || "wisdom");
+    const dc = Number(metadata.targeting_save_dc);
+    if (!saveAbility || !Number.isFinite(dc)) {
+      continue;
+    }
+
+    const saveOut = resolveSavingThrowOutcome({
+      combat_state: combatState,
+      participant: sourceParticipant,
+      save_ability: saveAbility,
+      dc,
+      saving_throw_fn: savingThrowFn,
+      bonus_rng: input && input.bonus_rng
+    });
+    if (!saveOut.ok) {
+      return saveOut;
+    }
+
+    return {
+      ok: true,
+      payload: {
+        blocked: saveOut.payload.success !== true,
+        gate_result: clone(saveOut.payload),
+        gating_condition: clone(condition)
+      },
+      error: null
+    };
+  }
+
+  return {
+    ok: true,
+    payload: {
+      blocked: false,
+      gate_result: null,
+      gating_condition: null
     },
     error: null
   };
@@ -344,10 +688,13 @@ module.exports = {
   computeSpellSaveDc,
   parseSpellRangeFeet,
   getSpellTargetType,
+  getSpellAreaTemplate,
   resolveSpellActionCost,
   validateSpellKnown,
   validateSpellTargeting,
   validateSpellActionAvailability,
   consumeSpellAction,
-  resolveSavingThrowOutcome
+  resolveSavingThrowOutcome,
+  rollConditionDiceModifier,
+  resolveTargetingProtectionOutcome
 };
