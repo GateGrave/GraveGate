@@ -2,6 +2,7 @@
 
 const { performAttackAction } = require("../actions/attackAction");
 const { performCastSpellAction } = require("../actions/castSpellAction");
+const { performDodgeAction } = require("../actions/dodgeAction");
 const { performMoveAction } = require("../actions/moveAction");
 const { useItemAction } = require("../actions/useItemAction");
 const { createCombatSnapshot } = require("../snapshots/create-combat-snapshot");
@@ -215,31 +216,132 @@ function finalizeCombatMutation(input) {
   });
 }
 
-function findConsumableItem(inventory, itemId, playerId) {
-  const list = Array.isArray(inventory.stackable_items) ? inventory.stackable_items : [];
-  const entry = list.find((candidate) => String(candidate.item_id || "") === String(itemId || ""));
-  if (!entry) {
-    return null;
-  }
-
-  const entryOwner = entry.owner_player_id ? String(entry.owner_player_id) : null;
-  const inventoryOwner = inventory.owner_id ? String(inventory.owner_id) : null;
+function canUseInventoryEntry(entry, inventory, playerId) {
+  const entryOwner = entry && entry.owner_player_id ? String(entry.owner_player_id) : null;
+  const inventoryOwner = inventory && inventory.owner_id ? String(inventory.owner_id) : null;
   if (entryOwner && entryOwner !== String(playerId || "")) {
-    return null;
+    return false;
   }
   if (!entryOwner && inventoryOwner && inventoryOwner !== String(playerId || "")) {
-    return null;
+    return false;
+  }
+  return true;
+}
+
+function resolveCombatUsePayload(entry) {
+  const metadata = entry && entry.metadata && typeof entry.metadata === "object" ? entry.metadata : {};
+  const useEffect = metadata.use_effect && typeof metadata.use_effect === "object" ? metadata.use_effect : {};
+  const healAmount = Number(useEffect.heal_amount !== undefined ? useEffect.heal_amount : metadata.heal_amount);
+  const temporaryHitPoints = Number(
+    useEffect.temporary_hitpoints !== undefined
+      ? useEffect.temporary_hitpoints
+      : (useEffect.temp_hp !== undefined ? useEffect.temp_hp : (
+        metadata.temporary_hitpoints !== undefined ? metadata.temporary_hitpoints : metadata.temp_hp
+      ))
+  );
+  const appliedConditions = Array.isArray(useEffect.applied_conditions)
+    ? clone(useEffect.applied_conditions)
+    : (Array.isArray(metadata.applied_conditions) ? clone(metadata.applied_conditions) : []);
+  const removedConditions = Array.isArray(useEffect.remove_conditions)
+    ? clone(useEffect.remove_conditions)
+    : (Array.isArray(metadata.remove_conditions) ? clone(metadata.remove_conditions) : []);
+  const hitpointMaxBonus = Number(useEffect.hitpoint_max_bonus !== undefined ? useEffect.hitpoint_max_bonus : entry && entry.hitpoint_max_bonus);
+  const charges = Number(metadata.charges);
+  const chargesRemaining = metadata.charges_remaining !== undefined ? Number(metadata.charges_remaining) : charges;
+  const hasCharges = Number.isFinite(charges) && charges > 0;
+  return {
+    item_id: String(entry.item_id || ""),
+    item_type: entry.item_type || null,
+    heal_amount: Number.isFinite(healAmount) ? Math.max(0, Math.floor(healAmount)) : 0,
+    temporary_hitpoints: Number.isFinite(temporaryHitPoints) ? Math.max(0, Math.floor(temporaryHitPoints)) : 0,
+    hitpoint_max_bonus: Number.isFinite(hitpointMaxBonus) ? Math.max(0, Math.floor(hitpointMaxBonus)) : 0,
+    applied_conditions: appliedConditions,
+    removed_conditions: removedConditions,
+    metadata: clone(metadata),
+    use_status: hasCharges ? "charged_activation" : "consumed",
+    charges: hasCharges ? Math.floor(charges) : 0,
+    charges_remaining: hasCharges && Number.isFinite(chargesRemaining) ? Math.max(0, Math.floor(chargesRemaining)) : 0
+  };
+}
+
+function findCombatUsableItem(inventory, itemId, playerId) {
+  const buckets = ["stackable_items", "equipment_items", "quest_items"];
+  for (let index = 0; index < buckets.length; index += 1) {
+    const bucket = buckets[index];
+    const list = Array.isArray(inventory[bucket]) ? inventory[bucket] : [];
+    const entry = list.find((candidate) => String(candidate && candidate.item_id || "") === String(itemId || ""));
+    if (!entry) {
+      continue;
+    }
+    if (!canUseInventoryEntry(entry, inventory, playerId)) {
+      return null;
+    }
+    const combatItem = resolveCombatUsePayload(entry);
+    if (combatItem.heal_amount <= 0 &&
+      combatItem.temporary_hitpoints <= 0 &&
+      combatItem.hitpoint_max_bonus <= 0 &&
+      combatItem.applied_conditions.length === 0 &&
+      combatItem.removed_conditions.length === 0) {
+      return null;
+    }
+    return {
+      bucket,
+      entry: clone(entry),
+      combat_item: combatItem
+    };
+  }
+  return null;
+}
+
+function consumeCombatInventoryItem(inventory, resolvedItem, playerId) {
+  if (!resolvedItem || !resolvedItem.entry || !resolvedItem.combat_item) {
+    return failure("combat_action_failed", "combat usable item is required");
   }
 
-  const metadata = entry.metadata && typeof entry.metadata === "object" ? entry.metadata : {};
-  const itemType = entry.item_type || "consumable";
-  const healAmount = Number(metadata.heal_amount);
+  if (resolvedItem.combat_item.use_status === "charged_activation") {
+    if (resolvedItem.combat_item.charges_remaining <= 0) {
+      return failure("combat_action_failed", "item has no charges remaining", {
+        item_id: resolvedItem.combat_item.item_id
+      });
+    }
+    const nextInventory = clone(inventory);
+    const list = Array.isArray(nextInventory[resolvedItem.bucket]) ? nextInventory[resolvedItem.bucket] : [];
+    const targetIndex = list.findIndex((candidate) => {
+      return String(candidate && candidate.item_id || "") === String(resolvedItem.entry.item_id || "") &&
+        canUseInventoryEntry(candidate, inventory, playerId);
+    });
+    if (targetIndex === -1) {
+      return failure("combat_action_failed", "failed to locate charged item in inventory", {
+        item_id: resolvedItem.combat_item.item_id
+      });
+    }
+    const nextEntry = clone(list[targetIndex]);
+    nextEntry.metadata = nextEntry.metadata && typeof nextEntry.metadata === "object" ? clone(nextEntry.metadata) : {};
+    nextEntry.metadata.charges_remaining = resolvedItem.combat_item.charges_remaining - 1;
+    list[targetIndex] = nextEntry;
+    nextInventory[resolvedItem.bucket] = list;
+    return success("combat_inventory_item_charged", {
+      inventory: nextInventory,
+      use_status: "charged_activation",
+      charges_before: resolvedItem.combat_item.charges_remaining,
+      charges_after: resolvedItem.combat_item.charges_remaining - 1
+    });
+  }
 
-  return {
-    item_id: String(entry.item_id),
-    item_type: itemType,
-    heal_amount: Number.isFinite(healAmount) && healAmount > 0 ? healAmount : 1
-  };
+  const removed = removeItemFromInventory(inventory, String(resolvedItem.entry.item_id || ""), 1, {
+    canRemoveEntry(entry) {
+      return canUseInventoryEntry(entry, inventory, playerId);
+    }
+  });
+  if (!removed.ok) {
+    return failure("combat_action_failed", removed.error || "failed to consume used item", removed.payload);
+  }
+  return success("combat_inventory_item_consumed", {
+    inventory: removed.payload.inventory,
+    use_status: "consumed",
+    charges_before: null,
+    charges_after: null
+  });
 }
 
 function saveInventory(context, inventory) {
@@ -402,6 +504,8 @@ function processCombatAttackRequest(input) {
     combat_id: String(combatId),
     attacker_id: controlled.payload.participant_id,
     target_id: payload.target_id,
+    targeting_save_fn: context.targetingSaveFn,
+    targeting_save_bonus_rng: context.targetingSaveBonusRng,
     concentration_save_rng: context.concentrationSaveRng
   });
   if (!out.ok) {
@@ -548,31 +652,19 @@ function processCombatUseItemRequest(input) {
   const inventory = loadedInventory.payload.inventory;
   const originalInventory = clone(inventory);
   const combatBeforeUse = getRawCombatState(context, combatId);
-  const combatItem = findConsumableItem(inventory, itemId, playerId);
-  if (!combatItem) {
+  const resolvedItem = findCombatUsableItem(inventory, itemId, playerId);
+  if (!resolvedItem) {
     return failure("player_use_item_failed", "invalid item for combat use", {
       item_id: String(itemId)
     });
   }
 
-  const removed = removeItemFromInventory(inventory, String(itemId), 1, {
-    canRemoveEntry(entry) {
-      const owner = entry && entry.owner_player_id ? String(entry.owner_player_id) : null;
-      const inventoryOwner = inventory && inventory.owner_id ? String(inventory.owner_id) : null;
-      if (owner) {
-        return owner === String(playerId || "");
-      }
-      if (inventoryOwner) {
-        return inventoryOwner === String(playerId || "");
-      }
-      return false;
-    }
-  });
-  if (!removed.ok) {
-    return failure("player_use_item_failed", removed.error || "failed to consume used item", removed.payload);
+  const consumed = consumeCombatInventoryItem(inventory, resolvedItem, playerId);
+  if (!consumed.ok) {
+    return failure("player_use_item_failed", consumed.error || "failed to consume used item", consumed.payload);
   }
 
-  const inventorySaved = saveInventory(context, removed.payload.inventory);
+  const inventorySaved = saveInventory(context, consumed.payload.inventory);
   if (!inventorySaved.ok) {
     return failure("player_use_item_failed", inventorySaved.error);
   }
@@ -583,7 +675,7 @@ function processCombatUseItemRequest(input) {
       combatManager: context.combatManager,
       combat_id: String(combatId),
       participant_id: controlled.payload.participant_id,
-      item: combatItem
+      item: resolvedItem.combat_item
     });
   } catch (error) {
     const rollbackInventoryOut = saveInventory(context, originalInventory);
@@ -628,6 +720,9 @@ function processCombatUseItemRequest(input) {
 
   return success("player_use_item_processed", {
     use_item: Object.assign({}, clone(used.payload), {
+      use_status: consumed.payload.use_status || "consumed",
+      charges_before: consumed.payload.charges_before,
+      charges_after: consumed.payload.charges_after,
       combat: clone(finalized.payload.combat)
     }),
     inventory: clone(inventorySaved.payload.inventory),
@@ -678,10 +773,15 @@ function processCombatCastSpellRequest(input) {
     combat_id: String(combatId),
     caster_id: controlled.payload.participant_id,
     target_id: payload.target_id || null,
+    target_ids: Array.isArray(payload.target_ids) ? payload.target_ids : null,
+    reaction_mode: payload.reaction_mode === true,
+    war_caster_reaction: payload.war_caster_reaction === true,
     spell: loadedSpell.payload.spell,
     attack_roll_fn: context.spellAttackRollFn,
     attack_roll_rng: context.spellAttackRollRng,
     saving_throw_fn: context.spellSavingThrowFn,
+    targeting_save_fn: context.targetingSaveFn,
+    targeting_save_bonus_rng: context.targetingSaveBonusRng,
     damage_rng: context.spellDamageRng,
     healing_rng: context.spellHealingRng,
     concentration_save_rng: context.concentrationSaveRng
@@ -710,9 +810,64 @@ function processCombatCastSpellRequest(input) {
   });
 }
 
+function processCombatDodgeRequest(input) {
+  const data = input || {};
+  const context = data.context || {};
+  const combatId = data.combat_id;
+  const playerId = data.player_id;
+  const payload = data.payload;
+
+  if (!combatId || String(combatId).trim() === "") {
+    return failure("player_dodge_failed", "combat_id is required");
+  }
+  if (!isPlainObject(payload)) {
+    return failure("player_dodge_failed", "payload must be an object");
+  }
+
+  const controlled = resolveControlledParticipant({
+    context,
+    combat_id: String(combatId),
+    player_id: String(playerId || ""),
+    payload
+  });
+  if (!controlled.ok) {
+    return failure("player_dodge_failed", controlled.error, controlled.payload);
+  }
+  const combatBeforeDodge = getRawCombatState(context, combatId);
+
+  const out = performDodgeAction({
+    combatManager: context.combatManager,
+    combat_id: String(combatId),
+    participant_id: controlled.payload.participant_id
+  });
+  if (!out.ok) {
+    return failure("player_dodge_failed", out.error || "dodge action failed", out.payload);
+  }
+  const finalized = finalizeCombatMutation({
+    context,
+    combat_id: String(combatId),
+    combat_before_mutation: combatBeforeDodge,
+    response_event_type: "player_dodge_failed"
+  });
+  if (!finalized.ok) {
+    return finalized;
+  }
+
+  return success("player_dodge_processed", {
+    dodge: Object.assign({}, clone(out.payload), {
+      combat: clone(finalized.payload.combat)
+    }),
+    progression: clone(finalized.payload.progression),
+    snapshot: finalized.payload.snapshot || null,
+    render: finalized.payload.render,
+    render_error: finalized.payload.render_error
+  });
+}
+
 module.exports = {
   processCombatAttackRequest,
   processCombatCastSpellRequest,
+  processCombatDodgeRequest,
   processCombatMoveRequest,
   processCombatUseItemRequest
 };

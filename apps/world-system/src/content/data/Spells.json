@@ -261,6 +261,34 @@
       }
     },
     {
+      "id": "false_life",
+      "spell_id": "false_life",
+      "name": "False Life",
+      "level": 1,
+      "school": "necromancy",
+      "casting_time": "1 action",
+      "range": "self",
+      "targeting": {
+        "type": "self"
+      },
+      "duration": "1 hour",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["wizard", "sorcerer"],
+      "effect": {
+        "vitality_ref": "spell_false_life_temporary_hitpoints",
+        "temporary_hitpoints": 7
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage17_combat_depth",
+        "class_refs": ["wizard", "sorcerer"]
+      }
+    },
+    {
       "id": "acid_splash",
       "spell_id": "acid_splash",
       "name": "Acid Splash",
@@ -289,7 +317,12 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15_content_pack_1",
-        "class_refs": ["wizard", "sorcerer"]
+        "class_refs": ["wizard", "sorcerer"],
+        "area_template": {
+          "shape": "cone",
+          "size_feet": 15,
+          "origin": "self"
+        }
       }
     },
     {
@@ -326,9 +359,175 @@
       }
     },
     {
-      "id": "bless",
-      "spell_id": "bless",
-      "name": "Bless",
+      "id": "faerie_fire",
+      "spell_id": "faerie_fire",
+      "name": "Faerie Fire",
+      "level": 1,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "up to 1 minute",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "dexterity"
+      },
+      "damage": null,
+      "class_refs": ["bard", "druid"],
+      "effect": {
+        "status_hint": "outlined_for_advantage"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage17_combat_depth",
+        "class_refs": ["bard", "druid"],
+        "note": "Current supported slice uses single-target targeting until area templates are implemented."
+      }
+    },
+    {
+      "id": "armor_of_agathys",
+      "spell_id": "armor_of_agathys",
+      "name": "Armor of Agathys",
+      "level": 1,
+      "school": "abjuration",
+      "casting_time": "1 action",
+      "range": "self",
+      "targeting": {
+        "type": "self"
+      },
+      "duration": "1 hour",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["warlock"],
+      "effect": {
+        "vitality_ref": "spell_armor_of_agathys_temporary_hitpoints",
+        "temporary_hitpoints": 5,
+        "status_hint": "armor_of_agathys",
+        "retaliation_damage": 5
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage17_combat_depth",
+        "class_refs": ["warlock"]
+      }
+    },
+    {
+      "id": "barkskin",
+      "spell_id": "barkskin",
+      "name": "Barkskin",
+      "level": 2,
+      "school": "transmutation",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "up to 1 hour",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["druid", "ranger"],
+      "effect": {
+        "defense_ref": "spell_barkskin_minimum_ac",
+        "minimum_ac": 16
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage17_combat_depth",
+        "class_refs": ["druid", "ranger"]
+      }
+    },
+      {
+        "id": "hold_person",
+        "spell_id": "hold_person",
+        "name": "Hold Person",
+        "level": 2,
+        "school": "enchantment",
+        "casting_time": "1 action",
+        "range": "60 feet",
+        "targeting": {
+          "type": "single_target"
+        },
+        "duration": "up to 1 minute",
+        "concentration": true,
+        "attack_or_save": {
+          "type": "save",
+          "save_ability": "wisdom"
+        },
+        "damage": null,
+        "class_refs": ["bard", "cleric", "druid", "sorcerer", "warlock", "wizard"],
+        "effect": {
+          "status_hint": "hold_person_disable"
+        },
+        "applied_conditions": [
+          {
+              "condition_type": "paralyzed",
+              "expiration_trigger": "manual",
+              "metadata": {
+                "source": "hold_person",
+                "attackers_have_advantage": true,
+                "has_attack_disadvantage": true,
+                "end_of_turn_save_ability": "wisdom"
+              }
+            }
+        ],
+        "metadata": {
+          "starter_spell": true,
+          "source": "stage17_combat_depth",
+          "class_refs": ["bard", "cleric", "druid", "sorcerer", "warlock", "wizard"],
+          "note": "Current supported slice uses a single-target save-and-disable implementation."
+        }
+      },
+      {
+        "id": "entangle",
+        "spell_id": "entangle",
+        "name": "Entangle",
+        "level": 1,
+        "school": "conjuration",
+        "casting_time": "1 action",
+        "range": "90 feet",
+        "targeting": {
+          "type": "single_target"
+        },
+        "duration": "up to 1 minute",
+        "concentration": true,
+        "attack_or_save": {
+          "type": "save",
+          "save_ability": "strength"
+        },
+        "damage": null,
+        "class_refs": ["druid", "ranger"],
+        "effect": {
+          "status_ref": "spell_entangle_restrain"
+        },
+        "applied_conditions": [
+          {
+            "condition_type": "restrained",
+            "expiration_trigger": "manual",
+            "metadata": {
+              "source": "entangle"
+            }
+          }
+        ],
+        "metadata": {
+          "starter_spell": true,
+          "source": "stage18_combat_depth",
+          "class_refs": ["druid", "ranger"],
+          "note": "Current supported slice uses a single-target restrained implementation."
+        }
+      },
+      {
+        "id": "bless",
+        "spell_id": "bless",
+        "name": "Bless",
       "level": 1,
       "school": "enchantment",
       "casting_time": "1 action",
@@ -347,12 +546,40 @@
         "buff_ref": "spell_bless_attack_and_save_bonus",
         "dice_bonus": "1d4"
       },
-      "metadata": {
-        "starter_spell": true,
-        "source": "stage15_content_pack_1",
-        "class_refs": ["cleric", "paladin"]
-      }
-    },
+        "metadata": {
+          "starter_spell": true,
+          "source": "stage15_content_pack_1",
+          "class_refs": ["cleric", "paladin"]
+        }
+      },
+      {
+        "id": "bane",
+        "spell_id": "bane",
+        "name": "Bane",
+        "level": 1,
+        "school": "enchantment",
+        "casting_time": "1 action",
+        "range": "30 feet",
+        "targeting": {
+          "type": "up_to_three_enemies"
+        },
+        "duration": "1 minute",
+        "concentration": true,
+        "attack_or_save": {
+          "type": "none"
+        },
+        "damage": null,
+        "class_refs": ["cleric", "bard"],
+        "effect": {
+          "debuff_ref": "spell_bane_attack_and_save_penalty",
+          "dice_bonus": "1d4"
+        },
+        "metadata": {
+          "starter_spell": true,
+          "source": "stage17_combat_depth",
+          "class_refs": ["cleric", "bard"]
+        }
+      },
     {
       "id": "shield_of_faith",
       "spell_id": "shield_of_faith",
@@ -378,6 +605,63 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage16_concentration_slice",
+        "class_refs": ["cleric", "paladin"]
+      }
+    },
+    {
+      "id": "heroism",
+      "spell_id": "heroism",
+      "name": "Heroism",
+      "level": 1,
+      "school": "enchantment",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "up_to_three_allies"
+      },
+      "duration": "up to 1 minute",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["bard", "paladin"],
+      "effect": {
+        "status_hint": "heroism",
+        "start_of_turn_temporary_hitpoints": 3
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage17_combat_depth",
+        "class_refs": ["bard", "paladin"]
+      }
+    },
+    {
+      "id": "aid",
+      "spell_id": "aid",
+      "name": "Aid",
+      "level": 2,
+      "school": "abjuration",
+      "casting_time": "1 action",
+      "range": "30 feet",
+      "targeting": {
+        "type": "up_to_three_allies"
+      },
+      "duration": "8 hours",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["cleric", "paladin"],
+      "effect": {
+        "vitality_ref": "spell_aid_hitpoint_bonus",
+        "hitpoint_max_bonus": 5,
+        "status_hint": "aid"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage17_combat_depth",
         "class_refs": ["cleric", "paladin"]
       }
     },
@@ -443,7 +727,12 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15_content_pack_1",
-        "class_refs": ["wizard", "sorcerer", "bard"]
+        "class_refs": ["wizard", "sorcerer", "bard"],
+        "area_template": {
+          "shape": "cube",
+          "size_feet": 15,
+          "origin": "self"
+        }
       }
     },
     {
@@ -680,6 +969,419 @@
         "starter_spell": true,
         "source": "stage15_content_pack_1",
         "class_refs": ["bard", "cleric", "druid"]
+      }
+    },
+    {
+      "id": "lesser_restoration",
+      "spell_id": "lesser_restoration",
+      "name": "Lesser Restoration",
+      "level": 2,
+      "school": "abjuration",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["bard", "cleric", "druid", "paladin", "ranger"],
+      "effect": {
+        "status_ref": "spell_lesser_restoration_cleanse",
+          "remove_conditions": ["poisoned", "stunned", "paralyzed"]
+        },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15_content_pack_1",
+        "class_refs": ["bard", "cleric", "druid", "paladin", "ranger"]
+      }
+    },
+    {
+      "id": "blindness_deafness",
+      "spell_id": "blindness_deafness",
+      "name": "Blindness/Deafness",
+      "level": 2,
+      "school": "necromancy",
+      "casting_time": "1 action",
+      "range": "30 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "1 minute",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "constitution"
+      },
+      "damage": null,
+      "class_refs": ["bard", "cleric", "sorcerer", "wizard"],
+      "effect": {
+        "status_hint": "blindness"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage18_combat_depth",
+        "class_refs": ["bard", "cleric", "sorcerer", "wizard"]
+      }
+    },
+    {
+      "id": "protection_from_poison",
+      "spell_id": "protection_from_poison",
+      "name": "Protection from Poison",
+      "level": 2,
+      "school": "abjuration",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "1 hour",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["cleric", "druid", "paladin", "ranger"],
+      "effect": {
+        "status_ref": "spell_protection_from_poison",
+        "remove_conditions": ["poisoned"],
+        "applied_conditions": [
+          {
+            "condition_type": "protection_from_poison",
+            "expiration_trigger": "manual",
+            "metadata": {
+              "resistances": ["poison"],
+              "source_spell_id": "protection_from_poison"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage17_combat_depth",
+        "class_refs": ["cleric", "druid", "paladin", "ranger"]
+      }
+    },
+    {
+      "id": "blur",
+      "spell_id": "blur",
+      "name": "Blur",
+      "level": 2,
+      "school": "illusion",
+      "casting_time": "1 action",
+      "range": "self",
+      "targeting": {
+        "type": "self"
+      },
+      "duration": "concentration, up to 1 minute",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["sorcerer", "wizard"],
+      "effect": {
+        "status_hint": "blur"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage17_combat_depth",
+        "class_refs": ["sorcerer", "wizard"]
+      }
+    },
+    {
+      "id": "longstrider",
+      "spell_id": "longstrider",
+      "name": "Longstrider",
+      "level": 1,
+      "school": "transmutation",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "1 hour",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["bard", "druid", "ranger", "wizard"],
+      "effect": {
+        "status_hint": "longstrider",
+        "speed_bonus_feet": 10
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage17_combat_depth",
+        "class_refs": ["bard", "druid", "ranger", "wizard"]
+      }
+    },
+    {
+      "id": "resistance",
+      "spell_id": "resistance",
+      "name": "Resistance",
+      "level": 0,
+      "school": "abjuration",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "concentration, up to 1 minute",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["cleric", "druid"],
+      "effect": {
+        "buff_ref": "spell_resistance_save_bonus",
+        "dice_bonus": "1d4"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage17_combat_depth",
+        "class_refs": ["cleric", "druid"]
+      }
+    },
+    {
+      "id": "blade_ward",
+      "spell_id": "blade_ward",
+      "name": "Blade Ward",
+      "level": 0,
+      "school": "abjuration",
+      "casting_time": "1 action",
+      "range": "self",
+      "targeting": {
+        "type": "self"
+      },
+      "duration": "1 round",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["bard", "sorcerer", "warlock", "wizard"],
+      "effect": {
+        "status_hint": "blade_ward"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage17_combat_depth",
+        "class_refs": ["bard", "sorcerer", "warlock", "wizard"]
+      }
+    },
+    {
+      "id": "sanctuary",
+      "spell_id": "sanctuary",
+      "name": "Sanctuary",
+      "level": 1,
+      "school": "abjuration",
+      "casting_time": "1 bonus action",
+      "range": "30 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "1 minute",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["cleric"],
+      "effect": {
+        "status_hint": "sanctuary"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage17_combat_depth",
+        "class_refs": ["cleric"]
+      }
+    },
+    {
+      "id": "fog_cloud",
+      "spell_id": "fog_cloud",
+      "name": "Fog Cloud",
+      "level": 1,
+      "school": "conjuration",
+      "casting_time": "1 action",
+      "range": "120 feet",
+      "targeting": {
+        "type": "sphere_20ft"
+      },
+      "duration": "concentration, up to 1 hour",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["druid", "ranger", "sorcerer", "wizard"],
+      "effect": {
+        "utility_ref": "spell_fog_cloud_heavily_obscured",
+        "targeting": "area"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "srd_area_templates",
+        "class_refs": ["druid", "ranger", "sorcerer", "wizard"],
+        "area_template": {
+          "shape": "sphere",
+          "radius_feet": 20,
+          "origin": "point_within_range"
+        }
+      }
+    },
+    {
+      "id": "shatter",
+      "spell_id": "shatter",
+      "name": "Shatter",
+      "level": 2,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "sphere_10ft"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "constitution"
+      },
+      "damage": {
+        "dice": "3d8",
+        "damage_type": "thunder"
+      },
+      "class_refs": ["bard", "sorcerer", "warlock", "wizard"],
+      "effect": {
+        "damage_ref": "spell_damage_shatter",
+        "targeting": "area"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "srd_area_templates",
+        "class_refs": ["bard", "sorcerer", "warlock", "wizard"],
+        "area_template": {
+          "shape": "sphere",
+          "radius_feet": 10,
+          "origin": "point_within_range"
+        }
+      }
+    },
+    {
+      "id": "fireball",
+      "spell_id": "fireball",
+      "name": "Fireball",
+      "level": 3,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "150 feet",
+      "targeting": {
+        "type": "sphere_20ft"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "dexterity"
+      },
+      "damage": {
+        "dice": "8d6",
+        "damage_type": "fire"
+      },
+      "class_refs": ["sorcerer", "wizard"],
+      "effect": {
+        "damage_ref": "spell_damage_fireball",
+        "targeting": "area"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "srd_area_templates",
+        "class_refs": ["sorcerer", "wizard"],
+        "area_template": {
+          "shape": "sphere",
+          "radius_feet": 20,
+          "origin": "point_within_range"
+        }
+      }
+    },
+    {
+      "id": "lightning_bolt",
+      "spell_id": "lightning_bolt",
+      "name": "Lightning Bolt",
+      "level": 3,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "self",
+      "targeting": {
+        "type": "line_100ft_5ft"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "dexterity"
+      },
+      "damage": {
+        "dice": "8d6",
+        "damage_type": "lightning"
+      },
+      "class_refs": ["sorcerer", "wizard"],
+      "effect": {
+        "damage_ref": "spell_damage_lightning_bolt",
+        "targeting": "line"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "srd_area_templates",
+        "class_refs": ["sorcerer", "wizard"],
+        "area_template": {
+          "shape": "line",
+          "length_feet": 100,
+          "width_feet": 5,
+          "origin": "self"
+        }
+      }
+    },
+    {
+      "id": "spirit_guardians",
+      "spell_id": "spirit_guardians",
+      "name": "Spirit Guardians",
+      "level": 3,
+      "school": "conjuration",
+      "casting_time": "1 action",
+      "range": "self",
+      "targeting": {
+        "type": "aura_15ft"
+      },
+      "duration": "concentration, up to 10 minutes",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "wisdom"
+      },
+      "damage": {
+        "dice": "3d8",
+        "damage_type": "radiant"
+      },
+      "class_refs": ["cleric"],
+      "effect": {
+        "damage_ref": "spell_damage_spirit_guardians",
+        "targeting": "aura"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "srd_area_templates",
+        "class_refs": ["cleric"],
+        "area_template": {
+          "shape": "aura",
+          "radius_feet": 15,
+          "origin": "self"
+        }
       }
     },
     {

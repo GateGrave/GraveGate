@@ -112,6 +112,24 @@ function performMoveAction(input) {
       participant_id: String(participantId)
     });
   }
+  if (participantHasCondition(combat, participantId, "paralyzed")) {
+    return failure("move_action_failed", "paralyzed participants cannot move", {
+      combat_id: String(combatId),
+      participant_id: String(participantId)
+    });
+  }
+  if (participantHasCondition(combat, participantId, "restrained")) {
+    return failure("move_action_failed", "restrained participants cannot move", {
+      combat_id: String(combatId),
+      participant_id: String(participantId)
+    });
+  }
+  if (participantHasCondition(combat, participantId, "grappled")) {
+    return failure("move_action_failed", "grappled participants cannot move", {
+      combat_id: String(combatId),
+      participant_id: String(participantId)
+    });
+  }
 
   const initiativeOrder = Array.isArray(combat.initiative_order) ? combat.initiative_order : [];
   const expectedActorId = initiativeOrder[combat.turn_index];

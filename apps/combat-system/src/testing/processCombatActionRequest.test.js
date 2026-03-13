@@ -817,6 +817,43 @@ function runProcessCombatActionRequestTests() {
     assert.equal(out.payload.reactions.opportunity_attacks.length, 0);
   }, results);
 
+  runTest("targeted_opportunity_attack_immunity_blocks_only_the_marked_reactor", () => {
+    const playerId = "player-combat-move-mobile-001";
+    const combatId = "combat-move-mobile-001";
+    const manager = createCombatReadyForMove(combatId, playerId, {
+      conditions: [
+        {
+          condition_id: "condition-mobile-001",
+          condition_type: "opportunity_attack_immunity",
+          source_actor_id: playerId,
+          target_actor_id: playerId,
+          expiration_trigger: "start_of_turn",
+          metadata: {
+            source: "mobile_feat",
+            blocked_reactor_id: "enemy-reactor-001"
+          }
+        }
+      ]
+    });
+
+    const out = processCombatMoveRequest({
+      context: {
+        combatManager: manager,
+        opportunityAttackAttackRollFn: () => 18,
+        opportunityAttackDamageRollFn: () => 3
+      },
+      player_id: playerId,
+      combat_id: combatId,
+      payload: {
+        target_x: 0,
+        target_y: 1
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.reactions.opportunity_attacks.length, 0);
+  }, results);
+
   runTest("war_caster_can_replace_opportunity_attack_with_single_target_spell", () => {
     const playerId = "player-combat-move-war-caster-001";
     const combatId = "combat-move-war-caster-001";

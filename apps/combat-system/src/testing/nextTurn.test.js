@@ -200,6 +200,119 @@ function runNextTurnTests() {
     assert.equal(secondAdvance.payload.combat.conditions.length, 0);
   }, results);
 
+  runTest("heroism_condition_grants_temporary_hitpoints_at_start_of_turn", () => {
+    const manager = createBaseCombat();
+    const found = manager.getCombatById("combat-next-001");
+    const combat = found.payload.combat;
+    combat.participants[1].temporary_hitpoints = 0;
+    combat.conditions = [
+      {
+        condition_id: "condition-heroism-001",
+        condition_type: "heroism",
+        source_actor_id: "p1",
+        target_actor_id: "p2",
+        expiration_trigger: "manual",
+        metadata: {
+          start_of_turn_temporary_hitpoints: 3
+        }
+      }
+    ];
+    manager.combats.set("combat-next-001", combat);
+
+    const out = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001"
+    });
+
+    assert.equal(out.ok, true);
+    const participant = out.payload.combat.participants.find((entry) => entry.participant_id === "p2");
+    assert.equal(participant.temporary_hitpoints, 3);
+    assert.equal(out.payload.combat.event_log[0].details.temporary_hitpoints_granted, 3);
+    assert.equal(out.payload.combat.event_log[0].details.applied_boon_conditions.includes("heroism"), true);
+  }, results);
+
+  runTest("longstrider_condition_increases_movement_on_turn_start", () => {
+    const manager = createBaseCombat();
+    const combat = manager.getCombatById("combat-next-001").payload.combat;
+    combat.conditions = [{
+      condition_id: "condition-longstrider-001",
+      condition_type: "longstrider",
+      target_actor_id: "p2",
+      expiration_trigger: "manual",
+      metadata: {
+        speed_bonus_feet: 10
+      }
+    }];
+    combat.participants[1].movement_speed = 30;
+    manager.combats.set("combat-next-001", combat);
+
+    const out = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001"
+    });
+
+    assert.equal(out.ok, true);
+    const active = out.payload.combat.participants.find((entry) => entry.participant_id === "p2");
+    assert.equal(active.movement_remaining, 40);
+    assert.equal(out.payload.combat.event_log[0].details.movement_bonus_applied, 10);
+  }, results);
+
+  runTest("end_of_turn_condition_save_can_remove_condition", () => {
+    const manager = createBaseCombat();
+    const combat = manager.getCombatById("combat-next-001").payload.combat;
+    combat.conditions = [{
+      condition_id: "condition-blinded-end-save-001",
+      condition_type: "blinded",
+      target_actor_id: "p1",
+      expiration_trigger: "manual",
+      metadata: {
+        end_of_turn_save_ability: "constitution",
+        end_of_turn_save_dc: 13
+      }
+    }];
+    manager.combats.set("combat-next-001", combat);
+
+    const out = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001",
+      saving_throw_fn() {
+        return { final_total: 18 };
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.combat.conditions.length, 0);
+    assert.equal(out.payload.combat.event_log[0].details.end_of_turn_save_results.length, 1);
+    assert.equal(out.payload.combat.event_log[0].details.end_of_turn_save_results[0].success, true);
+  }, results);
+
+  runTest("hold_person_style_end_of_turn_save_can_remove_paralyzed", () => {
+    const manager = createBaseCombat();
+    const combat = manager.getCombatById("combat-next-001").payload.combat;
+    combat.conditions = [{
+      condition_id: "condition-paralyzed-end-save-001",
+      condition_type: "paralyzed",
+      target_actor_id: "p1",
+      expiration_trigger: "manual",
+      metadata: {
+        end_of_turn_save_ability: "wisdom",
+        end_of_turn_save_dc: 13
+      }
+    }];
+    manager.combats.set("combat-next-001", combat);
+
+    const out = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001",
+      saving_throw_fn() {
+        return { final_total: 18 };
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.combat.conditions.length, 0);
+  }, results);
+
   const passed = results.filter((x) => x.ok).length;
   const failed = results.length - passed;
   return {

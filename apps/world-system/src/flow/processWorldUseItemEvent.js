@@ -43,7 +43,15 @@ function processWorldUseItemEvent(input) {
     response_data: {
       use_status: out.payload.use_status || "consumed",
       item_id: out.payload.item_id || (event.payload && event.payload.item_id) || null,
-      inventory_id: inventory.inventory_id || null
+      inventory_id: inventory.inventory_id || null,
+      hp_before: out.payload.effect_result && out.payload.effect_result.hp_before,
+      hp_after: out.payload.effect_result && out.payload.effect_result.hp_after,
+      healed_for: out.payload.effect_result && out.payload.effect_result.healed_for,
+      temporary_hp_before: out.payload.effect_result && out.payload.effect_result.temporary_hp_before,
+      temporary_hp_after: out.payload.effect_result && out.payload.effect_result.temporary_hp_after,
+      temporary_hitpoints_granted: out.payload.effect_result && out.payload.effect_result.temporary_hitpoints_granted,
+      charges_before: out.payload.effect_result && out.payload.effect_result.charges_before,
+      charges_after: out.payload.effect_result && out.payload.effect_result.charges_after
     }
   });
 }
@@ -51,4 +59,3 @@ function processWorldUseItemEvent(input) {
 module.exports = {
   processWorldUseItemEvent
 };
-

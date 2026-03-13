@@ -530,6 +530,63 @@ function runEventRouterReadRoutingTests() {
     assert.equal(setup.queued[0].payload.request_event.event_type, EVENT_TYPES.PLAYER_ATTACK);
   }, results);
 
+  runTest("dodge_event_routes_to_combat_and_emits_combat_dispatch_event", () => {
+    const router = new EventRouter();
+    const setup = createRouteContext();
+    const combatId = "combat-router-dodge-001";
+
+    setup.combatManager.createCombat({
+      combat_id: combatId,
+      status: "pending"
+    });
+    setup.combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "player-router-dodge-001",
+        name: "Router Hero",
+        team: "heroes",
+        armor_class: 12,
+        current_hp: 20,
+        max_hp: 20,
+        attack_bonus: 5,
+        damage: 4,
+        position: { x: 0, y: 0 }
+      }
+    });
+    setup.combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "enemy-router-dodge-001",
+        name: "Router Goblin",
+        team: "monsters",
+        armor_class: 10,
+        current_hp: 10,
+        max_hp: 10,
+        attack_bonus: 2,
+        damage: 3,
+        position: { x: 1, y: 0 }
+      }
+    });
+    startCombat({
+      combatManager: setup.combatManager,
+      combat_id: combatId,
+      roll_function: (participant) => (participant.participant_id === "player-router-dodge-001" ? 20 : 1)
+    });
+
+    const event = createEvent(EVENT_TYPES.PLAYER_DODGE, {}, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: "player-router-dodge-001",
+      combat_id: combatId
+    });
+
+    const out = router.route(event, setup.context);
+    assert.equal(out.system, "combat");
+    assert.equal(setup.queued.length, 1);
+    assert.equal(setup.queued[0].event_type, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED);
+    assert.equal(setup.queued[0].payload.request_event.event_type, EVENT_TYPES.PLAYER_DODGE);
+  }, results);
+
   runTest("combat_read_event_routes_to_combat_and_emits_combat_dispatch_event", () => {
     const router = new EventRouter();
     const setup = createRouteContext();

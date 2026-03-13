@@ -93,6 +93,16 @@ function normalizeIdentifier(value) {
   return asString;
 }
 
+function normalizeIdentifierList(value) {
+  if (value === undefined || value === null) {
+    return [];
+  }
+  return String(value)
+    .split(",")
+    .map((entry) => normalizeIdentifier(entry))
+    .filter(Boolean);
+}
+
 function normalizeEquipPayload(commandOptions) {
   const itemId = normalizeIdentifier(getOptionValue(commandOptions, "item_id"));
   const slot = normalizeIdentifier(getOptionValue(commandOptions, "slot"));
@@ -260,9 +270,21 @@ function normalizeAttackPayload(commandOptions) {
   };
 }
 
+function normalizeDodgePayload(commandOptions) {
+  const actorId = normalizeIdentifier(getOptionValue(commandOptions, "actor_id"));
+  return {
+    ok: true,
+    payload: {
+      actor_id: actorId || null
+    },
+    error: null
+  };
+}
+
 function normalizeCastPayload(commandOptions) {
   const spellId = normalizeIdentifier(getOptionValue(commandOptions, "spell_id"));
   const targetId = normalizeIdentifier(getOptionValue(commandOptions, "target_id"));
+  const additionalTargetIds = normalizeIdentifierList(getOptionValue(commandOptions, "additional_target_ids"));
 
   if (!spellId) {
     return {
@@ -276,7 +298,8 @@ function normalizeCastPayload(commandOptions) {
     ok: true,
     payload: {
       spell_id: spellId,
-      target_id: targetId || null
+      target_id: targetId || null,
+      target_ids: Array.from(new Set([targetId].concat(additionalTargetIds).filter(Boolean)))
     },
     error: null
   };
@@ -833,6 +856,13 @@ function resolveCommandMapping(commandName) {
     };
   }
 
+  if (name === "dodge") {
+    return {
+      eventType: EVENT_TYPES.PLAYER_DODGE,
+      targetSystem: "combat_system"
+    };
+  }
+
   if (name === "cast") {
     return {
       eventType: EVENT_TYPES.PLAYER_CAST_SPELL,
@@ -895,6 +925,7 @@ function mapSlashCommandToGatewayEvent(interaction) {
   const adminPayload = commandName === "admin" ? normalizeAdminPayload(normalizedOptions) : null;
   const movePayload = commandName === "move" ? normalizeMovePayload(normalizedOptions) : null;
   const attackPayload = commandName === "attack" ? normalizeAttackPayload(normalizedOptions) : null;
+  const dodgePayload = commandName === "dodge" ? normalizeDodgePayload(normalizedOptions) : null;
   const castPayload = commandName === "cast" ? normalizeCastPayload(normalizedOptions) : null;
   const usePayload = commandName === "use" ? normalizeUsePayload(normalizedOptions) : null;
   const combatReadPayload = commandName === "combat" ? normalizeCombatReadPayload(normalizedOptions) : null;
@@ -985,6 +1016,13 @@ function mapSlashCommandToGatewayEvent(interaction) {
     });
   }
 
+  if (dodgePayload && !dodgePayload.ok) {
+    return failure("gateway_command_map_failed", dodgePayload.error, {
+      command_name: commandName,
+      command_options: normalizedOptions
+    });
+  }
+
   if (castPayload && !castPayload.ok) {
     return failure("gateway_command_map_failed", castPayload.error, {
       command_name: commandName,
@@ -1058,6 +1096,7 @@ function mapSlashCommandToGatewayEvent(interaction) {
     ...(adminPayload ? adminPayload.payload : {}),
     ...(movePayload ? movePayload.payload : {}),
     ...(attackPayload ? attackPayload.payload : {}),
+    ...(dodgePayload ? dodgePayload.payload : {}),
     ...(castPayload ? castPayload.payload : {}),
     ...(usePayload ? usePayload.payload : {}),
     ...(combatReadPayload ? combatReadPayload.payload : {}),
@@ -1099,6 +1138,7 @@ module.exports = {
   normalizeAdminPayload,
   normalizeMovePayload,
   normalizeAttackPayload,
+  normalizeDodgePayload,
   normalizeCastPayload,
   normalizeUsePayload,
   normalizeShopPayload,
