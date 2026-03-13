@@ -42,6 +42,7 @@ const { grantLootToInventory } = require("../../world-system/src/loot/flow/grant
 const {
   processCombatAttackRequest,
   processCombatCastSpellRequest,
+  processCombatDodgeRequest,
   processCombatMoveRequest,
   processCombatUseItemRequest
 } = require("../../combat-system/src/flow/processCombatActionRequest");
@@ -153,9 +154,56 @@ function resolveCharacterSavingThrows(character) {
   const savingThrows = character && character.saving_throws && typeof character.saving_throws === "object"
     ? character.saving_throws
     : {};
+  const itemEffects = resolveCharacterItemEffects(character);
+  const itemSaveBonus = Number.isFinite(Number(itemEffects.saving_throw_bonus))
+    ? Number(itemEffects.saving_throw_bonus)
+    : 0;
   const hasNumericSummary = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"]
     .some((key) => Number.isFinite(Number(savingThrows[key])));
-  return hasNumericSummary ? savingThrows : deriveSavingThrowState(character).saving_throws;
+  if (hasNumericSummary) {
+    if (itemSaveBonus === 0) {
+      return savingThrows;
+    }
+    return ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"].reduce((acc, key) => {
+      const base = Number(savingThrows[key]);
+      acc[key] = Number.isFinite(base) ? base + itemSaveBonus : itemSaveBonus;
+      return acc;
+    }, {});
+  }
+  return deriveSavingThrowState(character).saving_throws;
+}
+
+function resolveCharacterItemEffects(character) {
+  return character && character.item_effects && typeof character.item_effects === "object"
+    ? character.item_effects
+    : {};
+}
+
+function resolveEffectiveCharacterArmorClass(character) {
+  const itemEffects = resolveCharacterItemEffects(character);
+  const base = Number.isFinite(Number(character && character.armor_class)) ? Number(character.armor_class) : 10;
+  const bonus = Number.isFinite(Number(itemEffects.armor_class_bonus)) ? Number(itemEffects.armor_class_bonus) : 0;
+  return Number.isFinite(Number(character && character.effective_armor_class))
+    ? Number(character.effective_armor_class)
+    : base + bonus;
+}
+
+function resolveEffectiveCharacterSpeed(character) {
+  const itemEffects = resolveCharacterItemEffects(character);
+  const base = Number.isFinite(Number(character && character.speed)) ? Number(character.speed) : 30;
+  const bonus = Number.isFinite(Number(itemEffects.speed_bonus)) ? Number(itemEffects.speed_bonus) : 0;
+  return Number.isFinite(Number(character && character.effective_speed))
+    ? Number(character.effective_speed)
+    : base + bonus;
+}
+
+function resolveEffectiveSpellSaveDc(character) {
+  const itemEffects = resolveCharacterItemEffects(character);
+  const base = Number.isFinite(Number(character && character.spellsave_dc)) ? Number(character.spellsave_dc) : null;
+  if (base === null) {
+    return null;
+  }
+  return base + (Number.isFinite(Number(itemEffects.spell_save_dc_bonus)) ? Number(itemEffects.spell_save_dc_bonus) : 0);
 }
 
 function resolveLootTableFromContent(context, lootTableId) {
@@ -225,9 +273,166 @@ function summarizeInventory(found, character) {
 function cleanItemSummary(entry) {
   const safe = entry && typeof entry === "object" ? entry : {};
   const metadata = safe.metadata && typeof safe.metadata === "object" ? safe.metadata : {};
+  const useEffect = metadata.use_effect && typeof metadata.use_effect === "object" ? metadata.use_effect : {};
   const equipmentProfile = metadata.equipment_profile && typeof metadata.equipment_profile === "object"
     ? metadata.equipment_profile
     : {};
+  const healAmount = Number.isFinite(Number(useEffect.heal_amount))
+    ? Number(useEffect.heal_amount)
+    : Number.isFinite(Number(metadata.heal_amount))
+      ? Number(metadata.heal_amount)
+      : 0;
+  const temporaryHitPoints = Number.isFinite(Number(useEffect.temporary_hitpoints))
+    ? Number(useEffect.temporary_hitpoints)
+    : Number.isFinite(Number(useEffect.temp_hp))
+      ? Number(useEffect.temp_hp)
+      : Number.isFinite(Number(metadata.temporary_hitpoints))
+        ? Number(metadata.temporary_hitpoints)
+        : (Number.isFinite(Number(metadata.temp_hp)) ? Number(metadata.temp_hp) : 0);
+  const charges = Number.isFinite(Number(metadata.charges)) ? Number(metadata.charges) : null;
+  const chargesRemaining = Number.isFinite(Number(metadata.charges_remaining))
+    ? Number(metadata.charges_remaining)
+    : charges;
+  const damageReduction = Number.isFinite(Number(metadata.damage_reduction)) ? Number(metadata.damage_reduction) : 0;
+  const useConditions = Array.isArray(useEffect.applied_conditions)
+    ? useEffect.applied_conditions
+    : (Array.isArray(metadata.applied_conditions) ? metadata.applied_conditions : []);
+  const removeConditions = Array.isArray(useEffect.remove_conditions)
+    ? useEffect.remove_conditions
+    : (Array.isArray(metadata.remove_conditions) ? metadata.remove_conditions : []);
+  const hitpointMaxBonus = Number.isFinite(Number(useEffect.hitpoint_max_bonus))
+    ? Number(useEffect.hitpoint_max_bonus)
+    : Number.isFinite(Number(safe.hitpoint_max_bonus))
+      ? Number(safe.hitpoint_max_bonus)
+      : 0;
+  const isUsable = (
+    healAmount > 0 ||
+    temporaryHitPoints > 0 ||
+    hitpointMaxBonus > 0 ||
+    useConditions.length > 0 ||
+    removeConditions.length > 0
+  ) && (charges === null || Number.isFinite(chargesRemaining) && chargesRemaining > 0);
+  const effectSummary = [];
+  if (String(safe.item_type || "").toLowerCase() !== "unidentified") {
+    if (Number.isFinite(Number(metadata.armor_class_bonus)) && Number(metadata.armor_class_bonus) !== 0) {
+      effectSummary.push(`AC +${Number(metadata.armor_class_bonus)}`);
+    }
+    const saveBonus = Number.isFinite(Number(metadata.saving_throw_bonus))
+      ? Number(metadata.saving_throw_bonus)
+      : Number.isFinite(Number(metadata.all_saves_bonus))
+        ? Number(metadata.all_saves_bonus)
+        : 0;
+    if (saveBonus !== 0) {
+      effectSummary.push(`Saves +${saveBonus}`);
+    }
+    if (Number.isFinite(Number(metadata.attack_bonus)) && Number(metadata.attack_bonus) !== 0) {
+      effectSummary.push(`Attack +${Number(metadata.attack_bonus)}`);
+    }
+    if (Number.isFinite(Number(metadata.speed_bonus)) && Number(metadata.speed_bonus) !== 0) {
+      effectSummary.push(`Speed +${Number(metadata.speed_bonus)} ft`);
+    }
+    if (String(metadata.bonus_damage_dice || "").trim() && String(metadata.bonus_damage_type || "").trim()) {
+      effectSummary.push(`On hit ${String(metadata.bonus_damage_dice).trim()} ${String(metadata.bonus_damage_type).trim()}`);
+    }
+    if (Array.isArray(metadata.reactive_damage_effects) && metadata.reactive_damage_effects.length > 0) {
+      metadata.reactive_damage_effects.forEach((effect) => {
+        const safeEffect = effect && typeof effect === "object" ? effect : {};
+        const trigger = String(safeEffect.trigger || "").trim().toLowerCase();
+        const damageDice = String(safeEffect.damage_dice || "").trim();
+        const flatModifier = Number.isFinite(Number(safeEffect.flat_modifier)) ? Number(safeEffect.flat_modifier) : 0;
+        const damageType = String(safeEffect.damage_type || "").trim();
+        if (trigger === "melee_hit_taken" && (damageDice || flatModifier > 0) && damageType) {
+          const damageText = damageDice || String(flatModifier);
+          effectSummary.push(`Retaliate ${damageText} ${damageType} on melee hit`);
+        }
+      });
+    }
+    if (Array.isArray(metadata.resistances) && metadata.resistances.length > 0) {
+      effectSummary.push(`Resist ${metadata.resistances.map((entry) => String(entry)).join(", ")}`);
+    }
+    if (damageReduction > 0) {
+      effectSummary.push(
+        Array.isArray(metadata.damage_reduction_types) && metadata.damage_reduction_types.length > 0
+          ? `Ward ${damageReduction} vs ${metadata.damage_reduction_types.map((entry) => String(entry)).join(", ")}`
+          : `Ward ${damageReduction}`
+      );
+    }
+    if (healAmount > 0) {
+      effectSummary.push(`Heal ${healAmount}`);
+    }
+    if (temporaryHitPoints > 0) {
+      effectSummary.push(`Temp HP ${temporaryHitPoints}`);
+    }
+    if (hitpointMaxBonus > 0) {
+      effectSummary.push(`Vitality +${hitpointMaxBonus} HP`);
+    }
+    if (removeConditions.length > 0) {
+      effectSummary.push(`Cleanse ${removeConditions.map((entry) => String(entry)).join(", ")}`);
+    }
+    const heroismCondition = useConditions.find((entry) => {
+      const safeEntry = entry && typeof entry === "object" ? entry : {};
+      return String(safeEntry.condition_type || safeEntry.type || "").trim().toLowerCase() === "heroism";
+    });
+    if (heroismCondition) {
+      const metadata = heroismCondition.metadata && typeof heroismCondition.metadata === "object"
+        ? heroismCondition.metadata
+        : {};
+      const turnTempHp = Number.isFinite(Number(metadata.start_of_turn_temporary_hitpoints))
+        ? Number(metadata.start_of_turn_temporary_hitpoints)
+        : 0;
+      if (turnTempHp > 0) {
+        effectSummary.push(`Heroism ${turnTempHp} temp HP each turn`);
+      } else {
+        effectSummary.push("Heroism");
+      }
+    }
+    useConditions.forEach((entry) => {
+      const safeEntry = entry && typeof entry === "object" ? entry : {};
+      const type = String(safeEntry.condition_type || safeEntry.type || "").trim().toLowerCase();
+      const conditionMetadata = safeEntry.metadata && typeof safeEntry.metadata === "object" ? safeEntry.metadata : {};
+      if (type === "protection_from_poison") {
+        effectSummary.push("Poison ward");
+      }
+      if (type === "sanctuary" || conditionMetadata.blocks_attack_targeting === true || conditionMetadata.blocks_harmful_spell_targeting === true) {
+        const wardDc = Number(conditionMetadata.targeting_save_dc);
+        effectSummary.push(Number.isFinite(wardDc) ? `Sanctuary ward DC ${wardDc}` : "Sanctuary ward");
+      }
+      if (type === "blade_ward") {
+        effectSummary.push("Weapon damage resistance");
+      }
+      const speedBonus = Number.isFinite(Number(conditionMetadata.speed_bonus_feet))
+        ? Number(conditionMetadata.speed_bonus_feet)
+        : 0;
+      if ((type === "longstrider" || speedBonus > 0) && speedBonus > 0) {
+        effectSummary.push(`Speed +${speedBonus} ft`);
+      }
+      const armorClassBonus = Number(conditionMetadata.armor_class_bonus);
+      if (Number.isFinite(armorClassBonus) && armorClassBonus !== 0) {
+        effectSummary.push(`AC +${armorClassBonus}`);
+      }
+      const minimumArmorClass = Number(
+        conditionMetadata.minimum_armor_class !== undefined
+          ? conditionMetadata.minimum_armor_class
+          : conditionMetadata.armor_class_minimum
+      );
+      if (Number.isFinite(minimumArmorClass)) {
+        effectSummary.push(`Armor cannot drop below ${minimumArmorClass}`);
+      }
+      const saveBonusDice = String(conditionMetadata.saving_throw_bonus_dice || "").trim();
+      if (saveBonusDice) {
+        effectSummary.push(`Saves +${saveBonusDice}`);
+      }
+      if (type === "blurred" || conditionMetadata.attackers_have_disadvantage === true) {
+        effectSummary.push("Attackers roll at disadvantage");
+      }
+      if (Array.isArray(conditionMetadata.resistances) && conditionMetadata.resistances.length > 0) {
+        effectSummary.push(`Grants ${conditionMetadata.resistances.map((value) => String(value)).join(", ")} resistance`);
+      }
+    });
+    if (charges !== null && Number.isFinite(chargesRemaining)) {
+      effectSummary.push(`Charges ${chargesRemaining}/${charges}`);
+    }
+  }
   return {
     item_id: safe.item_id || null,
     item_name: safe.item_name || safe.item_id || null,
@@ -239,7 +444,13 @@ function cleanItemSummary(entry) {
     requires_attunement: metadata.requires_attunement === true,
     equipped: metadata.equipped === true,
     equipped_slot: metadata.equipped_slot || null,
-    equip_slot: safe.equip_slot || equipmentProfile.equip_slot || null
+    equip_slot: safe.equip_slot || equipmentProfile.equip_slot || null,
+    usable: isUsable,
+    heal_amount: healAmount,
+    temporary_hitpoints: temporaryHitPoints,
+    charges,
+    charges_remaining: chargesRemaining,
+    effect_summary: effectSummary
   };
 }
 
@@ -1128,7 +1339,13 @@ function handleWorldCommandDispatch(event, context) {
     return [createGatewayResponseEvent(requestEvent, "use", {
       use_status: responseData.use_status || "consumed",
       item_id: responseData.item_id || (requestEvent.payload && requestEvent.payload.item_id) || null,
-      inventory_id: responseData.inventory_id || null
+      inventory_id: responseData.inventory_id || null,
+      hp_before: responseData.hp_before,
+      hp_after: responseData.hp_after,
+      healed_for: responseData.healed_for,
+      temporary_hp_before: responseData.temporary_hp_before,
+      temporary_hp_after: responseData.temporary_hp_after,
+      temporary_hitpoints_granted: responseData.temporary_hitpoints_granted
     }, true, null, "world_system")];
   }
 
@@ -1531,6 +1748,38 @@ function handleCombatCommandDispatch(event, context) {
     }, true, null, "combat_system")];
   }
 
+  if (requestEvent.event_type === EVENT_TYPES.PLAYER_DODGE) {
+    const replayState = rejectDuplicateMutationIfNeeded(requestEvent, context, "dodge", "combat_system");
+    if (replayState && replayState.event_type) {
+      return [replayState];
+    }
+    const out = processCombatDodgeRequest({
+      context,
+      player_id: requestEvent.player_id,
+      combat_id: requestEvent.combat_id,
+      payload: requestEvent.payload || {}
+    });
+    if (!out.ok) {
+      return [createGatewayResponseEvent(requestEvent, "dodge", {}, false, out.error || "dodge request failed", "combat_system")];
+    }
+    markMutationReplaySuccess(context, replayState, true);
+
+    const dodge = out.payload.dodge || {};
+    const progress = summarizeCombatProgression(out.payload);
+    return [createGatewayResponseEvent(requestEvent, "dodge", {
+      dodge_status: "resolved",
+      combat_id: dodge.combat_id || requestEvent.combat_id,
+      participant_id: dodge.participant_id || requestEvent.player_id || null,
+      is_dodging: dodge.is_dodging === true,
+      active_participant_id: progress.active_participant_id,
+      combat_completed: progress.combat_completed,
+      winner_team: progress.winner_team,
+      combat_summary: summarizeCombatStateForGateway(progress.combat, progress.active_participant_id),
+      ai_turn_count: progress.ai_turn_count,
+      ai_turns: clone(progress.ai_turns)
+    }, true, null, "combat_system")];
+  }
+
   if (requestEvent.event_type === EVENT_TYPES.PLAYER_CAST_SPELL) {
     const replayState = rejectDuplicateMutationIfNeeded(requestEvent, context, "cast", "combat_system");
     if (replayState && replayState.event_type) {
@@ -1555,6 +1804,7 @@ function handleCombatCommandDispatch(event, context) {
       combat_id: castSpell.combat_id || requestEvent.combat_id,
       caster_id: castSpell.caster_id || requestEvent.player_id || null,
       target_id: castSpell.target_id || null,
+      target_ids: Array.isArray(castSpell.target_ids) ? clone(castSpell.target_ids) : [],
       spell_id: castSpell.spell_id || null,
       spell_name: castSpell.spell_name || null,
       resolution_type: castSpell.resolution_type || null,
@@ -1563,8 +1813,11 @@ function handleCombatCommandDispatch(event, context) {
       saved: castSpell.saved === null ? null : Boolean(castSpell.saved),
       damage_result: castSpell.damage_result || null,
       healing_result: castSpell.healing_result || null,
+      vitality_result: castSpell.vitality_result || null,
       defense_result: castSpell.defense_result || null,
       applied_conditions: Array.isArray(castSpell.applied_conditions) ? clone(castSpell.applied_conditions) : [],
+      removed_conditions: Array.isArray(castSpell.removed_conditions) ? clone(castSpell.removed_conditions) : [],
+      target_results: Array.isArray(castSpell.target_results) ? clone(castSpell.target_results) : [],
       concentration_required: castSpell.concentration_required === true,
       concentration_result: castSpell.concentration_result || null,
       concentration_started: castSpell.concentration_started || null,
@@ -1641,9 +1894,16 @@ function handleCombatCommandDispatch(event, context) {
       combat_id: useItem.combat_id || requestEvent.combat_id,
       participant_id: useItem.participant_id || requestEvent.player_id || null,
       item_id: useItem.item_id || (requestEvent.payload && requestEvent.payload.item_id) || null,
+      use_mode: useItem.use_status || "consumed",
       hp_before: useItem.hp_before,
       hp_after: useItem.hp_after,
       healed_for: useItem.healed_for,
+      temporary_hp_before: useItem.temporary_hp_before,
+      temporary_hp_after: useItem.temporary_hp_after,
+      temporary_hitpoints_granted: useItem.temporary_hitpoints_granted,
+      charges_before: useItem.charges_before,
+      charges_after: useItem.charges_after,
+      applied_conditions: Array.isArray(useItem.applied_conditions) ? clone(useItem.applied_conditions) : [],
       active_participant_id: progress.active_participant_id,
       combat_completed: progress.combat_completed,
       winner_team: progress.winner_team,
@@ -1708,17 +1968,18 @@ function handleWorldReadRequest(event, context) {
             max: Number.isFinite(Number(found.hitpoint_max)) ? Number(found.hitpoint_max) : 10,
             temporary: Number.isFinite(Number(found.temporary_hitpoints)) ? Number(found.temporary_hitpoints) : 0
           },
-          armor_class: Number.isFinite(Number(found.armor_class)) ? Number(found.armor_class) : 10,
+          armor_class: resolveEffectiveCharacterArmorClass(found),
           initiative: Number.isFinite(Number(found.initiative)) ? Number(found.initiative) : 0,
-          speed: Number.isFinite(Number(found.speed)) ? Number(found.speed) : 30,
+          speed: resolveEffectiveCharacterSpeed(found),
           spellcasting_ability: found.spellcasting_ability || null,
-          spellsave_dc: Number.isFinite(Number(found.spellsave_dc)) ? Number(found.spellsave_dc) : null,
+          spellsave_dc: resolveEffectiveSpellSaveDc(found),
           saving_throws: resolveCharacterSavingThrows(found),
           skills: found.skills || {},
           feats: summarizeCharacterFeats(context, found),
           feat_slots: getRemainingFeatSlots(found),
           feat_available: isFeatSlotAvailable(found),
           attunement: found.attunement || { attunement_slots: 3, slots_used: 0, attuned_items: [] },
+          item_effects: resolveCharacterItemEffects(found),
           spellbook: found.spellbook || {}
         }
       }, true, null, "world_system")

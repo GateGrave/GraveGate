@@ -65,7 +65,8 @@ function createContext() {
                 magical: true,
                 requires_attunement: true,
                 rarity: "rare",
-                armor_class_bonus: 1
+                armor_class_bonus: 1,
+                saving_throw_bonus: 1
               }
             }]
           }
@@ -114,6 +115,8 @@ function runProcessMagicalItemRequestTests() {
     assert.equal(attuneOut.ok, true);
     assert.equal(attuneOut.payload.item.is_attuned, true);
     assert.equal(attuneOut.payload.character.attunement.slots_used, 1);
+    assert.equal(attuneOut.payload.character.item_effects.armor_class_bonus, 0);
+    assert.equal(attuneOut.payload.character.item_effects.saving_throw_bonus, 0);
 
     const unattuneOut = processAttunementRequest({
       context,
@@ -124,6 +127,33 @@ function runProcessMagicalItemRequestTests() {
     assert.equal(unattuneOut.ok, true);
     assert.equal(unattuneOut.payload.item.is_attuned, false);
     assert.equal(unattuneOut.payload.character.attunement.slots_used, 0);
+  }, results);
+
+  runTest("equipped_and_attuned_magical_item_updates_effective_item_effect_state", () => {
+    const context = createContext();
+    processIdentifyItemRequest({
+      context,
+      player_id: "player-magical-item-001",
+      item_id: "item_mysterious_ring"
+    });
+
+    const loadedInventory = context.inventoryPersistence.loadInventoryById("inv-magical-item-001");
+    const ring = loadedInventory.payload.inventory.equipment_items.find((entry) => entry.item_id === "item_ring_of_protection");
+    ring.metadata.equipped = true;
+    ring.metadata.equipped_slot = "ring";
+    context.inventoryPersistence.saveInventory(loadedInventory.payload.inventory);
+
+    const attuneOut = processAttunementRequest({
+      context,
+      player_id: "player-magical-item-001",
+      item_id: "item_ring_of_protection",
+      mode: "attune"
+    });
+
+    assert.equal(attuneOut.ok, true);
+    assert.equal(attuneOut.payload.character.item_effects.armor_class_bonus, 1);
+    assert.equal(attuneOut.payload.character.item_effects.saving_throw_bonus, 1);
+    assert.equal(attuneOut.payload.character.effective_armor_class, 11);
   }, results);
 
   runTest("cannot_attune_unidentified_item", () => {

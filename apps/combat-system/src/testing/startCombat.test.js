@@ -123,6 +123,25 @@ function runStartCombatTests() {
     assert.equal(secondStart.error, "combat is already active");
   }, results);
 
+  runTest("initiative_modifier_controls_start_order_when_rolls_tie", () => {
+    const manager = createManagerWithParticipants(2);
+    const found = manager.getCombatById("combat-start-001");
+    const combat = found.payload.combat;
+    combat.participants[0].initiative_modifier = 0;
+    combat.participants[1].initiative_modifier = 5;
+    manager.combats.set("combat-start-001", combat);
+
+    const out = startCombat({
+      combatManager: manager,
+      combat_id: "combat-start-001",
+      roll_function: () => 10
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.combat.initiative_order[0], "p2");
+    assert.equal(out.payload.combat.initiative_order[out.payload.combat.turn_index], "p2");
+  }, results);
+
   const passed = results.filter((x) => x.ok).length;
   const failed = results.length - passed;
   return {

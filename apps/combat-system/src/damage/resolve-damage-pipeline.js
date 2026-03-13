@@ -24,6 +24,14 @@ function applyImmunity(amount, hasImmunity) {
   return 0;
 }
 
+function applyDamageReduction(amount, reduction) {
+  const numericReduction = Number(reduction);
+  if (!Number.isFinite(numericReduction) || numericReduction <= 0) {
+    return amount;
+  }
+  return Math.max(0, amount - Math.floor(numericReduction));
+}
+
 /**
  * Resolve typed damage in exact order:
  * 1) roll damage
@@ -52,9 +60,17 @@ function resolveDamagePipeline(input) {
   }
 
   const profile = getCharacterDamageProfile(target);
+  const tempHpBefore = Number.isFinite(Number(target.temporary_hitpoints)) ? Math.max(0, Number(target.temporary_hitpoints)) : 0;
   const hasVulnerability = profile.vulnerabilities.includes(damageType);
   const hasResistance = profile.resistances.includes(damageType);
   const hasImmunity = profile.immunities.includes(damageType);
+  const damageReductionTypes = Array.isArray(target.damage_reduction_types)
+    ? target.damage_reduction_types.map((entry) => String(entry || "").trim().toLowerCase()).filter(Boolean)
+    : [];
+  const damageReductionValue = Number(target.damage_reduction || 0);
+  const damageReductionApplies = Number.isFinite(damageReductionValue) && damageReductionValue > 0 && (
+    damageReductionTypes.length === 0 || damageReductionTypes.includes(String(damageType || "").trim().toLowerCase())
+  );
 
   // 1) roll damage
   const rollResult = resolveDiceRoll({
@@ -74,13 +90,19 @@ function resolveDamagePipeline(input) {
   // 4) apply immunity
   const afterImmunity = applyImmunity(afterResistance, hasImmunity);
 
-  // 5) calculate final damage
-  const finalDamage = Math.max(0, afterImmunity);
+  // 5) apply passive damage reduction
+  const afterDamageReduction = applyDamageReduction(afterImmunity, damageReductionApplies ? damageReductionValue : 0);
 
-  // 6) apply HP reduction
+  // 6) calculate final damage
+  const finalDamage = Math.max(0, afterDamageReduction);
+
+  // 7) apply HP reduction
   const hpBefore = Number(target.current_hp || 0);
-  const hpAfter = Math.max(0, hpBefore - finalDamage);
+  const tempHpAfter = Math.max(0, tempHpBefore - finalDamage);
+  const remainingDamageAfterTempHp = Math.max(0, finalDamage - tempHpBefore);
+  const hpAfter = Math.max(0, hpBefore - remainingDamageAfterTempHp);
   const hpReducedBy = hpBefore - hpAfter;
+  const tempHpConsumed = tempHpBefore - tempHpAfter;
 
   return {
     pipeline_order: [
@@ -88,6 +110,7 @@ function resolveDamagePipeline(input) {
       "apply_vulnerability",
       "apply_resistance",
       "apply_immunity",
+      "apply_damage_reduction",
       "calculate_final_damage",
       "apply_hp_reduction"
     ],
@@ -111,18 +134,30 @@ function resolveDamagePipeline(input) {
         has_immunity: hasImmunity,
         damage_after_immunity: afterImmunity
       },
+      apply_damage_reduction: {
+        has_damage_reduction: damageReductionApplies,
+        damage_reduction: damageReductionApplies ? Math.floor(damageReductionValue) : 0,
+        damage_reduction_types: damageReductionTypes,
+        damage_after_reduction: afterDamageReduction
+      },
       calculate_final_damage: {
         final_damage: finalDamage
       },
       apply_hp_reduction: {
         hp_before: hpBefore,
         hp_after: hpAfter,
-        hp_reduced_by: hpReducedBy
+        hp_reduced_by: hpReducedBy,
+        temporary_hp_before: tempHpBefore,
+        temporary_hp_after: tempHpAfter,
+        temporary_hp_consumed: tempHpConsumed
       }
     },
     final_damage: finalDamage,
     hp_before: hpBefore,
-    hp_after: hpAfter
+    hp_after: hpAfter,
+    temporary_hp_before: tempHpBefore,
+    temporary_hp_after: tempHpAfter,
+    temporary_hp_consumed: tempHpConsumed
   };
 }
 
@@ -130,5 +165,6 @@ module.exports = {
   applyVulnerability,
   applyResistance,
   applyImmunity,
+  applyDamageReduction,
   resolveDamagePipeline
 };

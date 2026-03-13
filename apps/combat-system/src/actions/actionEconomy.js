@@ -103,7 +103,12 @@ function consumeParticipantAction(participant, actionType, options) {
     }
   }
 
-  if (actionType === ACTION_TYPES.USE_ITEM || actionType === ACTION_TYPES.ATTACK || actionType === ACTION_TYPES.CAST_SPELL) {
+  if (
+    actionType === ACTION_TYPES.USE_ITEM ||
+    actionType === ACTION_TYPES.ATTACK ||
+    actionType === ACTION_TYPES.DODGE ||
+    actionType === ACTION_TYPES.CAST_SPELL
+  ) {
     next.action_available = false;
     return success("combat_action_consumed", {
       participant: next,

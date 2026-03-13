@@ -88,6 +88,26 @@ function cleanItemSummary(entry) {
   const equipmentProfile = metadata.equipment_profile && typeof metadata.equipment_profile === "object"
     ? metadata.equipment_profile
     : {};
+  const effectSummary = [];
+  if (String(safe.item_type || "").toLowerCase() !== "unidentified") {
+    if (Number.isFinite(Number(metadata.armor_class_bonus)) && Number(metadata.armor_class_bonus) !== 0) {
+      effectSummary.push(`AC +${Number(metadata.armor_class_bonus)}`);
+    }
+    const saveBonus = Number.isFinite(Number(metadata.saving_throw_bonus))
+      ? Number(metadata.saving_throw_bonus)
+      : Number.isFinite(Number(metadata.all_saves_bonus))
+        ? Number(metadata.all_saves_bonus)
+        : 0;
+    if (saveBonus !== 0) {
+      effectSummary.push(`Saves +${saveBonus}`);
+    }
+    if (Number.isFinite(Number(metadata.speed_bonus)) && Number(metadata.speed_bonus) !== 0) {
+      effectSummary.push(`Speed +${Number(metadata.speed_bonus)} ft`);
+    }
+    if (Array.isArray(metadata.resistances) && metadata.resistances.length > 0) {
+      effectSummary.push(`Resist ${metadata.resistances.map((entry) => String(entry)).join(", ")}`);
+    }
+  }
   return {
     item_id: safe.item_id || null,
     item_name: safe.item_name || safe.item_id || null,
@@ -99,7 +119,8 @@ function cleanItemSummary(entry) {
     requires_attunement: metadata.requires_attunement === true,
     equipped: metadata.equipped === true,
     equipped_slot: metadata.equipped_slot || null,
-    equip_slot: safe.equip_slot || equipmentProfile.equip_slot || null
+    equip_slot: safe.equip_slot || equipmentProfile.equip_slot || null,
+    effect_summary: effectSummary
   };
 }
 
@@ -142,9 +163,56 @@ function resolveCharacterSavingThrows(character) {
   const savingThrows = character && character.saving_throws && typeof character.saving_throws === "object"
     ? character.saving_throws
     : {};
+  const itemEffects = resolveCharacterItemEffects(character);
+  const itemSaveBonus = Number.isFinite(Number(itemEffects.saving_throw_bonus))
+    ? Number(itemEffects.saving_throw_bonus)
+    : 0;
   const hasNumericSummary = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"]
     .some((key) => Number.isFinite(Number(savingThrows[key])));
-  return hasNumericSummary ? savingThrows : deriveSavingThrowState(character).saving_throws;
+  if (hasNumericSummary) {
+    if (itemSaveBonus === 0) {
+      return savingThrows;
+    }
+    return ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"].reduce((acc, key) => {
+      const base = Number(savingThrows[key]);
+      acc[key] = Number.isFinite(base) ? base + itemSaveBonus : itemSaveBonus;
+      return acc;
+    }, {});
+  }
+  return deriveSavingThrowState(character).saving_throws;
+}
+
+function resolveCharacterItemEffects(character) {
+  return character && character.item_effects && typeof character.item_effects === "object"
+    ? character.item_effects
+    : {};
+}
+
+function resolveEffectiveCharacterArmorClass(character) {
+  const itemEffects = resolveCharacterItemEffects(character);
+  const base = Number.isFinite(Number(character && character.armor_class)) ? Number(character.armor_class) : 10;
+  const bonus = Number.isFinite(Number(itemEffects.armor_class_bonus)) ? Number(itemEffects.armor_class_bonus) : 0;
+  return Number.isFinite(Number(character && character.effective_armor_class))
+    ? Number(character.effective_armor_class)
+    : base + bonus;
+}
+
+function resolveEffectiveCharacterSpeed(character) {
+  const itemEffects = resolveCharacterItemEffects(character);
+  const base = Number.isFinite(Number(character && character.speed)) ? Number(character.speed) : 30;
+  const bonus = Number.isFinite(Number(itemEffects.speed_bonus)) ? Number(itemEffects.speed_bonus) : 0;
+  return Number.isFinite(Number(character && character.effective_speed))
+    ? Number(character.effective_speed)
+    : base + bonus;
+}
+
+function resolveEffectiveSpellSaveDc(character) {
+  const itemEffects = resolveCharacterItemEffects(character);
+  const base = Number.isFinite(Number(character && character.spellsave_dc)) ? Number(character.spellsave_dc) : null;
+  if (base === null) {
+    return null;
+  }
+  return base + (Number.isFinite(Number(itemEffects.spell_save_dc_bonus)) ? Number(itemEffects.spell_save_dc_bonus) : 0);
 }
 
 function handleWorldEvent(event, context) {
@@ -223,17 +291,18 @@ function handleWorldEvent(event, context) {
             max: Number.isFinite(Number(found.hitpoint_max)) ? Number(found.hitpoint_max) : 10,
             temporary: Number.isFinite(Number(found.temporary_hitpoints)) ? Number(found.temporary_hitpoints) : 0
           },
-          armor_class: Number.isFinite(Number(found.armor_class)) ? Number(found.armor_class) : 10,
+          armor_class: resolveEffectiveCharacterArmorClass(found),
           initiative: Number.isFinite(Number(found.initiative)) ? Number(found.initiative) : 0,
-          speed: Number.isFinite(Number(found.speed)) ? Number(found.speed) : 30,
+          speed: resolveEffectiveCharacterSpeed(found),
           spellcasting_ability: found.spellcasting_ability || null,
-          spellsave_dc: Number.isFinite(Number(found.spellsave_dc)) ? Number(found.spellsave_dc) : null,
+          spellsave_dc: resolveEffectiveSpellSaveDc(found),
           saving_throws: resolveCharacterSavingThrows(found),
           skills: found.skills || {},
           feats: summarizeCharacterFeats(context, found),
           feat_slots: getRemainingFeatSlots(found),
           feat_available: isFeatSlotAvailable(found),
           attunement: found.attunement || { attunement_slots: 3, slots_used: 0, attuned_items: [] },
+          item_effects: resolveCharacterItemEffects(found),
           spellbook: found.spellbook || {}
         }
       }, true, null)

@@ -80,9 +80,14 @@ function runToCombatParticipantTests() {
         spellbook: {
           known_spell_ids: ["magic_missile"]
         },
+        initiative: 5,
         equipped_item_profiles: {
           main_hand: {
-            item_id: "item_longsword"
+            item_id: "item_longsword",
+            weapon: {
+              damage_dice: "1d8",
+              damage_type: "slashing"
+            }
           },
           body: {
             item_id: "item_chain_mail"
@@ -113,11 +118,15 @@ function runToCombatParticipantTests() {
     assert.equal(out.payload.participant.spellcasting_ability, "charisma");
     assert.equal(out.payload.participant.spellsave_dc, 13);
     assert.equal(out.payload.participant.spell_attack_bonus, 5);
+    assert.equal(out.payload.participant.initiative_modifier, 5);
     assert.equal(out.payload.participant.spellbook.known_spell_ids[0], "magic_missile");
     assert.equal(out.payload.participant.readiness.race_id, "human");
     assert.equal(out.payload.participant.readiness.class_id, "fighter");
     assert.equal(out.payload.participant.readiness.weapon_profile.item_id, "item_longsword");
     assert.equal(out.payload.participant.readiness.armor_profile.item_id, "item_chain_mail");
+    assert.equal(out.payload.participant.damage_formula, "1d8");
+    assert.equal(out.payload.participant.damage_type, "slashing");
+    assert.equal(out.payload.participant.temporary_hitpoints, 0);
   }, results);
 
   runTest("saving_throw_fallback_reads_numeric_summary_when_explicit_fields_are_missing", () => {
@@ -133,6 +142,72 @@ function runToCombatParticipantTests() {
 
     assert.equal(out.ok, true);
     assert.equal(out.payload.participant.wisdom_save_modifier, 4);
+  }, results);
+
+  runTest("item_effects_are_applied_to_combat_participant_state", () => {
+    const out = toCombatParticipant({
+      character: {
+        character_id: "char-adapter-item-effects-001",
+        name: "Relic Hero",
+        armor_class: 15,
+        speed: 30,
+        hitpoint_max: 20,
+        current_hitpoints: 20,
+        temporary_hitpoints: 5,
+        spellsave_dc: 13,
+        spell_attack_bonus: 5,
+        resistances: ["fire"],
+        item_effects: {
+          armor_class_bonus: 1,
+          attack_bonus: 1,
+          saving_throw_bonus: 1,
+          spell_save_dc_bonus: 1,
+          spell_attack_bonus: 1,
+          speed_bonus: 10,
+          damage_reduction: 2,
+          damage_reduction_types: ["slashing"],
+          resistances: ["cold"],
+          on_hit_damage_effects: [{
+            item_id: "item_blazing_blade",
+            item_name: "Blazing Blade",
+            damage_dice: "1d4",
+            damage_type: "fire"
+          }],
+          reactive_damage_effects: [{
+            item_id: "item_stormguard_loop",
+            item_name: "Stormguard Loop",
+            trigger: "melee_hit_taken",
+            damage_dice: "1d4",
+            damage_type: "lightning"
+          }]
+        },
+        effective_armor_class: 16,
+        effective_speed: 40,
+        strength_save_modifier: 2,
+        dexterity_save_modifier: 1,
+        constitution_save_modifier: 2,
+        intelligence_save_modifier: 0,
+        wisdom_save_modifier: 1,
+        charisma_save_modifier: 3
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.participant.armor_class, 16);
+    assert.equal(out.payload.participant.attack_bonus, 1);
+    assert.equal(out.payload.participant.movement_speed, 40);
+    assert.equal(out.payload.participant.spellsave_dc, 14);
+    assert.equal(out.payload.participant.spell_attack_bonus, 6);
+    assert.equal(out.payload.participant.damage_reduction, 2);
+    assert.equal(out.payload.participant.damage_reduction_types.includes("slashing"), true);
+    assert.equal(out.payload.participant.resistances.includes("fire"), true);
+    assert.equal(out.payload.participant.resistances.includes("cold"), true);
+    assert.equal(out.payload.participant.magical_on_hit_effects.length, 1);
+    assert.equal(out.payload.participant.magical_on_hit_effects[0].damage_type, "fire");
+    assert.equal(out.payload.participant.magical_reactive_effects.length, 1);
+    assert.equal(out.payload.participant.magical_reactive_effects[0].damage_type, "lightning");
+    assert.equal(out.payload.participant.strength_save_modifier, 2);
+    assert.equal(out.payload.participant.temporary_hitpoints, 5);
   }, results);
 
   runTest("failure_on_invalid_character_input", () => {

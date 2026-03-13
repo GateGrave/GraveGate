@@ -35,6 +35,9 @@ function canParticipantReact(combatState, participantId) {
   if (participantHasCondition(combatState, participantId, "stunned")) {
     return false;
   }
+  if (participantHasCondition(combatState, participantId, "paralyzed")) {
+    return false;
+  }
   if (
     participantHasCondition(combatState, participantId, "opportunity_attack_immunity") ||
     participantHasCondition(combatState, participantId, "no_reaction")

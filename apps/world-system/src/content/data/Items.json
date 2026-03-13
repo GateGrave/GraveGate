@@ -537,8 +537,595 @@
         "requires_attunement": true,
         "rarity": "rare",
         "armor_class_bonus": 1,
+        "saving_throw_bonus": 1,
         "magic_property_refs": ["protection_bonus"],
         "source": "stage16_magical_items"
+      }
+    },
+    {
+      "item_id": "item_cloak_of_protection",
+      "name": "Cloak of Protection",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "accessory",
+      "metadata": {
+        "category": "misc",
+        "magical": true,
+        "requires_attunement": true,
+        "rarity": "uncommon",
+        "armor_class_bonus": 1,
+        "saving_throw_bonus": 1,
+        "magic_property_refs": ["protection_bonus"],
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_mysterious_cloak",
+      "name": "Dusty Traveler's Cloak",
+      "item_type": "unidentified",
+      "stackable": false,
+      "metadata": {
+        "category": "misc",
+        "public_label": "Dusty Traveler's Cloak",
+        "hidden_item_ref": "item_cloak_of_protection",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_boots_of_swiftness",
+      "name": "Boots of Swiftness",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "feet",
+      "metadata": {
+        "category": "misc",
+        "magical": true,
+        "requires_attunement": true,
+        "rarity": "uncommon",
+        "speed_bonus": 10,
+        "magic_property_refs": ["speed_bonus"],
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_mysterious_boots",
+      "name": "Weathered Boots",
+      "item_type": "unidentified",
+      "stackable": false,
+      "metadata": {
+        "category": "misc",
+        "public_label": "Weathered Boots",
+        "hidden_item_ref": "item_boots_of_swiftness",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_frostbrand_charm",
+      "name": "Frostbrand Charm",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "accessory",
+      "metadata": {
+        "category": "misc",
+        "magical": true,
+        "requires_attunement": true,
+        "rarity": "rare",
+        "resistances": ["cold"],
+        "magic_property_refs": ["cold_resistance"],
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_blazing_blade",
+      "name": "Blazing Blade",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "main_hand",
+      "metadata": {
+        "category": "misc",
+        "magical": true,
+        "requires_attunement": true,
+        "rarity": "uncommon",
+        "attack_bonus": 1,
+        "bonus_damage_dice": "1d4",
+        "bonus_damage_type": "fire",
+        "weapon": {
+          "damage_dice": "1d8",
+          "damage_type": "slashing"
+        },
+        "magic_property_refs": ["attack_bonus", "bonus_fire_damage"],
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_weathered_blade",
+      "name": "Weathered Ember Blade",
+      "item_type": "unidentified",
+      "stackable": false,
+      "metadata": {
+        "category": "misc",
+        "public_label": "Weathered Ember Blade",
+        "hidden_item_ref": "item_blazing_blade",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_mysterious_charm",
+      "name": "Chilled Silver Charm",
+      "item_type": "unidentified",
+      "stackable": false,
+      "metadata": {
+        "category": "misc",
+        "public_label": "Chilled Silver Charm",
+        "hidden_item_ref": "item_frostbrand_charm",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_wand_of_the_warmage",
+      "name": "Wand of the Warmage",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "main_hand",
+      "metadata": {
+        "category": "misc",
+        "magical": true,
+        "requires_attunement": true,
+        "rarity": "uncommon",
+        "spell_attack_bonus": 1,
+        "magic_property_refs": ["spell_attack_bonus"],
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_mysterious_wand",
+      "name": "Weathered Spellwand",
+      "item_type": "unidentified",
+      "stackable": false,
+      "metadata": {
+        "category": "misc",
+        "public_label": "Weathered Spellwand",
+        "hidden_item_ref": "item_wand_of_the_warmage",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_amulet_of_the_devout",
+      "name": "Amulet of the Devout",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "accessory",
+      "metadata": {
+        "category": "misc",
+        "magical": true,
+        "requires_attunement": true,
+        "rarity": "uncommon",
+        "spell_save_dc_bonus": 1,
+        "magic_property_refs": ["spell_save_dc_bonus"],
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_mysterious_amulet",
+      "name": "Muted Divine Amulet",
+      "item_type": "unidentified",
+      "stackable": false,
+      "metadata": {
+        "category": "misc",
+        "public_label": "Muted Divine Amulet",
+        "hidden_item_ref": "item_amulet_of_the_devout",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_potion_of_heroism",
+      "name": "Potion of Heroism",
+      "item_type": "consumable",
+      "sellable": true,
+      "stackable": true,
+      "metadata": {
+        "category": "consumable",
+        "magical": true,
+        "rarity": "rare",
+        "temporary_hitpoints": 10,
+        "applied_conditions": [
+          {
+            "condition_type": "bless",
+            "expiration_trigger": "start_of_turn",
+            "duration": {
+              "remaining_triggers": 10
+            },
+            "metadata": {
+              "dice_bonus": "1d4",
+              "source_item_id": "item_potion_of_heroism"
+            }
+          }
+        ],
+        "effect": "heroic_surge",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_arcane_restorative",
+      "name": "Arcane Restorative",
+      "item_type": "consumable",
+      "sellable": true,
+      "stackable": true,
+      "metadata": {
+        "category": "consumable",
+        "magical": true,
+        "rarity": "uncommon",
+        "heal_amount": 8,
+        "temporary_hitpoints": 3,
+        "effect": "arcane_restoration",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_guardian_brooch",
+      "name": "Guardian Brooch",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "accessory",
+      "metadata": {
+        "category": "misc",
+        "magical": true,
+        "requires_attunement": true,
+        "rarity": "uncommon",
+        "damage_reduction": 2,
+        "damage_reduction_types": ["slashing", "piercing", "bludgeoning"],
+        "magic_property_refs": ["reactive_ward"],
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_dimmed_brooch",
+      "name": "Dimmed Brooch",
+      "item_type": "unidentified",
+      "stackable": false,
+      "metadata": {
+        "category": "misc",
+        "public_label": "Dimmed Brooch",
+        "hidden_item_ref": "item_guardian_brooch",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_charm_of_vital_reserve",
+      "name": "Charm of Vital Reserve",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "accessory",
+      "metadata": {
+        "category": "misc",
+        "magical": true,
+        "requires_attunement": true,
+        "rarity": "uncommon",
+        "charges": 2,
+        "charges_remaining": 2,
+        "use_effect": {
+          "temporary_hitpoints": 6
+        },
+        "effect": "vital_reserve",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_stormguard_loop",
+      "name": "Stormguard Loop",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "accessory",
+      "metadata": {
+        "category": "misc",
+        "magical": true,
+        "requires_attunement": true,
+        "rarity": "uncommon",
+        "reactive_damage_effects": [
+          {
+            "trigger": "melee_hit_taken",
+            "damage_dice": "1d4",
+            "damage_type": "lightning"
+          }
+        ],
+        "effect": "storm_guard",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_dulled_loop",
+      "name": "Dulled Loop",
+      "item_type": "unidentified",
+      "stackable": false,
+      "metadata": {
+        "category": "misc",
+        "public_label": "Dulled Loop",
+        "hidden_item_ref": "item_stormguard_loop",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_clouded_charm",
+      "name": "Clouded Charm",
+      "item_type": "unidentified",
+      "stackable": false,
+      "metadata": {
+        "category": "misc",
+        "public_label": "Clouded Charm",
+        "hidden_item_ref": "item_charm_of_vital_reserve",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_charm_of_heroic_echo",
+      "name": "Charm of Heroic Echo",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "accessory",
+      "metadata": {
+        "category": "misc",
+        "magical": true,
+        "requires_attunement": true,
+        "rarity": "uncommon",
+        "charges": 2,
+        "charges_remaining": 2,
+        "use_effect": {
+          "temporary_hitpoints": 3,
+          "applied_conditions": [
+            {
+              "condition_type": "heroism",
+              "expiration_trigger": "manual",
+              "metadata": {
+                "source_item_id": "item_charm_of_heroic_echo",
+                "start_of_turn_temporary_hitpoints": 3,
+                "immunity_tags": ["frightened"]
+              }
+            }
+          ]
+        },
+        "effect": "heroic_echo",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_muted_echo_charm",
+      "name": "Muted Echo Charm",
+      "item_type": "unidentified",
+      "stackable": false,
+      "metadata": {
+        "category": "misc",
+        "public_label": "Muted Echo Charm",
+        "hidden_item_ref": "item_charm_of_heroic_echo",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_aid_phial",
+      "name": "Aid Phial",
+      "item_type": "consumable",
+      "sellable": true,
+      "stackable": true,
+      "metadata": {
+        "category": "consumable",
+        "magical": true,
+        "rarity": "uncommon",
+        "use_effect": {
+          "hitpoint_max_bonus": 5,
+          "applied_conditions": [
+            {
+              "condition_type": "aid",
+              "expiration_trigger": "manual",
+              "metadata": {
+                "source_item_id": "item_aid_phial",
+                "hitpoint_max_bonus": 5
+              }
+            }
+          ]
+        },
+        "effect": "aid_surge",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_phial_of_purity",
+      "name": "Phial of Purity",
+      "item_type": "consumable",
+      "sellable": true,
+      "stackable": true,
+      "metadata": {
+        "category": "consumable",
+        "magical": true,
+        "rarity": "uncommon",
+        "use_effect": {
+          "remove_conditions": ["poisoned"],
+          "applied_conditions": [
+            {
+              "condition_type": "protection_from_poison",
+              "expiration_trigger": "manual",
+              "metadata": {
+                "source_item_id": "item_phial_of_purity",
+                "resistances": ["poison"]
+              }
+            }
+          ]
+        },
+        "effect": "purity_ward",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_draught_of_longstrider",
+      "name": "Draught of Longstrider",
+      "item_type": "consumable",
+      "sellable": true,
+      "stackable": true,
+      "metadata": {
+        "category": "consumable",
+        "magical": true,
+        "rarity": "uncommon",
+        "use_effect": {
+          "applied_conditions": [
+            {
+              "condition_type": "longstrider",
+              "expiration_trigger": "manual",
+              "metadata": {
+                "source_item_id": "item_draught_of_longstrider",
+                "speed_bonus_feet": 10
+              }
+            }
+          ]
+        },
+        "effect": "fleetstep_draught",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_faded_fleet_vial",
+      "name": "Faded Fleet Vial",
+      "item_type": "unidentified",
+      "stackable": false,
+      "metadata": {
+        "category": "misc",
+        "public_label": "Faded Fleet Vial",
+        "hidden_item_ref": "item_draught_of_longstrider",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_talisman_of_resolve",
+      "name": "Talisman of Resolve",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "accessory",
+      "metadata": {
+        "category": "misc",
+        "magical": true,
+        "rarity": "uncommon",
+        "charges": 3,
+        "charges_remaining": 3,
+        "use_effect": {
+          "applied_conditions": [
+            {
+              "condition_type": "resistance",
+              "expiration_trigger": "manual",
+              "metadata": {
+                "source_item_id": "item_talisman_of_resolve",
+                "saving_throw_bonus_dice": "1d4"
+              }
+            }
+          ]
+        },
+        "effect": "resolve_boon",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_clouded_resolve_talisman",
+      "name": "Clouded Resolve Talisman",
+      "item_type": "unidentified",
+      "stackable": false,
+      "metadata": {
+        "category": "misc",
+        "public_label": "Clouded Resolve Talisman",
+        "hidden_item_ref": "item_talisman_of_resolve",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_aegis_brooch",
+      "name": "Aegis Brooch",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "accessory",
+      "metadata": {
+        "category": "misc",
+        "magical": true,
+        "rarity": "uncommon",
+        "charges": 2,
+        "charges_remaining": 2,
+        "use_effect": {
+          "applied_conditions": [
+            {
+              "condition_type": "aegis_ward",
+              "expiration_trigger": "start_of_turn",
+              "metadata": {
+                "source_item_id": "item_aegis_brooch",
+                "armor_class_bonus": 2,
+                "apply_armor_class_dynamically": true
+              }
+            }
+          ]
+        },
+        "effect": "aegis_ward",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_dimmed_aegis_brooch",
+      "name": "Dimmed Aegis Brooch",
+      "item_type": "unidentified",
+      "stackable": false,
+      "metadata": {
+        "category": "misc",
+        "public_label": "Dimmed Aegis Brooch",
+        "hidden_item_ref": "item_aegis_brooch",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_warding_prayer_charm",
+      "name": "Warding Prayer Charm",
+      "item_type": "equipment",
+      "stackable": false,
+      "equip_slot": "accessory",
+      "metadata": {
+        "category": "misc",
+        "magical": true,
+        "rarity": "uncommon",
+        "charges": 2,
+        "charges_remaining": 2,
+        "use_effect": {
+          "applied_conditions": [
+            {
+              "condition_type": "sanctuary",
+              "expiration_trigger": "manual",
+              "metadata": {
+                "source_item_id": "item_warding_prayer_charm",
+                "blocks_attack_targeting": true,
+                "blocks_harmful_spell_targeting": true,
+                "targeting_save_ability": "wisdom",
+                "targeting_save_dc": 13,
+                "breaks_on_harmful_action": true
+              }
+            }
+          ]
+        },
+        "effect": "warding_prayer",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_tarnished_prayer_charm",
+      "name": "Tarnished Prayer Charm",
+      "item_type": "unidentified",
+      "stackable": false,
+      "metadata": {
+        "category": "misc",
+        "public_label": "Tarnished Prayer Charm",
+        "hidden_item_ref": "item_warding_prayer_charm",
+        "source": "stage17_magical_items"
+      }
+    },
+    {
+      "item_id": "item_clouded_purity_phial",
+      "name": "Clouded Purity Phial",
+      "item_type": "unidentified",
+      "stackable": false,
+      "metadata": {
+        "category": "misc",
+        "public_label": "Clouded Purity Phial",
+        "hidden_item_ref": "item_phial_of_purity",
+        "source": "stage17_magical_items"
       }
     },
     {

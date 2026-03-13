@@ -1,0 +1,141 @@
+GateGrave Local Backup
+======================
+
+Date
+----
+2026-03-13
+
+Purpose
+-------
+This is a local handoff/backup note for the current non-map work in progress.
+It is meant to make resuming easy later even if branch context is lost.
+
+
+1) Current Focus
+----------------
+Current work is intentionally excluding `apps/map-system`.
+
+The active focus is:
+- combat depth milestone
+- magical item milestone
+- canonical runtime/controller/combat/world paths only
+
+The goal is to push the supported combat slice as close as possible to a strong 5e text-bot loop without creating parallel systems.
+
+
+2) Major Working State
+----------------------
+The supported combat slice now includes:
+- typed damage on spell and standard attack paths
+- conditions, reactions, opportunity attacks
+- concentration support
+- support/control spell slice expansion
+- dodge wired end-to-end as a canonical command/action
+- multi-target support for current non-damaging support/control spells
+- split-target `magic_missile`
+- meaningful magical item combat integration
+
+Magic items currently support:
+- passive bonuses
+- charged activations
+- reactive effects
+- on-hit bonus damage
+- warding / damage reduction
+- cleansing
+- heroism-style and sanctuary-style effects
+
+
+3) Most Important Recent Additions
+----------------------------------
+Recent high-value additions include:
+
+- `/dodge` command and canonical combat handling
+- `paralyzed` enforcement across combat action paths
+- multi-target target selection support for `/cast`
+- `target_ids` in canonical cast payloads
+- support/control multi-target spell handling for current non-damaging slice
+- split-target `magic_missile`
+- stronger magical item combat effects through canonical item/combat hooks
+
+
+4) Architecture Decisions
+-------------------------
+These decisions are deliberate and should not be casually replaced:
+
+- No gameplay logic in gateway
+- No gameplay logic in renderer
+- No touching `apps/map-system` in this workstream
+- New combat mechanics should reuse central hooks where possible:
+  - `conditionHelpers`
+  - `spellcastingHelpers`
+  - typed damage pipeline
+  - concentration helpers
+  - turn lifecycle
+- Magic item combat effects should continue to flow through:
+  - inventory/equipment state
+  - character rules/adapters
+  - combat participant state
+  - canonical combat actions
+
+
+5) Files Most Sensitive Right Now
+---------------------------------
+These files are the most architecture-sensitive in the current workstream:
+
+- `apps/combat-system/src/actions/attackAction.js`
+- `apps/combat-system/src/actions/castSpellAction.js`
+- `apps/combat-system/src/actions/useItemAction.js`
+- `apps/combat-system/src/flow/processCombatActionRequest.js`
+- `apps/combat-system/src/flow/nextTurn.js`
+- `apps/combat-system/src/spells/spellcastingHelpers.js`
+- `apps/combat-system/src/ai/monsterAi.js`
+- `apps/world-system/src/character/rules/magicalItemRules.js`
+- `apps/world-system/src/character/adapters/toCombatParticipant.js`
+- `apps/runtime/src/domainCommandDispatchHandlers.js`
+- `apps/gateway/src/discord/commandEventMapper.js`
+- `apps/gateway/src/index.js`
+- `apps/world-system/src/content/data/Spells.json`
+- `apps/world-system/src/content/data/Items.json`
+- `docs/roadmap.md`
+
+
+6) Tests That Should Stay Green
+-------------------------------
+Focused suites that were used repeatedly during this work:
+
+- `node apps/combat-system/src/testing/attackAction.test.js`
+- `node apps/combat-system/src/testing/castSpellAction.test.js`
+- `node apps/combat-system/src/testing/useItemAction.test.js`
+- `node apps/combat-system/src/testing/nextTurn.test.js`
+- `node apps/combat-system/src/testing/processCombatActionRequest.test.js`
+- `node apps/world-system/src/character/testing/magicalItemRules.test.js`
+- `node apps/world-system/src/character/testing/toCombatParticipant.test.js`
+- `node apps/runtime/src/testing/readCommandRuntime.test.js`
+- `node apps/runtime/src/testing/contentSliceHarness.test.js`
+- `node apps/gateway/src/testing/gatewayRuntimeIntegration.test.js`
+
+Known expected log:
+- the gateway integration suite still prints the intentional failure-path line:
+  `gateway_interaction_internal_error ... runtime exploded`
+- that log is expected if the suite still passes
+
+
+7) Resume Guidance
+------------------
+Best next resume point:
+
+1. Continue combat completion through central rule hooks
+2. Add more safe support/control/defensive spells only where the current combat model can support them cleanly
+3. Add more feat hooks only where central hooks already exist
+4. Add more magical item combat behavior only if it reuses existing canonical hooks cleanly
+
+Avoid next:
+- touching map integration work
+- inventing AoE runtime resolution before map/runtime integration is ready
+- putting spell/mechanics logic into gateway formatting
+
+
+8) Practical Note
+-----------------
+This backup note is local repo state documentation.
+It is meant to survive a pause even if branch context is not immediately available.

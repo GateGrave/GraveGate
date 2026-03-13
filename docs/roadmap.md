@@ -1,6 +1,6 @@
 # GateGrave Roadmap
 
-Last updated: 2026-03-12
+Last updated: 2026-03-13
 
 This is the working roadmap for the actual repo state.
 
@@ -29,6 +29,36 @@ Current immediate build direction:
 4. Expand itemization and economy depth
 5. Expand MMO/social/world systems into real gameplay
 
+## Current Working Focus
+
+Active branch focus right now:
+- Non-map combat completion
+- Magical item combat depth
+- Canonical spell/action coverage only
+
+Current branch-side goals in progress:
+1. Push combat as close to full 5e-supported slice as possible without touching `apps/map-system`
+2. Reuse central hooks instead of adding one-off logic:
+   - conditions
+   - saving throws
+   - typed damage
+   - concentration
+   - action economy
+3. Keep magic items on canonical world -> character -> combat paths
+4. Keep button-first UX where it removes real player friction
+
+Most recent completed chunk:
+- Multi-target spell support on the canonical combat path
+  - `up_to_three_allies` / `up_to_three_enemies` support for current non-damaging support-control spells
+  - split-target `magic_missile`
+  - cast payload now supports `target_ids`
+
+Next recommended resume point:
+1. Continue non-map combat completion through central rule hooks
+2. Add more safe support/control/defensive spells that fit the existing runtime/combat model
+3. Add more feat hooks only where central combat rules already exist
+4. Add more magical item combat behaviors only if they reuse existing hooks cleanly
+
 ## Core Architecture
 
 - [x] Event-driven command/runtime/subsystem flow
@@ -54,6 +84,8 @@ Current immediate build direction:
   - Canonical `/feat` list/take path is in
   - Profile now surfaces feat summaries and feat-slot availability
   - Passive-safe feats currently applied live: `alert`, `tough`, `mobile`
+  - `alert` now feeds combat initiative through the canonical character -> combat participant adapter
+  - `mobile` now grants target-specific opportunity-attack protection after melee attacks on the canonical combat path
   - `resilient` now applies the chosen ability increase and saving throw proficiency through the canonical character/progression path
   - Spellcasting prerequisite validation is in for `war_caster`
   - `war_caster` now applies advantage on concentration saves through the canonical combat concentration path
@@ -71,10 +103,27 @@ Current immediate build direction:
 - [x] Equipment/equip/unequip flow
 - [x] Magical item data and support foundations
 - [x] Attuned item gameplay loop
+- [x] Passive magical item effect pipeline
+  - Equipped magical items now resolve passive-safe derived effects through the canonical character/inventory path
+  - Attunement-sensitive bonuses now require both equip + attune state
+  - Derived item effects now feed profile readback and combat participant conversion
+  - Current passive-safe magical item slice now covers AC, saves, attack bonus, speed, resistances, spell attack bonus, and spell save DC bonus
+  - Passive magical item warding now supports flat damage reduction hooks, including typed reduction filters
+  - Equipped magical items can now contribute melee-reactive damage effects through the canonical combat attack path
+  - Equipped magical weapons can now contribute typed on-hit bonus damage through the canonical combat attack path
+- [x] Active consumable item effect pipeline
+  - World item use now applies healing and temporary hit points through the canonical character/inventory path
+  - Combat item use now grants temporary hit points through the canonical combat item-use path
+  - Supported magical consumables can now also apply combat conditions through the same combat item-use path
+  - Charged magical item activations now work on the canonical world/combat item-use paths without consuming the equipment entry
+  - Charged magical items can now apply ongoing combat boons such as `heroism` through the canonical combat item-use path
+  - Combat/world item use now supports canonical cleansing of supported conditions and status flags
+  - Supported magical cleansing items can now remove `poisoned` and apply temporary poison protection through the same combat item-use path
+  - Charged magical items can now apply canonical save-bonus combat conditions through the same item-use path
 - [ ] Growth item gameplay loop
 - [x] Unidentified item discovery/identify loop
 - [~] Inventory screen with richer button UX
-  - Magical tab now exposes button-driven identify/attune/unattune actions
+  - Magical tab now exposes button-driven identify/attune/unattune/use actions
   - Equipment tab now exposes button-driven equip/unequip actions
 
 ## Combat Foundation
@@ -92,15 +141,61 @@ Current immediate build direction:
 - [x] Reactions
 - [x] Opportunity attacks
 - [x] Saving throw helpers
-- [x] Typed damage support for spell path
+- [x] Typed damage support for spell and standard attack paths
+- [x] Standard attack damage now respects magical defensive hooks
+  - passive resistances, vulnerabilities, immunities, and flat warding from magical items now affect ordinary weapon attacks
+  - temporary damage protections from active combat conditions now affect the same typed-damage pipeline
+- [x] Standard attack range/reach validation
+  - ordinary attacks now fail cleanly when the target is outside resolved weapon/default range
+  - current canonical slice uses equipped weapon metadata where available and otherwise falls back to 5-foot melee reach
 - [x] Initial spell pipeline
+- [x] Multi-target spell support on canonical combat path
+  - `up_to_three_allies` and `up_to_three_enemies` support is now live for the current non-damaging support/control slice
+  - `bless`, `bane`, `heroism`, and `aid` style multi-target effects can now resolve across up to three targets through the canonical cast flow
+  - `magic_missile` split-target behavior is now live on the canonical combat path using per-projectile force damage
 - [x] Core action and movement resource consumption
 - [x] Spellcasting starter slice
 - [x] Concentration support foundations
+- [x] Bless/Bane style combat support
+  - `bless` and `bane` now apply reusable attack/save d4 modifiers on the canonical combat path
+  - Concentration saves now also respect those modifiers
+- [x] Support and control spell slice expansion
+  - `false_life` now applies temporary hit points through the canonical vitality spell path
+  - `armor_of_agathys` now applies temporary hit points and retaliatory cold damage through the canonical vitality + attack paths
+  - `barkskin` now applies a minimum AC defense buff through the canonical defense spell path
+  - `healing_word` now works as a bonus-action healing spell on the canonical combat path and adds spellcasting modifier from content-backed healing metadata
+  - `hold_person` now applies a control condition cleanly without breaking AI turn progression
+  - `lesser_restoration` now removes supported conditions through the canonical spell path
+  - `entangle` now applies `restrained` through the canonical save-and-condition spell path
+  - `heroism` now applies an ongoing start-of-turn temporary hit point boon through the canonical concentration + condition path
+  - `protection_from_poison` now removes `poisoned` and applies temporary poison resistance through the canonical spell + condition path
+  - `resistance` now applies a concentration-backed saving throw bonus condition through the canonical support spell path
+  - `shield` now has canonical reaction-mode backend support and applies a temporary dynamic AC defense condition on the combat path
+  - `blade_ward` now applies temporary weapon damage resistance through the canonical condition + typed damage path
+  - `sanctuary` now applies canonical hostile-targeting protection against attacks and harmful spells
+  - `blindness/deafness` now applies `blinded` through the canonical save-and-condition spell path
+- [x] Persistent advantage control condition support
+  - `faerie_fire` style advantage state is now supported as a concentration-linked condition on the canonical spell path
+  - Advantage persists until the condition ends instead of being consumed like `guiding_bolt`
+- [x] Central condition enforcement is deeper
+  - `restrained` now blocks movement on the canonical move path
+  - `poisoned` now imposes disadvantage on attack rolls on the canonical attack path
+  - `restrained` now grants attack advantage against the target and imposes disadvantage on Dexterity saves
+  - `paralyzed` now blocks actions, movement, and reactions and forces Strength/Dexterity save failure
+  - `grappled` movement lock support is in place for future non-map hooks
+  - active combat conditions can now contribute dynamic save bonuses/penalties and temporary AC bonuses through central combat rule hooks
+  - active combat conditions can now contribute targeting protection gates and temporary typed defensive hooks like weapon-damage resistance
+  - spell attack rolls now respect the same attack advantage/disadvantage hooks as ordinary attacks
+  - `prone` now affects ordinary attack rolls in the supported slice: adjacent melee attacks gain advantage and ranged attacks suffer disadvantage against prone targets
+  - repeating end-of-turn condition saves now exist on the canonical turn lifecycle, which supports spells like `blindness/deafness`
 - [x] AI monster control foundation
 - [ ] Full D&D spell engine
 - [~] Utility spell gameplay integration
   - Dungeon interaction path now supports `light`, `thaumaturgy`, `knock`, `detect_magic`, and `identify`
+- [~] SRD spell content coverage for future map/template work
+  - area-template spell content now includes representative SRD shapes for cone, cube, line, sphere, aura, and cylinder-style effects
+  - current scaffold entries now include `burning_hands`, `thunderwave`, `fog_cloud`, `shatter`, `fireball`, `lightning_bolt`, and `spirit_guardians`
+  - this content is intended to support later map-side targeting/template work without making map state authoritative
 - [ ] Advanced combat AI behavior profiles
 - [ ] Full action economy enforcement across all action types
 - [ ] Broad 5e combat rules parity
@@ -314,3 +409,10 @@ Current immediate build direction:
 - [x] Added canonical combat concentration tracking and break handling for supported spell and damage flows
 - [x] Added starter feat framework with canonical `/feat` list/take flow and profile readback
 - [x] Added feat-slot progression visibility and feat-derived combat adapter state for passive-safe feats
+- [x] Added passive magical-item bonuses to effective profile/combat state
+- [x] Added `bless`/`bane` style support-spell handling to the supported combat slice
+- [x] Added caster-focus magical items and passive spellcasting bonuses
+- [x] Added `faerie_fire` style persistent advantage support to the supported combat slice
+- [x] Routed normal weapon attacks through the typed-damage pipeline so resistances and vulnerabilities now matter outside the spell path
+- [x] Added temporary hit point handling to the supported damage and item-use slices
+- [x] Added canonical world-item healing/temp-HP resolution with inventory parity coverage

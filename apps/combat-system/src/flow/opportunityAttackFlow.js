@@ -2,7 +2,7 @@
 
 const { resolveAttackAgainstCombatState } = require("../actions/attackAction");
 const { performCastSpellAction } = require("../actions/castSpellAction");
-const { participantHasCondition } = require("../conditions/conditionHelpers");
+const { participantHasCondition, getActiveConditionsForParticipant } = require("../conditions/conditionHelpers");
 const { canParticipantReact, consumeReaction } = require("../reactions/reactionState");
 
 function clone(value) {
@@ -114,6 +114,26 @@ function isLivingParticipant(participant) {
   return Number.isFinite(hp) && hp > 0;
 }
 
+function moverIsImmuneToReactor(combat, moverId, reactorId) {
+  if (participantHasCondition(combat, moverId, "opportunity_attack_immunity")) {
+    const conditions = getActiveConditionsForParticipant(combat, moverId)
+      .filter((condition) => String(condition && condition.condition_type || "") === "opportunity_attack_immunity");
+    if (conditions.length === 0) {
+      return true;
+    }
+    for (let index = 0; index < conditions.length; index += 1) {
+      const metadata = conditions[index] && conditions[index].metadata && typeof conditions[index].metadata === "object"
+        ? conditions[index].metadata
+        : {};
+      const blockedReactorId = String(metadata.blocked_reactor_id || "").trim();
+      if (!blockedReactorId || blockedReactorId === String(reactorId || "")) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function resolveOpportunityAttacksForMove(input) {
   const data = input || {};
   const combat = clone(data.combat);
@@ -140,13 +160,6 @@ function resolveOpportunityAttacksForMove(input) {
       triggered_attacks: []
     });
   }
-  if (participantHasCondition(combat, moverId, "opportunity_attack_immunity")) {
-    return success("opportunity_attack_resolution_skipped", {
-      combat,
-      triggered_attacks: []
-    });
-  }
-
   const reactors = [];
   const usedReactors = new Set();
   const participants = Array.isArray(combat.participants) ? combat.participants : [];
@@ -170,6 +183,9 @@ function resolveOpportunityAttacksForMove(input) {
     }
     const reactorId = String(reactor.participant_id || "");
     if (!reactorId || usedReactors.has(reactorId) || !canParticipantReact(combat, reactorId)) {
+      continue;
+    }
+    if (moverIsImmuneToReactor(combat, moverId, reactorId)) {
       continue;
     }
 

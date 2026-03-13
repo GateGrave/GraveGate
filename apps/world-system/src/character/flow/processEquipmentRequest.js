@@ -11,6 +11,7 @@ const {
   validateEquipSlot,
   buildEquippedItemProfile
 } = require("../rules/itemEquipmentRules");
+const { applyResolvedItemEffectState } = require("../rules/magicalItemRules");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -332,11 +333,12 @@ function processEquipRequest(input) {
   }
   updatedCharacter.equipped_item_profiles = nextProfiles;
 
+  const resolvedCharacter = applyResolvedItemEffectState(updatedCharacter, inventory);
   const persisted = persistEquipWriteSet({
     context,
     failure_event_type: "player_equip_failed",
     next_inventory: inventory,
-    next_character: updatedCharacter,
+    next_character: resolvedCharacter,
     original_inventory: originalInventory,
     original_character: originalCharacter
   });
@@ -458,11 +460,12 @@ function processUnequipRequest(input) {
   delete nextProfiles[String(slot)];
   updatedCharacter.equipped_item_profiles = nextProfiles;
 
+  const resolvedCharacter = applyResolvedItemEffectState(updatedCharacter, inventory);
   const persisted = persistEquipWriteSet({
     context,
     failure_event_type: "player_unequip_failed",
     next_inventory: inventory,
-    next_character: updatedCharacter,
+    next_character: resolvedCharacter,
     original_inventory: originalInventory,
     original_character: originalCharacter
   });

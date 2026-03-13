@@ -6,6 +6,7 @@ const EVENT_TYPES = {
   // Required examples for the shared format scaffold.
   PLAYER_MOVE: "player_move",
   PLAYER_ATTACK: "player_attack",
+  PLAYER_DODGE: "player_dodge",
   COMBAT_STARTED: "combat_started",
   LOOT_GENERATED: "loot_generated",
 

@@ -183,6 +183,56 @@ function runMoveActionTests() {
     assert.equal(out.error, "stunned participants cannot act");
   }, results);
 
+  runTest("restrained_participant_cannot_move", () => {
+    const manager = createActiveCombatForMoveTests();
+    const found = manager.getCombatById("combat-move-001");
+    const combat = found.payload.combat;
+    combat.conditions = [
+      {
+        condition_id: "condition-move-002",
+        condition_type: "restrained",
+        target_actor_id: "p1",
+        expiration_trigger: "manual"
+      }
+    ];
+    manager.combats.set("combat-move-001", combat);
+
+    const out = performMoveAction({
+      combatManager: manager,
+      combat_id: "combat-move-001",
+      participant_id: "p1",
+      target_position: { x: 1, y: 0 }
+    });
+
+    assert.equal(out.ok, false);
+    assert.equal(out.error, "restrained participants cannot move");
+  }, results);
+
+  runTest("paralyzed_participant_cannot_move", () => {
+    const manager = createActiveCombatForMoveTests();
+    const found = manager.getCombatById("combat-move-001");
+    const combat = found.payload.combat;
+    combat.conditions = [
+      {
+        condition_id: "condition-move-003",
+        condition_type: "paralyzed",
+        target_actor_id: "p1",
+        expiration_trigger: "manual"
+      }
+    ];
+    manager.combats.set("combat-move-001", combat);
+
+    const out = performMoveAction({
+      combatManager: manager,
+      combat_id: "combat-move-001",
+      participant_id: "p1",
+      target_position: { x: 1, y: 0 }
+    });
+
+    assert.equal(out.ok, false);
+    assert.equal(out.error, "paralyzed participants cannot move");
+  }, results);
+
   const passed = results.filter((x) => x.ok).length;
   const failed = results.length - passed;
   return {

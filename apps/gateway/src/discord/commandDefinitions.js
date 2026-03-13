@@ -505,6 +505,16 @@ const commandDefinitions = [
     )
     .toJSON(),
   new SlashCommandBuilder()
+    .setName("dodge")
+    .setDescription("Take the Dodge action in combat.")
+    .addStringOption((option) =>
+      option
+        .setName("combat_id")
+        .setDescription("Combat identifier")
+        .setRequired(true)
+    )
+    .toJSON(),
+  new SlashCommandBuilder()
     .setName("cast")
     .setDescription("Request casting a spell in combat.")
     .addStringOption((option) =>
@@ -517,6 +527,12 @@ const commandDefinitions = [
       option
         .setName("target_id")
         .setDescription("Optional target participant identifier")
+        .setRequired(false)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("additional_target_ids")
+        .setDescription("Optional comma-separated extra target participant identifiers")
         .setRequired(false)
     )
     .addStringOption((option) =>
