@@ -100,13 +100,37 @@ function buildCubeTiles(map, center, sizeTiles) {
   return tiles;
 }
 
-function buildLineTiles(map, origin, target, lengthTiles) {
+function buildLineTiles(map, origin, target, lengthTiles, widthTiles) {
   const tiles = [];
   const seen = new Set();
   const direction = normalizeDirection(origin, target);
+  const safeWidthTiles = Math.max(1, Math.floor(Number(widthTiles || 1)));
+  const offsetStart = -Math.floor((safeWidthTiles - 1) / 2);
+  const lateralDirection = (() => {
+    if (direction.x === 0) {
+      return { x: 1, y: 0 };
+    }
+    if (direction.y === 0) {
+      return { x: 0, y: 1 };
+    }
+    return {
+      x: -direction.y,
+      y: direction.x
+    };
+  })();
 
   for (let step = 1; step <= lengthTiles; step += 1) {
-    addTile(tiles, seen, map, origin.x + (direction.x * step), origin.y + (direction.y * step));
+    const baseX = origin.x + (direction.x * step);
+    const baseY = origin.y + (direction.y * step);
+    for (let offset = offsetStart; offset < offsetStart + safeWidthTiles; offset += 1) {
+      addTile(
+        tiles,
+        seen,
+        map,
+        baseX + (lateralDirection.x * offset),
+        baseY + (lateralDirection.y * offset)
+      );
+    }
   }
 
   return tiles;
@@ -186,7 +210,7 @@ function resolveAreaAnchor(options) {
     return clampPointToMap(options.map, options.valid_targets[0]);
   }
 
-  if (options.profile.shape === SPELL_TARGETING_SHAPES.SELF) {
+  if ([SPELL_TARGETING_SHAPES.SELF, SPELL_TARGETING_SHAPES.AURA].includes(options.profile.shape)) {
     return clampPointToMap(options.map, options.origin);
   }
 
@@ -220,6 +244,10 @@ function buildSpellAreaTiles(options) {
     return buildSelfTiles(origin);
   }
 
+  if (profile.shape === SPELL_TARGETING_SHAPES.AURA) {
+    return buildSphereTiles(map, origin, areaSizeTiles);
+  }
+
   if (profile.shape === SPELL_TARGETING_SHAPES.SPHERE) {
     return buildSphereTiles(map, anchor, areaSizeTiles);
   }
@@ -229,7 +257,13 @@ function buildSpellAreaTiles(options) {
   }
 
   if (profile.shape === SPELL_TARGETING_SHAPES.LINE) {
-    return buildLineTiles(map, origin, anchor, areaSizeTiles);
+    return buildLineTiles(
+      map,
+      origin,
+      anchor,
+      areaSizeTiles,
+      Math.max(1, feetToTiles(profile.line_width_feet))
+    );
   }
 
   if (profile.shape === SPELL_TARGETING_SHAPES.CONE) {

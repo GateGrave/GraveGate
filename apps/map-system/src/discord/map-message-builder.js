@@ -1,8 +1,18 @@
 "use strict";
 
 const { MAP_BUTTON_ACTIONS, buildMapButtonCustomId } = require("./map-ui.contract");
+const {
+  DEBUG_FLAG_LABELS,
+  normalizeDebugFlags,
+  formatDebugFlagSummary
+} = require("../interaction/debug-flags");
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 15;
+
+function cleanText(value, fallback) {
+  const safe = String(value || "").trim();
+  return safe === "" ? (fallback || "") : safe;
+}
 
 function clampPage(page, totalPages) {
   const safeTotal = Math.max(1, Number(totalPages || 1));
@@ -136,8 +146,31 @@ function buildMapActionRow(options) {
   ];
 }
 
+function buildDebugControlRows(options) {
+  const actorId = options.actor_id || "unknown";
+  const instanceType = options.instance_type || "combat";
+  const instanceId = options.instance_id || "unknown";
+  const debugFlags = normalizeDebugFlags(options.debug_flags);
+  const buttons = Object.keys(DEBUG_FLAG_LABELS).map((key) => ({
+    type: 2,
+    style: debugFlags[key] === true ? 1 : 2,
+    label: DEBUG_FLAG_LABELS[key],
+    custom_id: buildMapButtonCustomId({
+      action: `${MAP_BUTTON_ACTIONS.DEBUG_TOGGLE},${key}`,
+      actor_id: actorId,
+      instance_type: instanceType,
+      instance_id: instanceId
+    })
+  }));
+
+  return [{
+    type: 1,
+    components: buttons
+  }];
+}
+
 function buildMapActionRows(options) {
-  return chunkButtons(buildMapActionRow(options));
+  return chunkButtons(buildMapActionRow(options)).concat(buildDebugControlRows(options));
 }
 
 function buildContentLines(lines) {
@@ -173,6 +206,10 @@ function buildModeSummary(options) {
 
   if (options.page_summary) {
     lines.push(options.page_summary);
+  }
+
+  if (options.debug_summary) {
+    lines.push(options.debug_summary);
   }
 
   if (options.hint) {
@@ -217,12 +254,229 @@ function getWeaponSummary(attackProfile) {
   return `${name} (${attackProfile.range_feet} ft)`;
 }
 
+function formatFeetAsTiles(feet) {
+  const safeFeet = Number(feet || 0);
+  if (!Number.isFinite(safeFeet) || safeFeet <= 0) {
+    return "0 tiles";
+  }
+  return `${Math.max(1, Math.round(safeFeet / 5))} tiles`;
+}
+
+function formatCoordinateLabel(point) {
+  if (!point || !Number.isFinite(Number(point.x)) || !Number.isFinite(Number(point.y))) {
+    return "?";
+  }
+  return `${Math.floor(Number(point.x))},${Math.floor(Number(point.y))}`;
+}
+
+function formatCoverLabel(cover) {
+  const safe = String(cover || "none");
+  if (safe === "three_quarters") {
+    return "three-quarters";
+  }
+  return safe.replace(/_/g, " ");
+}
+
+function buildTargetListSummary(label, entries, getName) {
+  const safeEntries = Array.isArray(entries) ? entries : [];
+  if (safeEntries.length === 0) {
+    return `${label}: none`;
+  }
+
+  const names = safeEntries
+    .slice(0, 5)
+    .map((entry) => getName(entry))
+    .filter(Boolean);
+  return `${label}: ${names.join(", ")}${safeEntries.length > names.length ? ", ..." : ""}`;
+}
+
+function getTargetDisplayLabel(entry) {
+  return cleanText(
+    entry && (entry.name || entry.display_name || entry.token_id || entry.label),
+    "unknown"
+  );
+}
+
+function formatSpellShapeLabel(options) {
+  const shape = String(options && options.spell_shape || "").toLowerCase();
+  const sizeFeet = Number(options && options.area_size_feet || 0);
+  const lineWidthFeet = Number(options && options.line_width_feet || 0);
+  const maxTargets = Number(options && options.max_targets || 0);
+  const requiresExact = options && options.requires_exact_target_count === true;
+  const requiresAdjacent = options && options.requires_adjacent_selection === true;
+  const selfCentered = options && options.self_centered_area === true;
+
+  if (shape === "single") {
+    if (String(options && options.targeting_type || "").toLowerCase() === "object") {
+      return "Single object";
+    }
+    return "Single target";
+  }
+
+  if (shape === "split") {
+    if (requiresAdjacent && maxTargets === 2) {
+      return "1 or 2 adjacent targets";
+    }
+    if (requiresExact && maxTargets > 1) {
+      return `Exactly ${maxTargets} target selections`;
+    }
+    if (maxTargets > 1) {
+      return `Up to ${maxTargets} targets`;
+    }
+    return "Multi-target";
+  }
+
+  if (shape === "self") {
+    return "Self";
+  }
+
+  if (shape === "utility") {
+    return "Utility";
+  }
+
+  if (shape === "line") {
+    if (sizeFeet > 0 && lineWidthFeet > 0) {
+      return `${sizeFeet} ft x ${lineWidthFeet} ft line`;
+    }
+    if (sizeFeet > 0) {
+      return `${sizeFeet} ft line`;
+    }
+    return "Line";
+  }
+
+  if (["cone", "cube", "sphere", "aura"].includes(shape)) {
+    const areaLabel = sizeFeet > 0 ? `${sizeFeet} ft ${shape}` : shape;
+    return selfCentered ? `Self-centered ${areaLabel}` : areaLabel;
+  }
+
+  return shape || "";
+}
+
+function buildSpellTargetingInstruction(options) {
+  const useTileButtons = Array.isArray(options.valid_target_tiles) && options.valid_target_tiles.length > 0;
+  const spellShape = String(options.spell_shape || "").toLowerCase();
+  const maxTargets = Number(options.max_targets || 0);
+
+  if (options.self_centered_area === true) {
+    return "This spell is centered on you. Confirm when you are ready to cast.";
+  }
+
+  if (spellShape === "self") {
+    return "This spell targets you. Confirm when you are ready to cast.";
+  }
+
+  if (spellShape === "utility") {
+    return "No target selection is required. Confirm when you are ready to cast.";
+  }
+
+  if (useTileButtons) {
+    return "Choose a target point with the buttons below.";
+  }
+
+  if (options.requires_adjacent_selection === true && maxTargets === 2) {
+    return "Choose one target, or choose two adjacent targets.";
+  }
+
+  if (options.requires_exact_target_count === true && maxTargets > 1) {
+    return `Choose exactly ${maxTargets} target selections.`;
+  }
+
+  if (maxTargets > 1) {
+    return `Choose up to ${maxTargets} targets.`;
+  }
+
+  if (String(options.targeting_type || "").toLowerCase() === "object") {
+    return "Choose an object target with the buttons below.";
+  }
+
+  return "Choose a spell target with the buttons below.";
+}
+
+function buildSpellSelectionCountSummary(options) {
+  const selectedCount = Array.isArray(options.selected_targets) ? options.selected_targets.length : 0;
+  const minTargets = Number(options.min_targets || 0);
+  const maxTargets = Number(options.max_targets || 0);
+
+  if (options.self_centered_area === true || ["self", "utility"].includes(String(options.spell_shape || "").toLowerCase())) {
+    return "";
+  }
+
+  if (options.requires_exact_target_count === true && maxTargets > 1) {
+    return `Selections: ${selectedCount}/${maxTargets}`;
+  }
+
+  if (maxTargets > 1) {
+    return `Selections: ${selectedCount} of up to ${maxTargets}`;
+  }
+
+  if (minTargets > 1) {
+    return `Selections: ${selectedCount} of at least ${minTargets}`;
+  }
+
+  return "";
+}
+
+function buildSpellSelectionSummary(options) {
+  const selectedTargets = Array.isArray(options.selected_targets) ? options.selected_targets : [];
+  const validTargets = Array.isArray(options.valid_targets) ? options.valid_targets : [];
+  const selectionCounts = selectedTargets.reduce((accumulator, tokenId) => {
+    const safeTokenId = String(tokenId);
+    accumulator[safeTokenId] = (accumulator[safeTokenId] || 0) + 1;
+    return accumulator;
+  }, {});
+  const selectionSummaryText = Object.keys(selectionCounts).length > 0
+    ? Object.entries(selectionCounts).map(([tokenId, count]) => {
+      const matchingTarget = validTargets.find((entry) => String(entry && entry.token_id || "") === tokenId);
+      const label = matchingTarget ? getTargetDisplayLabel(matchingTarget) : tokenId;
+      return `${label}${count > 1 ? ` x${count}` : ""}`;
+    }).join(", ")
+    : "";
+  const selectedTargetSummary = options.selected_target_details
+    ? [
+        `Target ${cleanText(options.selected_target_details.name, options.selected_target_details.token_id)}`,
+        Number.isFinite(Number(options.selected_target_details.distance_feet)) ? `${Number(options.selected_target_details.distance_feet)} ft` : "",
+        `Cover ${formatCoverLabel(options.selected_target_details.cover)}`,
+        options.selected_target_details.line_of_sight === true ? "LOS clear" : "LOS blocked"
+      ].filter(Boolean).join(" | ")
+    : "";
+  const selectedTileSummary = options.target_position_details
+    ? [
+        `Tile ${formatCoordinateLabel(options.target_position_details)}`,
+        Number.isFinite(Number(options.target_position_details.distance_feet)) ? `${Number(options.target_position_details.distance_feet)} ft` : "",
+        options.target_position_details.line_of_sight === true ? "LOS clear" : "LOS blocked"
+      ].filter(Boolean).join(" | ")
+    : "";
+
+  if (options.self_centered_area === true) {
+    return "Centered on your tile.";
+  }
+
+  if (String(options.spell_shape || "").toLowerCase() === "self") {
+    return "Target: you.";
+  }
+
+  if (String(options.spell_shape || "").toLowerCase() === "utility") {
+    return "No target selection required.";
+  }
+
+  if (selectedTargets.length > 0) {
+    return selectedTargetSummary || `Selected target${selectedTargets.length === 1 ? "" : "s"}: ${selectionSummaryText}`;
+  }
+
+  if (options.target_position) {
+    return selectedTileSummary || `Selected tile: ${formatCoordinateLabel(options.target_position)}`;
+  }
+
+  return "No spell target selected yet.";
+}
+
 function buildMapMessagePayload(options) {
   return {
     content: buildContentLines([
       options.content || "Map ready.",
       options.turn_label ? `Turn: ${options.turn_label}` : "",
-      options.mode_label ? `Mode: ${options.mode_label}` : ""
+      options.mode_label ? `Mode: ${options.mode_label}` : "",
+      formatDebugFlagSummary(options.debug_flags)
     ]),
     files: options.files || [],
     components: buildMapActionRows(options)
@@ -235,10 +489,102 @@ function buildMapMessageEditPayload(options) {
     content: buildContentLines([
       options.content || "Map ready.",
       options.turn_label ? `Turn: ${options.turn_label}` : "",
-      options.mode_label ? `Mode: ${options.mode_label}` : ""
+      options.mode_label ? `Mode: ${options.mode_label}` : "",
+      formatDebugFlagSummary(options.debug_flags)
     ]),
     files: options.files || [],
     components: buildMapActionRows(options)
+  };
+}
+
+function buildMovePreviewRows(options) {
+  const reachableTiles = Array.isArray(options.reachable_tiles) ? options.reachable_tiles : [];
+  const pageInfo = paginateEntries(reachableTiles, options.page, options.page_size);
+  const actorId = options.actor_id || "unknown";
+  const instanceType = options.instance_type || "combat";
+  const instanceId = options.instance_id || "unknown";
+  const selectedLabel = formatCoordinateLabel(options.selected_target_position);
+
+  const tileButtons = pageInfo.entries.map((tile) => {
+    const label = `${formatCoordinateLabel(tile)} (${Number(tile.movement_cost_feet || 0)}ft)`.slice(0, 80);
+    return {
+      type: 2,
+      style: selectedLabel === formatCoordinateLabel(tile) ? 1 : 2,
+      label,
+      custom_id: buildMapButtonCustomId({
+        action: `${MAP_BUTTON_ACTIONS.MOVE_TARGET},${Math.floor(Number(tile.x))},${Math.floor(Number(tile.y))}`,
+        actor_id: actorId,
+        instance_type: instanceType,
+        instance_id: instanceId
+      })
+    };
+  });
+
+  const rows = chunkButtons(tileButtons);
+  rows.push(buildPagedNavRow([
+    ...buildPageButtons({
+      current_page: pageInfo.current_page,
+      total_pages: pageInfo.total_pages,
+      build_page_custom_id: (page) => buildMapButtonCustomId({
+        action: `${MAP_BUTTON_ACTIONS.MOVE_PAGE},${page}`,
+        actor_id: actorId,
+        instance_type: instanceType,
+        instance_id: instanceId
+      })
+    }),
+    {
+      type: 2,
+      style: 1,
+      label: "Confirm Move",
+      disabled: !options.selected_target_position,
+      custom_id: buildMapButtonCustomId({
+        action: MAP_BUTTON_ACTIONS.MOVE_CONFIRM,
+        actor_id: actorId,
+        instance_type: instanceType,
+        instance_id: instanceId
+      })
+    },
+    {
+      type: 2,
+      style: 2,
+      label: "Back",
+      custom_id: buildMapButtonCustomId({
+        action: MAP_BUTTON_ACTIONS.BACK,
+        actor_id: actorId,
+        instance_type: instanceType,
+        instance_id: instanceId
+      })
+    }
+  ]));
+
+  return rows.concat(buildDebugControlRows(options));
+}
+
+function buildMovePreviewMessagePayload(options) {
+  const reachableTiles = Array.isArray(options.reachable_tiles) ? options.reachable_tiles : [];
+  const pageInfo = paginateEntries(reachableTiles, options.page, options.page_size);
+  const selectedTarget = options.selected_target || null;
+  const movementFeet = Number(options.movement_speed_feet || 0);
+  const selectionSummary = selectedTarget
+    ? `Selected: ${formatCoordinateLabel(selectedTarget)} | Cost ${Number(selectedTarget.movement_cost_feet || 0)} ft | Remaining ${Number(selectedTarget.remaining_movement_feet || 0)} ft`
+    : "Select a legal destination tile.";
+
+  return {
+    content: options.content || buildModeSummary({
+      title: "Move",
+      turn_label: options.turn_label || "",
+      mode_label: "Move Preview",
+      selection_summary: selectionSummary,
+      page_summary: pageInfo.total_pages > 1 ? `Page ${pageInfo.current_page}/${pageInfo.total_pages}` : "",
+      debug_summary: formatDebugFlagSummary(options.debug_flags),
+      hint: [
+        `Speed: ${movementFeet} ft (${formatFeetAsTiles(movementFeet)}).`,
+        `Reachable destinations: ${reachableTiles.length}.`,
+        "Green tiles = legal movement range. Gold = selected destination."
+      ].join("\n")
+    }),
+    files: options.files || [],
+    components: buildMovePreviewRows(options)
   };
 }
 
@@ -286,7 +632,7 @@ function buildTokenSelectionRows(options) {
     }
   ]));
 
-  return rows;
+  return rows.concat(buildDebugControlRows(options));
 }
 
 function buildTokenSelectionMessagePayload(options) {
@@ -296,6 +642,7 @@ function buildTokenSelectionMessagePayload(options) {
       title: "Choose your token.",
       turn_label: options.turn_label || "",
       mode_label: "Token Selection",
+      debug_summary: formatDebugFlagSummary(options.debug_flags),
       page_summary: pageInfo.total_pages > 1 ? `Page ${pageInfo.current_page}/${pageInfo.total_pages}` : ""
     }),
     files: options.files || [],
@@ -347,7 +694,7 @@ function buildSpellSelectionRows(options) {
     }
   ]));
 
-  return rows;
+  return rows.concat(buildDebugControlRows(options));
 }
 
 function buildSpellSelectionMessagePayload(options) {
@@ -360,11 +707,12 @@ function buildSpellSelectionMessagePayload(options) {
       turn_label: options.turn_label || "",
       mode_label: "Spell Selection",
       selection_summary: unsupported.length > 0
-        ? `Unsupported in map mode: ${unsupportedNames.join(", ")}${unsupported.length > unsupportedNames.length ? ", ..." : ""}`
+        ? `Hidden here: ${unsupportedNames.join(", ")}${unsupported.length > unsupportedNames.length ? ", ..." : ""}`
         : "",
       page_summary: pageInfo.total_pages > 1 ? `Page ${pageInfo.current_page}/${pageInfo.total_pages}` : "",
+      debug_summary: formatDebugFlagSummary(options.debug_flags),
       hint: unsupported.length > 0 && (options.spells || []).length > 0
-        ? "Only the currently supported combat-map spell slice is shown here."
+        ? "Only spells whose targeting metadata is understood by the map-system interpreter are shown here."
         : ""
     }),
     files: options.files || [],
@@ -374,22 +722,27 @@ function buildSpellSelectionMessagePayload(options) {
 
 function buildAttackPreviewMessagePayload(options) {
   const validTargets = options.valid_targets || [];
+  const invalidTargets = Array.isArray(options.invalid_targets) ? options.invalid_targets : [];
   const pageInfo = paginateEntries(validTargets, options.page, options.page_size);
   const selectedTargetId = options.selected_target_id || "";
   const actorId = options.actor_id || "unknown";
   const instanceType = options.instance_type || "combat";
   const instanceId = options.instance_id || "unknown";
-  const targetSummary = validTargets.length > 0
-    ? `Valid attack targets: ${validTargets.map((entry) => entry.token_id).join(", ")}`
-    : "No valid attack targets in range.";
-  const selectedSummary = selectedTargetId
-    ? `Selected target: ${selectedTargetId}`
+  const selectedTarget = validTargets.find((entry) => String(entry.token_id) === String(selectedTargetId));
+  const selectedSummary = selectedTarget
+    ? [
+        `${getTargetDisplayLabel(selectedTarget)} | legal`,
+        Number.isFinite(Number(selectedTarget.distance_feet)) ? `${Number(selectedTarget.distance_feet)} ft` : "",
+        `Cover ${formatCoverLabel(selectedTarget.cover)}`,
+        "LOS clear",
+        selectedTarget.range_band === "long" ? "Long range" : ""
+      ].filter(Boolean).join(" | ")
     : "No attack target selected yet.";
 
   const targetButtons = pageInfo.entries.map((target) => ({
     type: 2,
     style: selectedTargetId === target.token_id ? 1 : 2,
-    label: String(target.token_id).slice(0, 80),
+    label: getTargetDisplayLabel(target).slice(0, 80),
     custom_id: buildMapButtonCustomId({
       action: `${MAP_BUTTON_ACTIONS.ATTACK_TARGET},${target.token_id}`,
       actor_id: actorId,
@@ -435,24 +788,43 @@ function buildAttackPreviewMessagePayload(options) {
     }
   ]));
 
+  const invalidSummary = invalidTargets.length > 0
+    ? `Unavailable: ${invalidTargets
+      .slice(0, 3)
+      .map((entry) => `${getTargetDisplayLabel(entry)} (${entry.reason_summary || "illegal"})`)
+      .join(", ")}${invalidTargets.length > 3 ? ", ..." : ""}`
+    : "";
+
   return {
     content: options.content || buildModeSummary({
       title: "Attack",
       turn_label: options.turn_label || "",
       mode_label: "Attack Preview",
       weapon_summary: getWeaponSummary(options.attack_profile),
-      selection_summary: getAttackRangeSummary(options.attack_profile, selectedTargetId, validTargets) || selectedSummary.replace(/^Selected target:\s*/, ""),
+      selection_summary: selectedSummary,
       page_summary: pageInfo.total_pages > 1 ? `Page ${pageInfo.current_page}/${pageInfo.total_pages}` : "",
-      hint: `${targetSummary}\nYou can also type \`attack token-id\` or \`attack x,y\`.`
+      debug_summary: formatDebugFlagSummary(options.debug_flags),
+      hint: [
+        buildTargetListSummary("Legal targets", validTargets, (entry) => getTargetDisplayLabel(entry)),
+        invalidSummary,
+        "Red tiles = legal attack targets. Gold = selected target.",
+        "You can also type `attack token-id` or `attack x,y`."
+      ].filter(Boolean).join("\n")
     }),
     files: options.files || [],
-    components: rows
+    components: rows.concat(buildDebugControlRows(options))
   };
 }
 
 function buildSpellPreviewMessagePayload(options) {
   const validTargets = options.valid_targets || [];
-  const pageInfo = paginateEntries(validTargets, options.page, options.page_size);
+  const invalidTargets = Array.isArray(options.invalid_targets) ? options.invalid_targets : [];
+  const validTargetTiles = Array.isArray(options.valid_target_tiles) ? options.valid_target_tiles : [];
+  const invalidTargetTileSummary = Array.isArray(options.invalid_target_tile_summary)
+    ? options.invalid_target_tile_summary
+    : [];
+  const useTileButtons = validTargetTiles.length > 0;
+  const pageInfo = paginateEntries(useTileButtons ? validTargetTiles : validTargets, options.page, options.page_size);
   const spellName = options.spell_name || "Spell";
   const selectedTargets = options.selected_targets || [];
   const targetPosition = options.target_position || null;
@@ -460,31 +832,61 @@ function buildSpellPreviewMessagePayload(options) {
   const actorId = options.actor_id || "unknown";
   const instanceType = options.instance_type || "combat";
   const instanceId = options.instance_id || "unknown";
-  const targetSummary = validTargets.length > 0
-    ? `Valid targets: ${validTargets.map((entry) => entry.token_id).join(", ")}`
-    : "No valid targets in range.";
   const selectionCounts = selectedTargets.reduce((accumulator, tokenId) => {
     const safeTokenId = String(tokenId);
     accumulator[safeTokenId] = (accumulator[safeTokenId] || 0) + 1;
     return accumulator;
   }, {});
-  const selectionSummaryText = Object.keys(selectionCounts).length > 0
-    ? Object.entries(selectionCounts).map(([tokenId, count]) => `${tokenId}${count > 1 ? ` x${count}` : ""}`).join(", ")
+  const affectedUnits = Array.isArray(options.affected_units) ? options.affected_units : [];
+  const spellShapeLabel = formatSpellShapeLabel(options);
+  const spellRangeSummary = [
+    options.spell_name || "Spell",
+    options.range_feet > 0 ? `Range ${options.range_feet} ft` : "Range self",
+    spellShapeLabel
+  ].filter(Boolean).join(" | ");
+  const selectionSummary = buildSpellSelectionSummary(options);
+  const targetCountSummary = buildSpellSelectionCountSummary(options);
+  const targetSummary = options.self_centered_area === true || ["self", "utility"].includes(String(options.spell_shape || "").toLowerCase())
+    ? ""
+    : (useTileButtons
+      ? buildTargetListSummary("Legal target points", validTargetTiles, (entry) => formatCoordinateLabel(entry))
+      : buildTargetListSummary("Legal targets", validTargets, (entry) => getTargetDisplayLabel(entry)));
+  const invalidTargetSummary = invalidTargets.length > 0
+    ? `Unavailable: ${invalidTargets
+      .slice(0, 3)
+      .map((entry) => `${getTargetDisplayLabel(entry)} (${entry.reason_summary || "illegal"})`)
+      .join(", ")}${invalidTargets.length > 3 ? ", ..." : ""}`
     : "";
-  const selectedSummary = selectedTargets.length > 0
-    ? `Selected target${selectedTargets.length === 1 ? "" : "s"}: ${selectionSummaryText}`
-    : (targetPosition ? `Selected tile: ${targetPosition.x},${targetPosition.y}` : "No spell target selected yet.");
-  const targetCountSummary = Number.isFinite(options.max_targets)
-    ? `Selections: ${selectedTargets.length}/${options.max_targets}`
+  const affectedUnitLabels = affectedUnits
+    .map((entry) => typeof entry === "string" ? cleanText(entry, "") : getTargetDisplayLabel(entry))
+    .filter(Boolean);
+  const invalidTileSummary = invalidTargetTileSummary.length > 0
+    ? `Unavailable points: ${invalidTargetTileSummary
+      .map((entry) => `${entry.count} ${entry.label}`)
+      .join(", ")}`
     : "";
-  const tilePrompt = "For tile-targeted spells, type `target x,y` or `cast spell-name at x,y`.";
 
   const targetButtons = pageInfo.entries.map((target) => {
+    if (useTileButtons) {
+      const targetLabel = formatCoordinateLabel(target);
+      return {
+        type: 2,
+        style: targetPosition && targetLabel === formatCoordinateLabel(targetPosition) ? 1 : 2,
+        label: targetLabel.slice(0, 80),
+        custom_id: buildMapButtonCustomId({
+          action: `${MAP_BUTTON_ACTIONS.SPELL_TARGET_TILE},${options.spell_id || "unknown"},${Math.floor(Number(target.x))},${Math.floor(Number(target.y))}`,
+          actor_id: actorId,
+          instance_type: instanceType,
+          instance_id: instanceId
+        })
+      };
+    }
+
     const targetCount = selectionCounts[String(target.token_id)] || 0;
     return {
       type: 2,
-      style: targetCount > 0 ? 1 : 2,
-      label: `${String(target.token_id).slice(0, 70)}${targetCount > 1 ? ` x${targetCount}` : ""}`.slice(0, 80),
+        style: targetCount > 0 ? 1 : 2,
+      label: `${getTargetDisplayLabel(target).slice(0, 70)}${targetCount > 1 ? ` x${targetCount}` : ""}`.slice(0, 80),
       custom_id: buildMapButtonCustomId({
         action: `${MAP_BUTTON_ACTIONS.SPELL_TARGET_TOKEN},${options.spell_id || "unknown"},${target.token_id}`,
         actor_id: actorId,
@@ -501,7 +903,7 @@ function buildSpellPreviewMessagePayload(options) {
       total_pages: pageInfo.total_pages,
       include_label: options.show_clear_button !== true,
       build_page_custom_id: (page) => buildMapButtonCustomId({
-        action: `${MAP_BUTTON_ACTIONS.SPELL_TARGET_PAGE},${options.spell_id || "unknown"},${page}`,
+        action: `${useTileButtons ? MAP_BUTTON_ACTIONS.SPELL_TARGET_TILE_PAGE : MAP_BUTTON_ACTIONS.SPELL_TARGET_PAGE},${options.spell_id || "unknown"},${page}`,
         actor_id: actorId,
         instance_type: instanceType,
         instance_id: instanceId
@@ -548,15 +950,23 @@ function buildSpellPreviewMessagePayload(options) {
       title: spellName,
       turn_label: options.turn_label || "",
       mode_label: "Spell Preview",
-      spell_summary: options.spell_shape
-        ? `${spellName} (${options.spell_shape}${options.area_size_feet ? ` ${options.area_size_feet} ft` : ""})`
-        : spellName,
-      selection_summary: [selectedSummary, targetCountSummary].filter(Boolean).join(" | "),
+      spell_summary: spellRangeSummary,
+      selection_summary: [selectionSummary, targetCountSummary].filter(Boolean).join(" | "),
       page_summary: pageInfo.total_pages > 1 ? `Page ${pageInfo.current_page}/${pageInfo.total_pages}` : "",
-      hint: `${targetSummary}\n${tilePrompt}`
+      debug_summary: formatDebugFlagSummary(options.debug_flags),
+      hint: [
+        targetSummary,
+        invalidTargetSummary,
+        invalidTileSummary,
+        affectedUnitLabels.length > 0 ? `Affected units: ${affectedUnitLabels.join(", ")}` : (targetPosition ? "Affected units: none" : ""),
+        useTileButtons
+          ? "Blue tiles = spell range. Purple = spell area. Gold = selected target point."
+          : (options.self_centered_area === true ? "Blue tiles = spell range. Purple = spell area." : "Blue tiles = spell range. Gold = selected target."),
+        buildSpellTargetingInstruction(options)
+      ].filter(Boolean).join("\n")
     }),
     files: options.files || [],
-    components: rows
+    components: rows.concat(buildDebugControlRows(options))
   };
 }
 
@@ -567,6 +977,7 @@ module.exports = {
   buildMapActionRows,
   buildMapMessagePayload,
   buildMapMessageEditPayload,
+  buildMovePreviewMessagePayload,
   buildTokenSelectionRows,
   buildTokenSelectionMessagePayload,
   buildSpellSelectionRows,

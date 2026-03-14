@@ -49,7 +49,7 @@ const {
 const { buildOccupiedTileSet, getReachableTiles, isDiagonalMove, getStepFeetCost } = require("./logic/movement");
 const { hasLineOfSight, getTilesInRange } = require("./logic/range");
 const { expandTerrainZones } = require("./logic/zones");
-const { buildAttackProfile, isTargetValidForAttack, getValidAttackTargets } = require("./logic/attacks");
+const { buildAttackProfile, isTargetValidForAttack, getValidAttackTargets, inspectAttackTargets } = require("./logic/attacks");
 const { listWeaponProfiles, findWeaponProfile, resolveWeaponProfile } = require("./logic/weapon-profiles");
 const {
   buildActorAttackProfile,
@@ -61,6 +61,7 @@ const {
   parseShapeFromTargetType,
   buildSpellTargetingProfile,
   getValidSpellTargets,
+  inspectSpellTargets,
   validateSpellSelection,
   getSpellAreaOverlaySpec,
   matchesTargetAffinity
@@ -128,6 +129,13 @@ const {
 } = require("./tokens/token-image-processor");
 const { parseCoordinatePair, parseMoveCommand, parseAttackCommand, parseSpellCommand, parseTargetCommand, parseMapCommand } = require("./commands/map-command-parser");
 const { MAP_BUTTON_ACTIONS, buildMapButtonCustomId, parseMapButtonCustomId } = require("./discord/map-ui.contract");
+const {
+  DEBUG_FLAG_LABELS,
+  normalizeDebugFlags,
+  toggleDebugFlag,
+  getActiveDebugFlagKeys,
+  formatDebugFlagSummary
+} = require("./interaction/debug-flags");
 const { MAP_SYSTEM_INTEGRATION_CONTRACT } = require("./contracts/map-integration.contract");
 const {
   MAP_ACTION_TYPES,
@@ -167,6 +175,7 @@ const {
   buildMapActionRows,
   buildMapMessagePayload,
   buildMapMessageEditPayload,
+  buildMovePreviewMessagePayload,
   buildTokenSelectionRows,
   buildTokenSelectionMessagePayload,
   buildSpellSelectionRows,
@@ -242,6 +251,7 @@ module.exports = {
   buildAttackProfile,
   isTargetValidForAttack,
   getValidAttackTargets,
+  inspectAttackTargets,
   listWeaponProfiles,
   findWeaponProfile,
   resolveWeaponProfile,
@@ -252,6 +262,7 @@ module.exports = {
   parseShapeFromTargetType,
   buildSpellTargetingProfile,
   getValidSpellTargets,
+  inspectSpellTargets,
   validateSpellSelection,
   getSpellAreaOverlaySpec,
   matchesTargetAffinity,
@@ -343,10 +354,16 @@ module.exports = {
   MAP_BUTTON_ACTIONS,
   buildMapButtonCustomId,
   parseMapButtonCustomId,
+  DEBUG_FLAG_LABELS,
+  normalizeDebugFlags,
+  toggleDebugFlag,
+  getActiveDebugFlagKeys,
+  formatDebugFlagSummary,
   buildMapActionRow,
   buildMapActionRows,
   buildMapMessagePayload,
   buildMapMessageEditPayload,
+  buildMovePreviewMessagePayload,
   buildTokenSelectionRows,
   buildTokenSelectionMessagePayload,
   buildSpellSelectionRows,

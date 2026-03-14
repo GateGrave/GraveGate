@@ -10,13 +10,18 @@ const {
 } = require("../contracts/map-action.contract");
 const {
   buildMapMessageEditPayload,
+  buildMovePreviewMessagePayload,
   buildAttackPreviewMessagePayload,
   buildTokenSelectionMessagePayload,
   buildSpellSelectionMessagePayload,
   buildSpellPreviewMessagePayload
 } = require("../discord/map-message-builder");
-const { buildActorMovementOverlay, buildPhysicalRangeOverlay } = require("../logic/overlay-builders");
+const { buildActorMovementOverlay, buildSelectionOverlay } = require("../logic/overlay-builders");
 const { resolveActorMovementSpeedFeet } = require("../logic/actor-movement");
+const {
+  normalizeDebugFlags,
+  toggleDebugFlag
+} = require("./debug-flags");
 const {
   buildAttackPreviewState,
   selectAttackTarget
@@ -52,6 +57,7 @@ function createIdleState(context) {
     instance_id: context.instance_id || "unknown",
     instance_type: context.instance_type || "combat",
     map_id: context.map && context.map.map_id ? context.map.map_id : "",
+    debug_flags: normalizeDebugFlags(context.state && context.state.debug_flags),
     pending: null
   };
 }
@@ -93,6 +99,7 @@ function buildIdlePayload(context, content) {
     turn_label: getTurnLabel(context),
     mode_label: "Ready",
     content: content || "Map ready.",
+    debug_flags: context.state && context.state.debug_flags,
     files: context.files || []
   });
 }
@@ -112,19 +119,82 @@ function canConfirmSpellPreview(preview) {
     return false;
   }
 
-  if ([SPELL_TARGETING_SHAPES.SELF, SPELL_TARGETING_SHAPES.UTILITY].includes(preview.profile.shape)) {
+  if (
+    [SPELL_TARGETING_SHAPES.SELF, SPELL_TARGETING_SHAPES.UTILITY].includes(preview.profile.shape) ||
+    preview.profile.self_centered_area === true
+  ) {
     return true;
   }
 
-  if (preview.profile.shape === SPELL_TARGETING_SHAPES.SPLIT && Number.isFinite(preview.profile.max_targets)) {
+  if (
+    preview.profile.requires_exact_target_count === true &&
+    Number.isFinite(preview.profile.max_targets)
+  ) {
     return Array.isArray(preview.selected_targets) && preview.selected_targets.length === preview.profile.max_targets;
   }
 
-  if (Array.isArray(preview.selected_targets) && preview.selected_targets.length > 0) {
+  if (
+    Array.isArray(preview.selected_targets) &&
+    preview.selected_targets.length >= Math.max(1, Number(preview.profile.min_targets || 0))
+  ) {
     return true;
   }
 
   return Boolean(preview.target_position);
+}
+
+function buildContextWithDebugFlags(context, debugFlags) {
+  return {
+    ...context,
+    state: {
+      ...(context.state && typeof context.state === "object" ? context.state : createIdleState(context)),
+      debug_flags: normalizeDebugFlags(debugFlags)
+    }
+  };
+}
+
+function rerenderCurrentMode(context, nextContext) {
+  const activeContext = nextContext || context;
+  const mode = activeContext.state && activeContext.state.mode
+    ? activeContext.state.mode
+    : INTERACTION_MODES.IDLE;
+  const pending = activeContext.state && activeContext.state.pending
+    ? activeContext.state.pending
+    : null;
+
+  if (mode === INTERACTION_MODES.MOVE && pending && pending.preview) {
+    return renderMovePreview(activeContext, pending.preview, pending.page || 1);
+  }
+
+  if (mode === INTERACTION_MODES.ATTACK && pending && pending.preview) {
+    return renderAttackPreview(activeContext, pending.preview, pending.page || 1);
+  }
+
+  if (mode === INTERACTION_MODES.SPELL_LIST && pending && pending.spells) {
+    return renderSpellMode(activeContext, pending.spells, pending.unsupported_spells, pending.page || 1);
+  }
+
+  if (mode === INTERACTION_MODES.SPELL_PREVIEW && pending && pending.preview) {
+    return renderSpellPreview(activeContext, pending.spell_id || "", pending.preview, pending.page || 1);
+  }
+
+  if (mode === INTERACTION_MODES.TOKEN_LIST && pending && pending.token_choices) {
+    return renderTokenMode(activeContext, pending.token_choices, pending.page || 1);
+  }
+
+  return {
+    ok: true,
+    state: createIdleState(activeContext),
+    payload: buildIdlePayload(activeContext, "Map ready.")
+  };
+}
+
+function toggleDebugOverlay(context, debugKey) {
+  const nextContext = buildContextWithDebugFlags(
+    context,
+    toggleDebugFlag(context.state && context.state.debug_flags, debugKey)
+  );
+  return rerenderCurrentMode(context, nextContext);
 }
 
 function renderTokenMode(context, choices, page) {
@@ -143,6 +213,7 @@ function renderTokenMode(context, choices, page) {
       instance_id: context.instance_id,
       instance_type: context.instance_type,
       turn_label: getTurnLabel(context),
+      debug_flags: context.state && context.state.debug_flags,
       choices,
       page: page || 1
     })
@@ -160,13 +231,14 @@ function renderSpellMode(context, spells, unsupportedSpells, page) {
         instance_id: context.instance_id,
         instance_type: context.instance_type,
         turn_label: getTurnLabel(context),
+        debug_flags: context.state && context.state.debug_flags,
         spells: supported,
         page: page || 1,
         unsupported_spells: unsupported,
         content: [
-          "No supported map-mode combat spells are available right now.",
+          "No map-interpretable spells are available right now.",
           unsupportedNames.length > 0 ? `Unsupported here: ${unsupportedNames.join(", ")}` : "",
-          "Map mode currently supports 1-action combat spells with single-target, split-target, self, cone, cube, sphere, or line targeting."
+          "This view only hides spells whose targeting profile is not yet understood by the map-system interpreter."
         ].filter(Boolean).join("\n")
       }).content;
 
@@ -186,6 +258,7 @@ function renderSpellMode(context, spells, unsupportedSpells, page) {
       instance_id: context.instance_id,
       instance_type: context.instance_type,
       turn_label: getTurnLabel(context),
+      debug_flags: context.state && context.state.debug_flags,
       spells,
       unsupported_spells: unsupported,
       page: page || 1,
@@ -210,9 +283,56 @@ function renderAttackPreview(context, preview, page) {
       instance_id: context.instance_id,
       instance_type: context.instance_type,
       turn_label: getTurnLabel(context),
+      debug_flags: context.state && context.state.debug_flags,
       valid_targets: preview.valid_targets,
+      invalid_targets: preview.invalid_targets || [],
       selected_target_id: preview.selected_target_id,
       attack_profile: preview.attack_profile,
+      files: context.files || [],
+      page: page || 1
+    }),
+    preview,
+    preview_map: mergePreviewMap(context.map, preview)
+  };
+}
+
+function buildMoveSelectionOverlay(target) {
+  if (!target) {
+    return null;
+  }
+
+  return buildSelectionOverlay({
+    overlay_id: "move-selection-overlay",
+    color: "#ffd60a",
+    marker_style: "move",
+    tiles: [{
+      x: target.x,
+      y: target.y
+    }]
+  });
+}
+
+function renderMovePreview(context, preview, page) {
+  return {
+    ok: true,
+    state: {
+      ...createIdleState(context),
+      mode: INTERACTION_MODES.MOVE,
+      pending: {
+        preview,
+        page: page || 1
+      }
+    },
+    payload: buildMovePreviewMessagePayload({
+      actor_id: context.actor_id,
+      instance_id: context.instance_id,
+      instance_type: context.instance_type,
+      turn_label: getTurnLabel(context),
+      debug_flags: context.state && context.state.debug_flags,
+      reachable_tiles: preview.reachable_tiles || [],
+      selected_target_position: preview.selected_target_position || null,
+      selected_target: preview.selected_target || null,
+      movement_speed_feet: preview.movement_speed_feet || 0,
       files: context.files || [],
       page: page || 1
     }),
@@ -238,15 +358,29 @@ function renderSpellPreview(context, spellId, preview, page) {
       instance_id: context.instance_id,
       instance_type: context.instance_type,
       turn_label: getTurnLabel(context),
+      debug_flags: context.state && context.state.debug_flags,
       spell_id: spellId,
       spell_name: preview.spell_name,
+      range_feet: preview.profile && preview.profile.range_feet,
       spell_shape: preview.profile && preview.profile.shape,
       area_size_feet: preview.profile && preview.profile.area_size_feet,
       valid_targets: preview.valid_targets,
+      invalid_targets: preview.invalid_targets || [],
+      valid_target_tiles: preview.valid_target_tiles || [],
+      invalid_target_tile_summary: preview.invalid_target_tile_summary || [],
       selected_targets: preview.selected_targets || [],
+      selected_target_details: preview.selected_target_details || null,
       target_position: preview.target_position || null,
+      target_position_details: preview.target_position_details || null,
+      affected_units: preview.affected_units || [],
       can_confirm: canConfirmSpellPreview(preview),
+      min_targets: preview.profile && preview.profile.min_targets,
       max_targets: preview.profile && preview.profile.max_targets,
+      line_width_feet: preview.profile && preview.profile.line_width_feet,
+      targeting_type: preview.profile && preview.profile.targeting_type,
+      requires_exact_target_count: preview.profile && preview.profile.requires_exact_target_count,
+      requires_adjacent_selection: preview.profile && preview.profile.requires_adjacent_selection,
+      self_centered_area: preview.profile && preview.profile.self_centered_area,
       show_clear_button: preview.profile && preview.profile.shape === SPELL_TARGETING_SHAPES.SPLIT && (preview.selected_targets || []).length > 0,
       page: page || 1
     }),
@@ -272,13 +406,65 @@ function enterMoveMode(context) {
     allow_diagonal: true
   });
 
+  return renderMovePreview(context, {
+    movement_speed_feet: movementSpeedFeet,
+    reachable_tiles: movementOverlay && movementOverlay.metadata && Array.isArray(movementOverlay.metadata.reachable_tiles)
+      ? movementOverlay.metadata.reachable_tiles
+      : [],
+    selected_target_position: null,
+    selected_target: null,
+    overlays: [movementOverlay]
+  }, 1);
+}
+
+function applyMoveTargetSelection(context, selection) {
+  const pendingPreview = context.state && context.state.pending && context.state.pending.preview
+    ? context.state.pending.preview
+    : null;
+  if (!pendingPreview || !Array.isArray(pendingPreview.reachable_tiles)) {
+    return { ok: false, error: "no active move preview to select from" };
+  }
+
+  const selected = pendingPreview.reachable_tiles.find((tile) => (
+    Number(tile.x) === Number(selection && selection.target_position && selection.target_position.x) &&
+    Number(tile.y) === Number(selection && selection.target_position && selection.target_position.y)
+  ));
+  if (!selected) {
+    return { ok: false, error: "selected destination is not reachable" };
+  }
+
+  const movementOverlay = Array.isArray(pendingPreview.overlays)
+    ? pendingPreview.overlays.find((overlay) => overlay && overlay.kind === "move") || pendingPreview.overlays[0]
+    : null;
+  const selectionOverlay = buildMoveSelectionOverlay(selected);
+
+  return renderMovePreview(context, {
+    movement_speed_feet: pendingPreview.movement_speed_feet || 0,
+    reachable_tiles: pendingPreview.reachable_tiles,
+    selected_target_position: {
+      x: selected.x,
+      y: selected.y
+    },
+    selected_target: selected,
+    overlays: [movementOverlay].concat(selectionOverlay ? [selectionOverlay] : []).filter(Boolean)
+  }, context.state && context.state.pending && context.state.pending.page || 1);
+}
+
+function confirmMove(context) {
+  const pendingPreview = context.state && context.state.pending && context.state.pending.preview
+    ? context.state.pending.preview
+    : null;
+  if (!pendingPreview || !pendingPreview.selected_target_position) {
+    return { ok: false, error: "no move destination selected" };
+  }
+
   return {
     ok: true,
     state: {
       ...createIdleState(context),
-      mode: INTERACTION_MODES.MOVE,
+      mode: INTERACTION_MODES.CONFIRM,
       pending: {
-        overlay: movementOverlay
+        move_target: pendingPreview.selected_target_position
       }
     },
     payload: buildMapMessageEditPayload({
@@ -287,16 +473,16 @@ function enterMoveMode(context) {
       instance_id: context.instance_id,
       instance_type: context.instance_type,
       turn_label: getTurnLabel(context),
-      mode_label: "Move Preview",
-      content: `Move mode: choose a legal destination. Speed: ${movementSpeedFeet} feet.`,
+      mode_label: "Move Confirmed",
+      content: `Move confirmed: ${pendingPreview.selected_target_position.x},${pendingPreview.selected_target_position.y}`,
+      debug_flags: context.state && context.state.debug_flags,
       files: context.files || []
     }),
-    preview: {
-      overlays: [movementOverlay]
+    action_intent: {
+      intent_type: "move_to_coordinate",
+      payload: pendingPreview.selected_target_position
     },
-    preview_map: mergePreviewMap(context.map, {
-      overlays: [movementOverlay]
-    })
+    action_contract: createMoveToCoordinateAction(buildActionContext(context), pendingPreview.selected_target_position)
   };
 }
 
@@ -361,6 +547,7 @@ function confirmAttack(context) {
       turn_label: getTurnLabel(context),
       mode_label: "Attack Confirmed",
       content: `Attack confirmed: ${pendingPreview.selected_target_id}`,
+      debug_flags: context.state && context.state.debug_flags,
       files: context.files || []
     }),
     action_intent: {
@@ -489,6 +676,7 @@ function confirmSpell(context, spellId, selectedTargets) {
       turn_label: getTurnLabel(context),
       mode_label: "Spell Confirmed",
       content: `Spell confirmed: ${confirmation.payload.spell_name}`,
+      debug_flags: context.state && context.state.debug_flags,
       files: context.files || []
       }),
     action_intent: {
@@ -539,6 +727,7 @@ function applyTokenSelection(context, tokenChoiceId) {
       }),
       mode_label: "Token Selected",
       content: `Token selected: ${tokenChoiceId}`,
+      debug_flags: context.state && context.state.debug_flags,
       files: context.files || []
     }),
     map: nextMap,
@@ -556,7 +745,27 @@ function handleButtonAction(context, customId) {
     return parsed;
   }
 
+  if (parsed.action.startsWith(`${MAP_BUTTON_ACTIONS.DEBUG_TOGGLE},`)) {
+    return toggleDebugOverlay(context, parsed.action.split(",")[1] || "");
+  }
   if (parsed.action === MAP_BUTTON_ACTIONS.MOVE) return enterMoveMode(context);
+  if (parsed.action.startsWith(`${MAP_BUTTON_ACTIONS.MOVE_TARGET},`)) {
+    return applyMoveTargetSelection(context, {
+      target_position: {
+        x: Number(parsed.action.split(",")[1]),
+        y: Number(parsed.action.split(",")[2])
+      }
+    });
+  }
+  if (parsed.action.startsWith(`${MAP_BUTTON_ACTIONS.MOVE_PAGE},`)) {
+    const page = Number(parsed.action.split(",")[1] || 1);
+    const preview = context.state && context.state.pending && context.state.pending.preview;
+    if (!preview) {
+      return { ok: false, error: "no active move preview to page" };
+    }
+    return renderMovePreview(context, preview, page);
+  }
+  if (parsed.action === MAP_BUTTON_ACTIONS.MOVE_CONFIRM) return confirmMove(context);
   if (parsed.action === MAP_BUTTON_ACTIONS.ATTACK) return enterAttackMode(context);
   if (parsed.action.startsWith(`${MAP_BUTTON_ACTIONS.ATTACK_TARGET},`)) {
     return applyAttackTargetSelection(context, {
@@ -590,12 +799,29 @@ function handleButtonAction(context, customId) {
       target_token_ref: parsed.action.split(",")[2] || ""
     });
   }
+  if (parsed.action.startsWith(`${MAP_BUTTON_ACTIONS.SPELL_TARGET_TILE},`)) {
+    return applySpellTargetSelection(context, parsed.action.split(",")[1] || "", {
+      target_position: {
+        x: Number(parsed.action.split(",")[2]),
+        y: Number(parsed.action.split(",")[3])
+      }
+    });
+  }
   if (parsed.action.startsWith(`${MAP_BUTTON_ACTIONS.SPELL_TARGET_PAGE},`)) {
     const spellId = parsed.action.split(",")[1] || "";
     const page = Number(parsed.action.split(",")[2] || 1);
     const preview = context.state && context.state.pending && context.state.pending.preview;
     if (!preview) {
       return { ok: false, error: "no active spell preview to page" };
+    }
+    return renderSpellPreview(context, spellId, preview, page);
+  }
+  if (parsed.action.startsWith(`${MAP_BUTTON_ACTIONS.SPELL_TARGET_TILE_PAGE},`)) {
+    const spellId = parsed.action.split(",")[1] || "";
+    const page = Number(parsed.action.split(",")[2] || 1);
+    const preview = context.state && context.state.pending && context.state.pending.preview;
+    if (!preview) {
+      return { ok: false, error: "no active spell tile preview to page" };
     }
     return renderSpellPreview(context, spellId, preview, page);
   }
@@ -681,6 +907,7 @@ function handleTextCommand(context, text) {
         turn_label: getTurnLabel(context),
         mode_label: "Move Selected",
         content: `Move selected: ${parsed.target_position.x},${parsed.target_position.y} (${movementSpeedFeet} foot speed preview)`,
+        debug_flags: context.state && context.state.debug_flags,
         files: context.files || []
       }),
       action_intent: {

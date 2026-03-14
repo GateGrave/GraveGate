@@ -8,6 +8,13 @@ const { assertValidMapState } = require("../schema/map-state.schema");
 const { OVERLAY_KINDS } = require("../constants");
 const { buildTokenVisualProfile } = require("../tokens/token-catalog");
 const { resolveAssetPath } = require("../core/asset-path-utils");
+const { normalizeDebugFlags } = require("../interaction/debug-flags");
+const {
+  buildTerrainVisualTiles,
+  getCoverDebugLabel,
+  buildTerrainDebugLabel,
+  buildEdgeWallVisuals
+} = require("./render-visuals");
 
 function readPngDimensions(absolutePath) {
   const header = fs.readFileSync(absolutePath);
@@ -129,6 +136,60 @@ async function drawRectBorder(image, rect, hex, thickness) {
   await drawFilledRect(image, { x: rect.x + rect.width - safeThickness, y: rect.y, width: safeThickness, height: rect.height }, hex, 1);
 }
 
+function getPlateWidth(text, minWidth, maxWidth) {
+  const safeText = String(text || "");
+  const estimated = 14 + (safeText.length * 10);
+  return Math.max(minWidth, Math.min(maxWidth, estimated));
+}
+
+function selectFontByHex(fonts, hex) {
+  const normalized = String(hex || "").replace("#", "").trim();
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) {
+    return fonts.fontWhite;
+  }
+  const r = Number.parseInt(normalized.slice(0, 2), 16);
+  const g = Number.parseInt(normalized.slice(2, 4), 16);
+  const b = Number.parseInt(normalized.slice(4, 6), 16);
+  const luminance = (r * 0.299) + (g * 0.587) + (b * 0.114);
+  return luminance >= 150 ? fonts.fontBlack : fonts.fontWhite;
+}
+
+async function drawTextPlate(image, fonts, options) {
+  const text = String(options && options.text || "").trim();
+  if (!text) {
+    return;
+  }
+
+  const width = getPlateWidth(
+    text,
+    Math.max(18, Math.round(options.min_width || 18)),
+    Math.max(18, Math.round(options.max_width || 64))
+  );
+  const height = Math.max(16, Math.round(options.height || 18));
+  const rect = {
+    x: Math.round(options.x || 0),
+    y: Math.round(options.y || 0),
+    width,
+    height
+  };
+  const fill = options.fill || "#111827";
+  const textColor = options.text_color || "#ffffff";
+
+  await drawFilledRect(image, rect, fill, typeof options.opacity === "number" ? options.opacity : 0.92);
+  if (options.border) {
+    await drawRectBorder(image, rect, options.border, options.border_thickness || 1);
+  }
+
+  image.print({
+    font: selectFontByHex(fonts, textColor),
+    x: Math.max(rect.x + 2, rect.x + Math.round((rect.width - ((text.length * 8) + 2)) / 2)),
+    y: rect.y + Math.max(0, Math.round((rect.height - 16) / 2)),
+    text,
+    maxWidth: Math.max(1, rect.width - 4),
+    maxHeight: rect.height
+  });
+}
+
 async function renderGridLines(image, map, metrics) {
   const stroke = parseHexColor("#000000", 0.18);
 
@@ -142,6 +203,79 @@ async function renderGridLines(image, map, metrics) {
     const position = Math.round(metrics.grid_origin_y + (y * metrics.tile_height_px));
     const line = await createCanvas(metrics.width_px, 1, stroke);
     image.composite(line, 0, position);
+  }
+}
+
+async function drawLineSegment(image, startX, startY, endX, endY, hex, opacity, thickness) {
+  const safeThickness = Math.max(1, Math.round(thickness || 2));
+  const steps = Math.max(Math.abs(endX - startX), Math.abs(endY - startY), 1);
+  for (let step = 0; step <= steps; step += 1) {
+    const x = Math.round(startX + (((endX - startX) * step) / steps));
+    const y = Math.round(startY + (((endY - startY) * step) / steps));
+    await drawFilledRect(image, {
+      x: x - Math.floor(safeThickness / 2),
+      y: y - Math.floor(safeThickness / 2),
+      width: safeThickness,
+      height: safeThickness
+    }, hex, opacity);
+  }
+}
+
+async function renderTerrainSemantics(image, map, metrics) {
+  const tiles = buildTerrainVisualTiles(map);
+
+  for (const tile of tiles) {
+    const rect = tileRect(metrics, tile);
+    const inset = Math.max(4, Math.round(Math.min(rect.width, rect.height) * 0.12));
+    const innerRect = {
+      x: rect.x + inset,
+      y: rect.y + inset,
+      width: Math.max(6, rect.width - (inset * 2)),
+      height: Math.max(6, rect.height - (inset * 2))
+    };
+    const centerX = rect.x + Math.round(rect.width / 2);
+    const centerY = rect.y + Math.round(rect.height / 2);
+
+    if (Number.isFinite(Number(tile.movement_cost)) && Number(tile.movement_cost) > 1 && tile.blocks_movement !== true) {
+      await drawFilledRect(image, innerRect, "#8c6a35", 0.14);
+      await drawLineSegment(image, innerRect.x + 3, innerRect.y + innerRect.height - 4, innerRect.x + Math.round(innerRect.width * 0.45), innerRect.y + 4, "#8c6a35", 0.46, 2);
+      await drawLineSegment(image, innerRect.x + Math.round(innerRect.width * 0.3), innerRect.y + innerRect.height - 4, innerRect.x + Math.round(innerRect.width * 0.75), innerRect.y + 4, "#8c6a35", 0.46, 2);
+      await drawLineSegment(image, innerRect.x + Math.round(innerRect.width * 0.6), innerRect.y + innerRect.height - 4, innerRect.x + innerRect.width - 3, innerRect.y + 4, "#8c6a35", 0.46, 2);
+    }
+
+    if (tile.blocks_movement === true) {
+      await drawFilledRect(image, innerRect, "#0f172a", 0.12);
+      await drawRectBorder(image, innerRect, "#0f172a", 2);
+    }
+
+    if (tile.blocks_sight === true) {
+      await drawLineSegment(image, innerRect.x + 4, centerY, innerRect.x + innerRect.width - 4, centerY, "#334155", 0.72, 3);
+    }
+
+    if (tile.is_hazard === true) {
+      const hazardRect = {
+        x: innerRect.x + Math.round(innerRect.width * 0.22),
+        y: innerRect.y + Math.round(innerRect.height * 0.22),
+        width: Math.max(8, Math.round(innerRect.width * 0.56)),
+        height: Math.max(8, Math.round(innerRect.height * 0.56))
+      };
+      await drawRectBorder(image, hazardRect, "#ff9f0a", 2);
+      await drawFilledRect(image, {
+        x: centerX - 4,
+        y: centerY - 4,
+        width: 8,
+        height: 8
+      }, "#ff9f0a", 0.88);
+    }
+
+    if (tile.cover_level) {
+      await drawFilledRect(image, {
+        x: rect.x + rect.width - 18,
+        y: rect.y + rect.height - 18,
+        width: 14,
+        height: 14
+      }, "#2563eb", 0.82);
+    }
   }
 }
 
@@ -174,15 +308,103 @@ async function renderSelectionOverlays(image, map, metrics, fonts) {
       await drawRectBorder(image, selectionRect, stroke, 3);
 
       if (tile.label) {
-        image.print({
-          font: fonts.fontBlack,
-          x: selectionRect.x + 6,
-          y: selectionRect.y + Math.max(0, Math.round((selectionRect.height - 16) / 2)),
-          text: String(tile.label),
-          maxWidth: Math.max(1, selectionRect.width - 12),
-          maxHeight: 20
+        const badgeWidth = getPlateWidth(tile.label, 22, Math.max(22, selectionRect.width - 12));
+        await drawTextPlate(image, fonts, {
+          x: selectionRect.x + selectionRect.width - badgeWidth - 4,
+          y: selectionRect.y + 4,
+          text: tile.label,
+          fill: stroke,
+          text_color: "#111111",
+          min_width: 22,
+          max_width: Math.max(22, selectionRect.width - 12),
+          height: 18
         });
       }
+    }
+  }
+}
+
+async function renderDebugOverlays(image, map, metrics, fonts) {
+  const debugFlags = normalizeDebugFlags(map && map.render_debug);
+  const terrainTiles = buildTerrainVisualTiles(map);
+
+  if (debugFlags.coords === true) {
+    for (let y = 0; y < map.grid.height; y += 1) {
+      for (let x = 0; x < map.grid.width; x += 1) {
+        const rect = tileRect(metrics, { x, y });
+        await drawTextPlate(image, fonts, {
+          x: rect.x + 4,
+          y: rect.y + 4,
+          text: `${x},${y}`,
+          fill: "#0f172a",
+          text_color: "#ffffff",
+          min_width: 22,
+          max_width: Math.max(22, rect.width - 8),
+          height: 16,
+          opacity: 0.8
+        });
+      }
+    }
+  }
+
+  if (debugFlags.terrain === true) {
+    for (const tile of terrainTiles) {
+      const label = buildTerrainDebugLabel(tile);
+      if (!label) {
+        continue;
+      }
+      const rect = tileRect(metrics, tile);
+      await drawTextPlate(image, fonts, {
+        x: rect.x + 4,
+        y: rect.y + rect.height - 20,
+        text: label,
+        fill: "#7c3aed",
+        text_color: "#ffffff",
+        min_width: 26,
+        max_width: Math.max(26, rect.width - 8),
+        height: 16,
+        opacity: 0.84
+      });
+    }
+  }
+
+  if (debugFlags.cover === true) {
+    for (const tile of terrainTiles) {
+      const label = getCoverDebugLabel(tile.cover_level);
+      if (!label) {
+        continue;
+      }
+      const rect = tileRect(metrics, tile);
+      await drawTextPlate(image, fonts, {
+        x: rect.x + rect.width - 28,
+        y: rect.y + rect.height - 20,
+        text: label,
+        fill: "#2563eb",
+        text_color: "#ffffff",
+        min_width: 22,
+        max_width: 28,
+        height: 16,
+        opacity: 0.9
+      });
+    }
+  }
+
+  if (debugFlags.walls === true) {
+    for (const segment of buildEdgeWallVisuals(map)) {
+      const startX = Math.round(metrics.grid_origin_x + (segment.start.x * metrics.tile_width_px));
+      const startY = Math.round(metrics.grid_origin_y + (segment.start.y * metrics.tile_height_px));
+      const endX = Math.round(metrics.grid_origin_x + (segment.end.x * metrics.tile_width_px));
+      const endY = Math.round(metrics.grid_origin_y + (segment.end.y * metrics.tile_height_px));
+      await drawLineSegment(
+        image,
+        startX,
+        startY,
+        endX,
+        endY,
+        segment.blocks_sight === true ? "#06b6d4" : "#fb7185",
+        1,
+        4
+      );
     }
   }
 }
@@ -214,12 +436,35 @@ async function renderTokens(image, map, metrics, fonts) {
     const imageBorderColor = visualProfile.image_border_color || "#d4af37";
     const badgeColor = visualProfile.badge_color || "#4aa3ff";
     const badgeText = visualProfile.badge_text ? String(visualProfile.badge_text) : "";
+    const badgeTextColor = visualProfile.badge_text_color || "#ffffff";
     const label = visualProfile.label ? String(visualProfile.label) : "";
+    const labelPlateColor = visualProfile.label_plate_color || "#111827";
+    const labelTextColor = visualProfile.label_text_color || "#ffffff";
+    const activeOutlineColor = visualProfile.active_tile_color || "";
     const tokenX = Math.round(x + ((metrics.tile_width_px - tokenSize) / 2));
     const tokenY = Math.round(y + ((metrics.tile_height_px - tokenSize) / 2));
     const resolvedAssetPath = visualProfile.asset_path
       ? path.resolve(process.cwd(), resolveAssetPath(visualProfile.asset_path))
       : "";
+    const activeOutlinePadding = 5;
+    const topBadgeWidth = getPlateWidth(badgeText, 26, Math.max(26, Math.round(metrics.tile_width_px) - 8));
+
+    if (activeOutlineColor) {
+      if (visualProfile.shape === "square") {
+        const outlineRect = {
+          x: Math.round(tokenX - activeOutlinePadding),
+          y: Math.round(tokenY - activeOutlinePadding),
+          width: Math.round(tokenSize + (activeOutlinePadding * 2)),
+          height: Math.round(tokenSize + (activeOutlinePadding * 2))
+        };
+        await drawRectBorder(image, outlineRect, activeOutlineColor, 3);
+      } else {
+        const outlineSize = tokenSize + (activeOutlinePadding * 2);
+        const outline = await createCanvas(outlineSize, outlineSize, parseHexColor(activeOutlineColor, 1));
+        outline.circle();
+        image.composite(outline, tokenX - activeOutlinePadding, tokenY - activeOutlinePadding);
+      }
+    }
 
     if (fileExists(resolvedAssetPath)) {
       const tokenImage = await buildCircularTokenImage(resolvedAssetPath, tokenSize, imageBorderColor);
@@ -235,24 +480,29 @@ async function renderTokens(image, map, metrics, fonts) {
     }
 
     if (badgeText) {
-      image.print({
-        font: fonts.fontWhite,
-        x: Math.round(x + metrics.tile_width_px - 18),
-        y: Math.round(y + 6),
+      await drawTextPlate(image, fonts, {
+        x: Math.round(x + ((metrics.tile_width_px - topBadgeWidth) / 2)),
+        y: Math.round(y + 2),
         text: badgeText,
-        maxWidth: 16,
-        maxHeight: 16
+        fill: badgeColor,
+        text_color: badgeTextColor,
+        min_width: 26,
+        max_width: Math.max(26, Math.round(metrics.tile_width_px) - 8),
+        height: 18
       });
     }
 
     if (label) {
-      image.print({
-        font: fonts.fontBlack,
-        x: Math.round(x + 6),
-        y: Math.round(y + metrics.tile_height_px - 18),
+      const plateWidth = getPlateWidth(label, 20, Math.max(20, Math.round(metrics.tile_width_px) - 8));
+      await drawTextPlate(image, fonts, {
+        x: Math.round(x + ((metrics.tile_width_px - plateWidth) / 2)),
+        y: Math.round(y + metrics.tile_height_px - 22),
         text: label,
-        maxWidth: Math.max(1, Math.round(metrics.tile_width_px) - 12),
-        maxHeight: 18
+        fill: labelPlateColor,
+        text_color: labelTextColor,
+        min_width: 20,
+        max_width: Math.max(20, Math.round(metrics.tile_width_px) - 8),
+        height: 18
       });
     }
   }
@@ -274,6 +524,7 @@ async function renderMapPng(mapState, options) {
     canvas.resize({ w: metrics.width_px, h: metrics.height_px });
   }
 
+  await renderTerrainSemantics(canvas, map, metrics);
   await renderFilledOverlays(canvas, map, metrics);
 
   const shouldShowGrid = options && options.show_grid === false
@@ -285,6 +536,7 @@ async function renderMapPng(mapState, options) {
 
   await renderTokens(canvas, map, metrics, fonts);
   await renderSelectionOverlays(canvas, map, metrics, fonts);
+  await renderDebugOverlays(canvas, map, metrics, fonts);
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   await canvas.write(outputPath);

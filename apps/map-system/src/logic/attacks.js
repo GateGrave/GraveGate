@@ -58,14 +58,15 @@ function getTokenDistanceFeet(origin, target, metric) {
   return getDistance(origin, target, metric) * MOVEMENT_RULES.TILE_FEET;
 }
 
-function isTargetValidForAttack(options) {
+function getAttackInvalidReasonCodes(options) {
   const map = options.map;
   const attacker = options.attacker;
   const target = options.target;
   const attackProfile = buildAttackProfile(options.attack_profile || {});
+  const reasons = [];
 
   if (!attackProfile.target_token_types.includes(target.token_type)) {
-    return false;
+    reasons.push("wrong_target_type");
   }
 
   const distanceFeet = getTokenDistanceFeet(
@@ -73,49 +74,97 @@ function isTargetValidForAttack(options) {
     target.position,
     attackProfile.metric
   );
-
   if (distanceFeet > attackProfile.max_range_feet) {
-    return false;
+    reasons.push("out_of_range");
   }
 
   if (attackProfile.requires_line_of_sight && !hasLineOfSight(map, attacker.position, target.position)) {
-    return false;
+    reasons.push("line_of_sight_blocked");
   }
 
-  return true;
+  return reasons;
 }
 
-function getValidAttackTargets(options) {
+function formatAttackInvalidReason(reasonCodes) {
+  if (!Array.isArray(reasonCodes) || reasonCodes.length === 0) {
+    return "";
+  }
+
+  if (reasonCodes.includes("line_of_sight_blocked")) {
+    return "line of sight blocked";
+  }
+  if (reasonCodes.includes("out_of_range")) {
+    return "out of range";
+  }
+  if (reasonCodes.includes("wrong_target_type")) {
+    return "not a valid attack target";
+  }
+  return "illegal target";
+}
+
+function buildAttackTargetEntry(map, attacker, target, attackProfile, reasonCodes) {
+  const distanceFeet = getTokenDistanceFeet(attacker.position, target.position, attackProfile.metric);
+  return {
+    cover: getCoverBetween(map, attacker.position, target.position),
+    token_id: target.token_id,
+    name: target.name || target.display_name || target.token_id,
+    x: target.position.x,
+    y: target.position.y,
+    distance_feet: distanceFeet,
+    range_band: (() => {
+      if (attackProfile.long_range_feet > attackProfile.range_feet && distanceFeet > attackProfile.range_feet) {
+        return "long";
+      }
+      return "normal";
+    })(),
+    reason_codes: Array.isArray(reasonCodes) ? reasonCodes.slice() : [],
+    reason_summary: formatAttackInvalidReason(reasonCodes)
+  };
+}
+
+function isTargetValidForAttack(options) {
+  return getAttackInvalidReasonCodes(options).length === 0;
+}
+
+function inspectAttackTargets(options) {
   const map = options.map;
   const attacker = options.attacker;
   const attackProfile = buildAttackProfile(options.attack_profile || {});
-
-  return (map.tokens || [])
+  const evaluated = (map.tokens || [])
     .filter((token) => token.token_id !== attacker.token_id)
-    .filter((token) => isTargetValidForAttack({
-      map,
-      attacker,
-      target: token,
-      attack_profile: attackProfile
-    }))
-    .map((token) => ({
-      cover: getCoverBetween(map, attacker.position, token.position),
-      token_id: token.token_id,
-      x: token.position.x,
-      y: token.position.y,
-      distance_feet: getTokenDistanceFeet(attacker.position, token.position, attackProfile.metric),
-      range_band: (() => {
-        const distanceFeet = getTokenDistanceFeet(attacker.position, token.position, attackProfile.metric);
-        if (attackProfile.long_range_feet > attackProfile.range_feet && distanceFeet > attackProfile.range_feet) {
-          return "long";
-        }
-        return "normal";
-      })()
-    }));
+    .map((token) => {
+      const reasonCodes = getAttackInvalidReasonCodes({
+        map,
+        attacker,
+        target: token,
+        attack_profile: attackProfile
+      });
+      return {
+        valid: reasonCodes.length === 0,
+        entry: buildAttackTargetEntry(map, attacker, token, attackProfile, reasonCodes)
+      };
+    })
+    .sort((left, right) => (
+      Number(left.entry.distance_feet) - Number(right.entry.distance_feet) ||
+      left.entry.y - right.entry.y ||
+      left.entry.x - right.entry.x ||
+      String(left.entry.token_id).localeCompare(String(right.entry.token_id))
+    ));
+
+  return {
+    attack_profile: attackProfile,
+    valid_targets: evaluated.filter((entry) => entry.valid).map((entry) => entry.entry),
+    invalid_targets: evaluated.filter((entry) => !entry.valid).map((entry) => entry.entry)
+  };
+}
+
+function getValidAttackTargets(options) {
+  return inspectAttackTargets(options).valid_targets;
 }
 
 module.exports = {
   buildAttackProfile,
   isTargetValidForAttack,
-  getValidAttackTargets
+  getValidAttackTargets,
+  inspectAttackTargets
 };

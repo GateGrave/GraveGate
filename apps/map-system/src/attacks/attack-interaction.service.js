@@ -3,7 +3,7 @@
 const { ATTACK_MODES } = require("../constants");
 const {
   buildAttackProfile,
-  getValidAttackTargets
+  inspectAttackTargets
 } = require("../logic/attacks");
 const {
   buildPhysicalRangeOverlay,
@@ -52,11 +52,12 @@ function buildAttackSelectionOverlay(target) {
 function buildAttackPreviewState(options) {
   const actor = options.actor;
   const profile = buildActorAttackProfile(options);
-  const validTargets = getValidAttackTargets({
+  const targeting = inspectAttackTargets({
     map: options.map,
     attacker: actor,
     attack_profile: profile
   });
+  const validTargets = targeting.valid_targets;
   const overlay = buildPhysicalRangeOverlay({
     map: options.map,
     attacker: actor,
@@ -69,6 +70,7 @@ function buildAttackPreviewState(options) {
     payload: {
       attack_profile: profile,
       valid_targets: validTargets,
+      invalid_targets: targeting.invalid_targets,
       selected_target_id: "",
       selected_target_position: null,
       selected_target_range_band: "",
@@ -80,11 +82,13 @@ function buildAttackPreviewState(options) {
 function selectAttackTarget(options) {
   const actor = options.actor;
   const profile = buildActorAttackProfile(options);
-  const validTargets = getValidAttackTargets({
+  const targeting = inspectAttackTargets({
     map: options.map,
     attacker: actor,
     attack_profile: profile
   });
+  const validTargets = targeting.valid_targets;
+  const invalidTargets = targeting.invalid_targets;
 
   if (options.target_token_ref) {
     const targetToken = findTargetToken(options.map, options.target_token_ref);
@@ -94,7 +98,8 @@ function selectAttackTarget(options) {
 
     const isValid = validTargets.some((entry) => String(entry.token_id) === String(targetToken.token_id));
     if (!isValid) {
-      return { ok: false, error: "target token is not a legal attack target" };
+      const invalidTarget = invalidTargets.find((entry) => String(entry.token_id) === String(targetToken.token_id));
+      return { ok: false, error: invalidTarget ? invalidTarget.reason_summary : "target token is not a legal attack target" };
     }
 
     const overlay = buildPhysicalRangeOverlay({
@@ -111,6 +116,7 @@ function selectAttackTarget(options) {
       payload: {
         attack_profile: profile,
         valid_targets: validTargets,
+        invalid_targets: invalidTargets,
         selected_target_id: targetToken.token_id,
         selected_target_position: {
           x: targetToken.position.x,
@@ -129,7 +135,15 @@ function selectAttackTarget(options) {
     ));
 
     if (!selected) {
-      return { ok: false, error: "target tile does not contain a legal attack target" };
+      const tokenAtTile = (options.map && options.map.tokens || []).find((token) => (
+        token && token.position &&
+        Number(token.position.x) === Number(options.target_position.x) &&
+        Number(token.position.y) === Number(options.target_position.y)
+      ));
+      const invalidTarget = tokenAtTile
+        ? invalidTargets.find((entry) => String(entry.token_id) === String(tokenAtTile.token_id))
+        : null;
+      return { ok: false, error: invalidTarget ? invalidTarget.reason_summary : "target tile does not contain a legal attack target" };
     }
 
     const overlay = buildPhysicalRangeOverlay({
@@ -145,6 +159,7 @@ function selectAttackTarget(options) {
       payload: {
         attack_profile: profile,
         valid_targets: validTargets,
+        invalid_targets: invalidTargets,
         selected_target_id: selected.token_id,
         selected_target_position: {
           x: selected.x,

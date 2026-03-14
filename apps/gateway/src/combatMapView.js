@@ -12,7 +12,9 @@ const {
   createIdleState,
   handleButtonAction,
   adaptMapActionToCanonicalEvent,
-  loadPlayerTokenCatalog
+  loadPlayerTokenCatalog,
+  normalizeDebugFlags,
+  formatDebugFlagSummary
 } = require("../../map-system/src");
 
 const DEFAULT_COMBAT_MAP_PATH = "apps/map-system/data/maps/combat/map-12x12.base-map.json";
@@ -82,13 +84,102 @@ function resolveCombatActorId(combatSummary, userId) {
   return cleanText(combatSummary && combatSummary.active_participant_id, null);
 }
 
-function buildBadgeText(participant, index, heroIndexRef, enemyIndexRef) {
-  if (normalizeTeam(participant && participant.team) === "heroes") {
-    heroIndexRef.count += 1;
-    return String(heroIndexRef.count);
+function buildTeamMarkerText(participant, heroIndexRef, enemyIndexRef, neutralIndexRef) {
+  const explicit = cleanText(participant && participant.map_marker, "");
+  if (explicit) {
+    return explicit;
   }
-  enemyIndexRef.count += 1;
-  return String(enemyIndexRef.count);
+
+  const team = normalizeTeam(participant && participant.team);
+  if (team === "heroes") {
+    heroIndexRef.count += 1;
+    return `H${heroIndexRef.count}`;
+  }
+  if (team === "monsters") {
+    enemyIndexRef.count += 1;
+    return `M${enemyIndexRef.count}`;
+  }
+  neutralIndexRef.count += 1;
+  return `N${neutralIndexRef.count}`;
+}
+
+function getHpBadgeText(participant) {
+  const currentHp = Number(participant && participant.current_hp);
+  const maxHp = Number(participant && participant.max_hp);
+  if (!Number.isFinite(currentHp) || !Number.isFinite(maxHp)) {
+    return "";
+  }
+  return `${Math.max(0, Math.floor(currentHp))}/${Math.max(0, Math.floor(maxHp))}`;
+}
+
+function getTokenTileAccent(participant, combatSummary) {
+  const participantId = cleanText(participant && participant.participant_id, "");
+  if (participantId && participantId === cleanText(combatSummary && combatSummary.active_participant_id, "")) {
+    return {
+      color: "#ffd166"
+    };
+  }
+  return null;
+}
+
+function getTokenLabelPlateColor(participant) {
+  const team = normalizeTeam(participant && participant.team);
+  if (team === "heroes") {
+    return "#163b63";
+  }
+  if (team === "monsters") {
+    return "#612020";
+  }
+  return "#334155";
+}
+
+function getTokenBorderColor(participant, combatSummary) {
+  const participantId = cleanText(participant && participant.participant_id, "");
+  if (participantId && participantId === cleanText(combatSummary && combatSummary.active_participant_id, "")) {
+    return "#ffd166";
+  }
+  return null;
+}
+
+function buildCombatMapStatusText(combatSummary, interactionState) {
+  return [
+    "Map legend: gold ring = active turn, top chip = HP, bottom tag = map marker.",
+    formatDebugFlagSummary(interactionState && interactionState.debug_flags)
+  ].filter(Boolean).join("\n");
+}
+
+function resolveParticipantDisplayName(participant) {
+  const explicit = cleanText(
+    participant && (
+      participant.display_name ||
+      participant.name ||
+      participant.character_name ||
+      participant.monster_name
+    ),
+    ""
+  );
+  if (explicit) {
+    return explicit;
+  }
+  return cleanText(participant && participant.participant_id, "unknown");
+}
+
+function formatParticipantTurnLabel(combatSummary, participantId) {
+  const participants = Array.isArray(combatSummary && combatSummary.participants) ? combatSummary.participants : [];
+  const targetId = cleanText(participantId, "");
+  const participant = participants.find((entry) => cleanText(entry && entry.participant_id, "") === targetId) || null;
+  if (!participant) {
+    return targetId || "(none)";
+  }
+  const marker = cleanText(participant.map_marker, "");
+  const name = resolveParticipantDisplayName(participant);
+  return marker ? `[${marker}] ${name}` : name;
+}
+
+function applyRenderDebug(map, interactionState) {
+  const nextMap = clone(map);
+  nextMap.render_debug = normalizeDebugFlags(interactionState && interactionState.debug_flags);
+  return nextMap;
 }
 
 function applyTokenOverrides(tokens, tokenOverrides) {
@@ -105,13 +196,10 @@ function applyTokenOverrides(tokens, tokenOverrides) {
     if (!override) {
       return token;
     }
-    return Object.assign({}, token, override, {
-      token_id: token.token_id,
-      actor_id: token.actor_id,
-      position: token.position,
-      team: token.team,
-      token_type: token.token_type,
-      label: token.label
+    return Object.assign({}, token, {
+      asset_path: cleanText(override.asset_path, token.asset_path || ""),
+      color: cleanText(override.color, token.color || ""),
+      shape: cleanText(override.shape, token.shape || "")
     });
   });
 }
@@ -120,27 +208,40 @@ function buildMapTokensFromCombatSummary(combatSummary, tokenOverrides) {
   const participants = Array.isArray(combatSummary && combatSummary.participants) ? combatSummary.participants : [];
   const heroIndexRef = { count: 0 };
   const enemyIndexRef = { count: 0 };
+  const neutralIndexRef = { count: 0 };
 
   const tokens = participants
     .filter((entry) => entry && entry.position && Number.isFinite(Number(entry.position.x)) && Number.isFinite(Number(entry.position.y)))
-    .map((entry, index) => ({
-      token_id: cleanText(entry.participant_id, `token-${index + 1}`),
-      actor_id: cleanText(entry.participant_id, `token-${index + 1}`),
-      token_type: resolveTokenType(entry.team),
-      label: cleanText(entry.participant_id, `token-${index + 1}`),
-      badge_text: buildBadgeText(entry, index, heroIndexRef, enemyIndexRef),
-      position: {
-        x: Math.floor(Number(entry.position.x)),
-        y: Math.floor(Number(entry.position.y))
-      },
-      team: normalizeTeam(entry.team),
-      player_id: cleanText(entry.player_id, null),
-      known_spell_ids: Array.isArray(entry.known_spell_ids)
-        ? entry.known_spell_ids.map((spellId) => String(spellId || "")).filter(Boolean)
-        : [],
-      movement_remaining: Number.isFinite(Number(entry.movement_remaining)) ? Number(entry.movement_remaining) : null,
-      movement_speed_feet: Number.isFinite(Number(entry.movement_remaining)) ? Number(entry.movement_remaining) : null
-    }));
+    .map((entry, index) => {
+      const tileAccent = getTokenTileAccent(entry, combatSummary);
+      const borderColor = getTokenBorderColor(entry, combatSummary);
+      return {
+        token_id: cleanText(entry.participant_id, `token-${index + 1}`),
+        actor_id: cleanText(entry.participant_id, `token-${index + 1}`),
+        token_type: resolveTokenType(entry.team),
+        label: buildTeamMarkerText(entry, heroIndexRef, enemyIndexRef, neutralIndexRef),
+        name: resolveParticipantDisplayName(entry),
+        badge_text: getHpBadgeText(entry),
+        badge_color: "#111827",
+        badge_text_color: "#ffffff",
+        label_plate_color: getTokenLabelPlateColor(entry),
+        label_text_color: "#ffffff",
+        active_tile_color: tileAccent ? tileAccent.color : "",
+        border_color: borderColor,
+        image_border_color: borderColor,
+        position: {
+          x: Math.floor(Number(entry.position.x)),
+          y: Math.floor(Number(entry.position.y))
+        },
+        team: normalizeTeam(entry.team),
+        player_id: cleanText(entry.player_id, null),
+        known_spell_ids: Array.isArray(entry.known_spell_ids)
+          ? entry.known_spell_ids.map((spellId) => String(spellId || "")).filter(Boolean)
+          : [],
+        movement_remaining: Number.isFinite(Number(entry.movement_remaining)) ? Number(entry.movement_remaining) : null,
+        movement_speed_feet: Number.isFinite(Number(entry.movement_remaining)) ? Number(entry.movement_remaining) : null
+      };
+    });
 
   return applyTokenOverrides(tokens, tokenOverrides);
 }
@@ -176,7 +277,10 @@ function buildCombatMapState(options) {
       map,
       actor_id: actorId,
       combat_id: cleanText(combatSummary.combat_id, options.combat_id || "combat"),
-      turn_label: cleanText(combatSummary.active_participant_id, actorId || "(none)")
+      turn_label: formatParticipantTurnLabel(
+        combatSummary,
+        cleanText(combatSummary.active_participant_id, actorId || "(none)")
+      )
     }
   };
 }
@@ -218,10 +322,7 @@ function buildTokenVisualOverrides(tokens) {
   return (Array.isArray(tokens) ? tokens : []).map((token) => ({
     token_id: token.token_id,
     asset_path: token.asset_path || null,
-    border_color: token.border_color || null,
-    image_rim_color: token.image_rim_color || null,
-    badge_text: token.badge_text || null,
-    badge_text_color: token.badge_text_color || null,
+    color: token.color || null,
     shape: token.shape || null
   }));
 }
@@ -283,9 +384,10 @@ async function buildCombatMapView(options) {
     instance_type: "combat",
     map: payload.map
   });
+  const renderedMap = applyRenderDebug(options.map_override || payload.map, interactionState);
   const content = cleanText(
     options.content,
-    `Combat map ready.\nTurn: ${payload.turn_label}\nMode: ${interactionState.mode || "idle"}`
+    buildCombatMapStatusText(combatSummary, interactionState)
   );
   const componentRows = options.component_rows && options.component_rows.length > 0
     ? options.component_rows
@@ -293,12 +395,13 @@ async function buildCombatMapView(options) {
       ? buildMapActionRows({
           actor_id: payload.actor_id,
           instance_id: payload.combat_id,
-          instance_type: "combat"
+          instance_type: "combat",
+          debug_flags: interactionState.debug_flags
         })
       : []);
   const files = await renderCombatMapAttachments({
     map_config: mapConfig,
-    map: options.map_override || payload.map,
+    map: renderedMap,
     combat_id: payload.combat_id,
     user_id: options.user_id,
     suffix: options.suffix || interactionState.mode || "combat"
@@ -312,7 +415,7 @@ async function buildCombatMapView(options) {
       combat_id: payload.combat_id,
       turn_label: payload.turn_label,
       interaction_state: interactionState,
-      token_overrides: buildTokenVisualOverrides((options.map_override || payload.map).tokens),
+      token_overrides: buildTokenVisualOverrides(renderedMap.tokens),
       files,
       content,
       components: convertApiRowsToDiscordComponents(componentRows),

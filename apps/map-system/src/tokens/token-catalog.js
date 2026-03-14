@@ -48,10 +48,20 @@ function buildTokenVisualProfile(token) {
     border_color: token.border_color || defaults.border_color,
     image_border_color: token.image_border_color || defaultImageBorderColor,
     badge_color: token.badge_color || defaultBadgeColor,
+    badge_text_color: token.badge_text_color || "#ffffff",
     shape: token.shape || defaults.shape,
     label: token.label || "",
+    label_plate_color: token.label_plate_color || "#111827",
+    label_text_color: token.label_text_color || "#ffffff",
     asset_path: normalizeAssetPath(token.asset_path || ""),
-    badge_text: token.badge_text || ""
+    badge_text: token.badge_text || "",
+    focus_marker_text: token.focus_marker_text || "",
+    focus_marker_color: token.focus_marker_color || "#8b5cf6",
+    focus_marker_text_color: token.focus_marker_text_color || "#ffffff",
+    active_tile_color: token.active_tile_color || "",
+    active_tile_opacity: Number.isFinite(Number(token.active_tile_opacity))
+      ? Number(token.active_tile_opacity)
+      : null
   };
 }
 
@@ -75,9 +85,19 @@ function buildPlayerToken(options) {
     border_color: options.border_color || DEFAULT_TOKEN_STYLES[TOKEN_TYPES.PLAYER].border_color,
     image_border_color: options.image_border_color || "#d4af37",
     badge_color: options.badge_color || "#4aa3ff",
+    badge_text_color: options.badge_text_color || "#ffffff",
     shape: options.shape || DEFAULT_TOKEN_STYLES[TOKEN_TYPES.PLAYER].shape,
     asset_path: normalizeAssetPath(options.asset_path || ""),
-    badge_text: options.badge_text || ""
+    badge_text: options.badge_text || "",
+    label_plate_color: options.label_plate_color || "#111827",
+    label_text_color: options.label_text_color || "#ffffff",
+    focus_marker_text: options.focus_marker_text || "",
+    focus_marker_color: options.focus_marker_color || "#8b5cf6",
+    focus_marker_text_color: options.focus_marker_text_color || "#ffffff",
+    active_tile_color: options.active_tile_color || "",
+    active_tile_opacity: Number.isFinite(Number(options.active_tile_opacity))
+      ? Number(options.active_tile_opacity)
+      : null
   };
 
   return applyTokenVisualProfile(token, buildTokenVisualProfile(token));
@@ -95,9 +115,19 @@ function buildEnemyToken(options) {
     border_color: options.border_color || DEFAULT_TOKEN_STYLES[TOKEN_TYPES.ENEMY].border_color,
     image_border_color: options.image_border_color || "#ff3b30",
     badge_color: options.badge_color || "#ffd6d1",
+    badge_text_color: options.badge_text_color || "#111827",
     shape: options.shape || DEFAULT_TOKEN_STYLES[TOKEN_TYPES.ENEMY].shape,
     asset_path: normalizeAssetPath(options.asset_path || ""),
-    badge_text: options.badge_text || ""
+    badge_text: options.badge_text || "",
+    label_plate_color: options.label_plate_color || "#111827",
+    label_text_color: options.label_text_color || "#ffffff",
+    focus_marker_text: options.focus_marker_text || "",
+    focus_marker_color: options.focus_marker_color || "#8b5cf6",
+    focus_marker_text_color: options.focus_marker_text_color || "#ffffff",
+    active_tile_color: options.active_tile_color || "",
+    active_tile_opacity: Number.isFinite(Number(options.active_tile_opacity))
+      ? Number(options.active_tile_opacity)
+      : null
   };
 
   return applyTokenVisualProfile(token, buildTokenVisualProfile(token));

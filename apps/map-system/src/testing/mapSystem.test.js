@@ -85,6 +85,7 @@ const {
   buildMapButtonCustomId,
   parseMapButtonCustomId,
   buildMapMessageEditPayload,
+  buildMovePreviewMessagePayload,
   buildTokenSelectionMessagePayload,
   buildSpellSelectionMessagePayload,
   buildAttackPreviewMessagePayload,
@@ -231,6 +232,27 @@ function runMapSystemTests() {
     assert.equal(keys.includes("2,1"), false);
     assert.equal(keys.includes("1,1"), true);
     assert.equal(keys.includes("3,0"), true);
+  }, results);
+
+  runTest("movement_overlay_exposes_tile_cost_metadata_for_button_previews", () => {
+    const map = createTestMap();
+    const overlay = buildMovementOverlay({
+      map,
+      origin: { x: 0, y: 0 },
+      max_cost: 30,
+      allow_diagonal: true,
+      ignore_token_id: "hero-1"
+    });
+
+    const reachable = overlay.metadata && Array.isArray(overlay.metadata.reachable_tiles)
+      ? overlay.metadata.reachable_tiles
+      : [];
+    const difficultTile = reachable.find((tile) => tile.x === 1 && tile.y === 1);
+
+    assert.equal(reachable.length > 0, true);
+    assert.equal(Boolean(difficultTile), true);
+    assert.equal(difficultTile.movement_cost_feet, 10);
+    assert.equal(difficultTile.remaining_movement_feet, 20);
   }, results);
 
   runTest("movement_rejects_diagonal_corner_cutting", () => {
@@ -463,7 +485,7 @@ function runMapSystemTests() {
     assert.equal(keys.includes("2,1"), false);
   }, results);
 
-  runTest("physical_and_spell_range_builders_use_distinct_kinds_and_yellow_defaults", () => {
+  runTest("physical_and_spell_range_builders_use_distinct_color_defaults", () => {
     const map = createTestMap();
     map.tokens[1].position = { x: 1, y: 0 };
     const physical = buildPhysicalRangeOverlay({
@@ -483,7 +505,7 @@ function runMapSystemTests() {
     assert.equal(physical.kind, "physical_range");
     assert.equal(spell.kind, "spell_range");
     assert.equal(physical.color, "#ff3b30");
-    assert.equal(spell.color, "#ffd60a");
+    assert.equal(spell.color, "#4dabf7");
     assert.deepEqual(physical.tiles, [{ x: 1, y: 0 }]);
   }, results);
 
@@ -515,6 +537,50 @@ function runMapSystemTests() {
     assert.equal(out.ok, true);
     assert.equal(out.payload.valid_targets.length, 1);
     assert.equal(out.payload.overlays.length, 1);
+  }, results);
+
+  runTest("attack_preview_state_reports_invalid_targets_for_preview_clarity", () => {
+    const map = createTestMap();
+    map.blocked_tiles = [];
+    map.terrain = [
+      { x: 1, y: 0, terrain_type: "tree", blocks_sight: true }
+    ];
+    map.terrain_zones = [];
+    map.tokens[1].position = { x: 0, y: 1 };
+    map.tokens.push({
+      token_id: "ally-1",
+      token_type: "player",
+      label: "A",
+      position: { x: 1, y: 1 }
+    });
+    map.tokens.push({
+      token_id: "enemy-hidden",
+      token_type: "enemy",
+      label: "X",
+      position: { x: 2, y: 0 }
+    });
+
+    const out = buildAttackPreviewState({
+      map,
+      actor: map.tokens[0],
+      attack_profile: {
+        weapon_name: "Practice Bow",
+        mode: ATTACK_MODES.RANGED_WEAPON,
+        range_feet: 30,
+        long_range_feet: 60
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.valid_targets.some((entry) => entry.token_id === "enemy-1"), true);
+    assert.equal(
+      out.payload.invalid_targets.some((entry) => entry.token_id === "ally-1" && entry.reason_summary === "not a valid attack target"),
+      true
+    );
+    assert.equal(
+      out.payload.invalid_targets.some((entry) => entry.token_id === "enemy-hidden" && entry.reason_summary === "line of sight blocked"),
+      true
+    );
   }, results);
 
   runTest("attack_profiles_support_reach_and_long_range_targets", () => {
@@ -1017,6 +1083,8 @@ function runMapSystemTests() {
     assert.equal(token.badge_text, "1");
     assert.equal(token.image_border_color, "#d4af37");
     assert.equal(token.badge_color, "#4aa3ff");
+    assert.equal(token.badge_text_color, "#ffffff");
+    assert.equal(token.label_plate_color, "#111827");
   }, results);
 
   runTest("enemy_token_builder_applies_enemy_visual_defaults", () => {
@@ -1030,6 +1098,7 @@ function runMapSystemTests() {
     assert.equal(token.color, "#c62828");
     assert.equal(token.image_border_color, "#ff3b30");
     assert.equal(token.badge_color, "#ffd6d1");
+    assert.equal(token.badge_text_color, "#111827");
   }, results);
 
   runTest("weapon_profile_catalog_exposes_melee_reach_and_ranged_defaults", () => {
@@ -1184,6 +1253,55 @@ function runMapSystemTests() {
     assert.equal(shield.target_affinity, "self");
   }, results);
 
+  runTest("spell_targeting_profile_derives_split_object_aura_and_line_shapes", () => {
+    const bless = buildSpellTargetingProfile({
+      spell_id: "bless",
+      name: "Bless",
+      range: "30 feet",
+      targeting: { type: "up_to_three_allies" }
+    });
+    const acidSplash = buildSpellTargetingProfile({
+      spell_id: "acid_splash",
+      name: "Acid Splash",
+      range: "60 feet",
+      targeting: { type: "single_or_adjacent_pair" }
+    });
+    const light = buildSpellTargetingProfile({
+      spell_id: "light",
+      name: "Light",
+      range: "touch",
+      targeting: { type: "object" }
+    });
+    const spiritGuardians = buildSpellTargetingProfile({
+      spell_id: "spirit_guardians",
+      name: "Spirit Guardians",
+      range: "self",
+      targeting: { type: "aura_15ft" }
+    });
+    const lightningBolt = buildSpellTargetingProfile({
+      spell_id: "lightning_bolt",
+      name: "Lightning Bolt",
+      range: "self",
+      targeting: { type: "line_100ft_5ft" }
+    });
+
+    assert.equal(bless.shape, "split");
+    assert.equal(bless.min_targets, 1);
+    assert.equal(bless.max_targets, 3);
+    assert.equal(bless.target_affinity, "ally");
+    assert.equal(acidSplash.shape, "split");
+    assert.equal(acidSplash.requires_adjacent_selection, true);
+    assert.equal(acidSplash.max_targets, 2);
+    assert.equal(light.shape, "single");
+    assert.equal(light.target_affinity, "object");
+    assert.equal(spiritGuardians.shape, "aura");
+    assert.equal(spiritGuardians.area_size_feet, 15);
+    assert.equal(spiritGuardians.self_centered_area, true);
+    assert.equal(lightningBolt.shape, "line");
+    assert.equal(lightningBolt.area_size_feet, 100);
+    assert.equal(lightningBolt.line_width_feet, 5);
+  }, results);
+
   runTest("valid_spell_targets_respect_range_affinity_and_los", () => {
     const map = createTestMap();
     map.tokens[0].team = "heroes";
@@ -1288,6 +1406,64 @@ function runMapSystemTests() {
     assert.equal(targets.length, 2);
   }, results);
 
+  runTest("defensive_buff_spells_target_allies", () => {
+    const map = createTestMap();
+    map.tokens[0].team = "heroes";
+    map.tokens[1].team = "heroes";
+    map.tokens[1].position = { x: 1, y: 0 };
+    map.tokens.push({
+      token_id: "enemy-2",
+      token_type: "enemy",
+      label: "X",
+      position: { x: 2, y: 0 },
+      team: "monsters"
+    });
+
+    const mageArmor = buildSpellTargetingProfile({
+      spell_id: "mage_armor",
+      name: "Mage Armor",
+      range: "touch",
+      targeting: { type: "single_target" },
+      attack_or_save: { type: "none" },
+      effect: {
+        defense_ref: "spell_mage_armor_base_ac",
+        base_ac_formula: "13 + dex_mod"
+      }
+    });
+    const shieldOfFaith = buildSpellTargetingProfile({
+      spell_id: "shield_of_faith",
+      name: "Shield of Faith",
+      range: "60 feet",
+      targeting: { type: "single_target" },
+      attack_or_save: { type: "none" },
+      effect: {
+        defense_ref: "spell_shield_of_faith_ac_bonus",
+        ac_bonus: 2
+      }
+    });
+
+    const mageArmorTargets = getValidSpellTargets({
+      map,
+      actor: map.tokens[0],
+      profile: mageArmor
+    });
+    const shieldTargets = getValidSpellTargets({
+      map,
+      actor: map.tokens[0],
+      profile: shieldOfFaith
+    });
+
+    assert.deepEqual(
+      mageArmorTargets.map((entry) => entry.token_id).sort(),
+      ["enemy-1", "hero-1"].sort()
+    );
+    assert.deepEqual(
+      shieldTargets.map((entry) => entry.token_id).sort(),
+      ["enemy-1", "hero-1"].sort()
+    );
+    assert.equal(shieldTargets.some((entry) => entry.token_id === "enemy-2"), false);
+  }, results);
+
   runTest("spell_selection_validator_respects_target_limits", () => {
     const profile = buildSpellTargetingProfile({
       spell_id: "magic_missile",
@@ -1368,6 +1544,32 @@ function runMapSystemTests() {
     ]);
   }, results);
 
+  runTest("spell_area_tiles_honor_line_width_when_present", () => {
+    const map = createTestMap();
+    const profile = buildSpellTargetingProfile({
+      spell_id: "lightning_lance",
+      name: "Lightning Lance",
+      range: "self",
+      targeting: { type: "line_15ft_10ft" }
+    });
+
+    const tiles = buildSpellAreaTiles({
+      map,
+      origin: { x: 0, y: 0 },
+      profile,
+      target_position: { x: 4, y: 0 }
+    });
+
+    assert.deepEqual(tiles, [
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+      { x: 2, y: 0 },
+      { x: 2, y: 1 },
+      { x: 3, y: 0 },
+      { x: 3, y: 1 }
+    ]);
+  }, results);
+
   runTest("spell_area_tiles_build_sphere_on_target_point", () => {
     const map = createTestMap();
     const profile = buildSpellTargetingProfile({
@@ -1404,22 +1606,22 @@ function runMapSystemTests() {
     assert.equal(listed[0].spell_id, "fire_bolt");
   }, results);
 
-  runTest("combat_map_spell_support_filters_to_supported_action_spells", () => {
+  runTest("combat_map_spell_support_includes_all_currently_interpretable_targeting_profiles", () => {
     const spells = [
       { spell_id: "fire_bolt", name: "Fire Bolt", level: 0, casting_time: "1 action", range: "120 feet", targeting: { type: "single_target" } },
       { spell_id: "bless", name: "Bless", level: 1, casting_time: "1 action", range: "30 feet", targeting: { type: "up_to_three_allies" } },
       { spell_id: "shield", name: "Shield", level: 1, casting_time: "1 reaction", range: "self", targeting: { type: "self" } },
-      { spell_id: "light", name: "Light", level: 0, casting_time: "1 action", range: "touch", targeting: { type: "object" } }
+      { spell_id: "light", name: "Light", level: 0, casting_time: "1 action", range: "touch", targeting: { type: "object" } },
+      { spell_id: "lightning_bolt", name: "Lightning Bolt", level: 3, casting_time: "1 action", range: "self", targeting: { type: "line_15ft" } }
     ];
     const actor = {
-      known_spell_ids: ["fire_bolt", "bless", "shield", "light"]
+      known_spell_ids: ["fire_bolt", "bless", "shield", "light", "lightning_bolt"]
     };
 
     const partition = listActorCombatMapSpells({ actor, spells });
 
-    assert.deepEqual(partition.supported.map((entry) => entry.spell_id), ["fire_bolt"]);
-    assert.equal(partition.unsupported.length, 3);
-    assert.equal(partition.unsupported.some((entry) => entry.name === "Bless"), true);
+    assert.deepEqual(partition.supported.map((entry) => entry.spell_id), ["fire_bolt", "light", "bless", "shield", "lightning_bolt"]);
+    assert.equal(partition.unsupported.length, 0);
   }, results);
 
   runTest("combat_map_spell_support_reports_reasons_for_unsupported_spells", () => {
@@ -1435,16 +1637,31 @@ function runMapSystemTests() {
       casting_time: "1 reaction",
       targeting: { type: "self" }
     });
+    const lineSupport = getCombatMapSpellSupport({
+      spell_id: "lightning_bolt",
+      name: "Lightning Bolt",
+      casting_time: "1 action",
+      targeting: { type: "line_15ft" }
+    });
+    const unsupportedSupport = getCombatMapSpellSupport({
+      spell_id: "mystery_spell",
+      name: "Mystery Spell",
+      casting_time: "1 action",
+      targeting: { type: "hexagon_30ft" }
+    });
     const partition = partitionCombatMapSpells([
       { spell_id: "fire_bolt", name: "Fire Bolt", casting_time: "1 action", targeting: { type: "single_target" } },
-      { spell_id: "shield", name: "Shield", casting_time: "1 reaction", targeting: { type: "self" } }
+      { spell_id: "shield", name: "Shield", casting_time: "1 reaction", targeting: { type: "self" } },
+      { spell_id: "mystery_spell", name: "Mystery Spell", casting_time: "1 action", targeting: { type: "hexagon_30ft" } }
     ]);
 
-    assert.equal(blessSupport.supported, false);
-    assert.equal(String(blessSupport.reason).includes("supported map-mode spell slice"), true);
-    assert.equal(shieldSupport.supported, false);
-    assert.equal(String(shieldSupport.reason).includes("1-action combat spells"), true);
-    assert.deepEqual(partition.supported.map((entry) => entry.spell_id), ["fire_bolt"]);
+    assert.equal(blessSupport.supported, true);
+    assert.equal(shieldSupport.supported, true);
+    assert.equal(lineSupport.supported, true);
+    assert.equal(unsupportedSupport.supported, false);
+    assert.equal(String(unsupportedSupport.reason).includes("does not understand yet"), true);
+    assert.deepEqual(partition.supported.map((entry) => entry.spell_id), ["fire_bolt", "shield"]);
+    assert.deepEqual(partition.unsupported.map((entry) => entry.spell_id), ["mystery_spell"]);
   }, results);
 
   runTest("spell_preview_state_returns_targets_and_area_spec", () => {
@@ -1473,8 +1690,86 @@ function runMapSystemTests() {
     assert.equal(out.payload.overlays.length, 1);
   }, results);
 
-  runTest("spell_preview_state_rejects_unsupported_map_mode_spells", () => {
+  runTest("spell_preview_state_reports_invalid_target_reasons_and_tile_summaries", () => {
     const map = createTestMap();
+    map.blocked_tiles = [];
+    map.terrain = [
+      { x: 1, y: 0, terrain_type: "tree", blocks_sight: true }
+    ];
+    map.terrain_zones = [];
+    map.tokens[0].team = "heroes";
+    map.tokens[0].position = { x: 0, y: 0 };
+    map.tokens[1].team = "monsters";
+    map.tokens[1].position = { x: 0, y: 2 };
+    map.tokens.push({
+      token_id: "ally-1",
+      token_type: "player",
+      label: "A",
+      team: "heroes",
+      position: { x: 0, y: 1 }
+    });
+    map.tokens.push({
+      token_id: "enemy-hidden",
+      token_type: "enemy",
+      label: "X",
+      team: "monsters",
+      position: { x: 2, y: 0 }
+    });
+
+    const fireBolt = buildSpellPreviewState({
+      map,
+      actor: map.tokens[0],
+      spells: [
+        {
+          spell_id: "fire_bolt",
+          name: "Fire Bolt",
+          range: "120 feet",
+          targeting: { type: "single_target" }
+        }
+      ],
+      spell_id: "fire_bolt"
+    });
+
+    const shatter = buildSpellPreviewState({
+      map,
+      actor: map.tokens[0],
+      spells: [
+        {
+          spell_id: "shatter",
+          name: "Shatter",
+          range: "10 feet",
+          targeting: { type: "sphere_10ft" }
+        }
+      ],
+      spell_id: "shatter"
+    });
+
+    assert.equal(
+      fireBolt.payload.invalid_targets.some((entry) => entry.token_id === "ally-1" && entry.reason_summary === "enemy only"),
+      true
+    );
+    assert.equal(
+      fireBolt.payload.invalid_targets.some((entry) => entry.token_id === "enemy-hidden" && entry.reason_summary === "line of sight blocked"),
+      true
+    );
+    assert.equal(
+      shatter.payload.invalid_target_tile_summary.some((entry) => entry.label === "out of range" && entry.count > 0),
+      true
+    );
+  }, results);
+
+  runTest("spell_preview_state_supports_multi_target_ally_spells", () => {
+    const map = createTestMap();
+    map.tokens[0].team = "heroes";
+    map.tokens[1].team = "heroes";
+    map.tokens[1].position = { x: 1, y: 0 };
+    map.tokens.push({
+      token_id: "ally-2",
+      token_type: "player",
+      label: "B",
+      team: "heroes",
+      position: { x: 0, y: 1 }
+    });
     const out = buildSpellPreviewState({
       map,
       actor: map.tokens[0],
@@ -1490,8 +1785,12 @@ function runMapSystemTests() {
       spell_id: "bless"
     });
 
-    assert.equal(out.ok, false);
-    assert.equal(String(out.error).includes("supported map-mode spell slice"), true);
+    assert.equal(out.ok, true);
+    assert.deepEqual(
+      out.payload.valid_targets.map((entry) => entry.token_id).sort(),
+      ["ally-2", "enemy-1", "hero-1"].sort()
+    );
+    assert.equal(out.payload.profile.max_targets, 3);
   }, results);
 
   runTest("spell_preview_state_builds_area_overlay_tiles_for_targeted_aoe", () => {
@@ -1596,6 +1895,44 @@ function runMapSystemTests() {
     assert.equal(out.payload.confirmed_area_tiles.length > 0, true);
   }, results);
 
+  runTest("line_spell_preview_and_confirmation_preserve_line_width_tiles", () => {
+    const map = createTestMap();
+    map.tokens[0].team = "heroes";
+    map.tokens[0].position = { x: 0, y: 0 };
+
+    const spells = [
+      {
+        spell_id: "lightning_lance",
+        name: "Lightning Lance",
+        range: "self",
+        targeting: { type: "line_15ft_10ft" }
+      }
+    ];
+
+    const preview = buildSpellPreviewState({
+      map,
+      actor: map.tokens[0],
+      spells,
+      spell_id: "lightning_lance",
+      target_position: { x: 4, y: 0 }
+    });
+    const confirmation = confirmSpellSelection({
+      map,
+      actor: map.tokens[0],
+      spells,
+      spell_id: "lightning_lance",
+      target_position: preview.ok ? preview.payload.target_position : null,
+      confirmed_area_tiles: preview.ok ? preview.payload.confirmed_area_tiles : []
+    });
+
+    assert.equal(preview.ok, true);
+    assert.equal(preview.payload.confirmed_area_tiles.some((tile) => tile.x === 1 && tile.y === 1), true);
+    assert.equal(preview.payload.confirmed_area_tiles.some((tile) => tile.x === 3 && tile.y === 1), true);
+    assert.equal(preview.payload.area_overlay.width_feet, 10);
+    assert.equal(confirmation.ok, true);
+    assert.equal(confirmation.payload.confirmed_area_tiles.some((tile) => tile.x === 2 && tile.y === 1), true);
+  }, results);
+
   runTest("split_target_spells_accumulate_multiple_target_selections", () => {
     const map = createTestMap();
     map.tokens[0].team = "heroes";
@@ -1659,6 +1996,248 @@ function runMapSystemTests() {
     assert.deepEqual(first.payload.selected_targets, ["enemy-1"]);
     assert.deepEqual(second.payload.selected_targets, ["enemy-1", "enemy-1"]);
     assert.deepEqual(third.payload.selected_targets, ["enemy-1", "enemy-1", "enemy-2"]);
+  }, results);
+
+  runTest("ally_split_target_spells_allow_up_to_three_unique_targets", () => {
+    const map = createTestMap();
+    map.tokens[0].team = "heroes";
+    map.tokens[1].team = "heroes";
+    map.tokens[1].position = { x: 1, y: 0 };
+    map.tokens.push({
+      token_id: "ally-2",
+      token_type: "player",
+      position: { x: 0, y: 1 },
+      team: "heroes"
+    });
+    map.tokens.push({
+      token_id: "ally-3",
+      token_type: "player",
+      position: { x: 1, y: 2 },
+      team: "heroes"
+    });
+
+    const spells = [
+      {
+        spell_id: "bless",
+        name: "Bless",
+        range: "30 feet",
+        targeting: { type: "up_to_three_allies" }
+      }
+    ];
+
+    const first = selectSpellTarget({
+      map,
+      actor: map.tokens[0],
+      spells,
+      spell_id: "bless",
+      target_token_ref: "enemy-1"
+    });
+    const second = selectSpellTarget({
+      map,
+      actor: map.tokens[0],
+      spells,
+      spell_id: "bless",
+      target_token_ref: "ally-2",
+      existing_selected_targets: first.payload.selected_targets
+    });
+    const duplicate = selectSpellTarget({
+      map,
+      actor: map.tokens[0],
+      spells,
+      spell_id: "bless",
+      target_token_ref: "enemy-1",
+      existing_selected_targets: second.payload.selected_targets
+    });
+    const third = selectSpellTarget({
+      map,
+      actor: map.tokens[0],
+      spells,
+      spell_id: "bless",
+      target_token_ref: "ally-3",
+      existing_selected_targets: second.payload.selected_targets
+    });
+    const overflow = selectSpellTarget({
+      map,
+      actor: map.tokens[0],
+      spells,
+      spell_id: "bless",
+      target_token_ref: "hero-1",
+      existing_selected_targets: third.payload.selected_targets
+    });
+
+    assert.equal(first.ok, true);
+    assert.deepEqual(first.payload.selected_targets, ["enemy-1"]);
+    assert.equal(second.ok, true);
+    assert.deepEqual(second.payload.selected_targets, ["enemy-1", "ally-2"]);
+    assert.equal(duplicate.ok, true);
+    assert.deepEqual(duplicate.payload.selected_targets, ["enemy-1", "ally-2"]);
+    assert.equal(third.ok, true);
+    assert.deepEqual(third.payload.selected_targets, ["enemy-1", "ally-2", "ally-3"]);
+    assert.equal(overflow.ok, false);
+    assert.equal(String(overflow.error).includes("maximum spell targets"), true);
+  }, results);
+
+  runTest("adjacent_pair_spells_require_adjacent_second_target", () => {
+    const map = createTestMap();
+    map.tokens[0].team = "heroes";
+    map.tokens[1].team = "monsters";
+    map.tokens[1].position = { x: 1, y: 0 };
+    map.tokens.push({
+      token_id: "enemy-2",
+      token_type: "enemy",
+      position: { x: 1, y: 1 },
+      team: "monsters"
+    });
+    map.tokens.push({
+      token_id: "enemy-3",
+      token_type: "enemy",
+      position: { x: 4, y: 4 },
+      team: "monsters"
+    });
+
+    const spells = [
+      {
+        spell_id: "acid_splash",
+        name: "Acid Splash",
+        range: "60 feet",
+        targeting: { type: "single_or_adjacent_pair" }
+      }
+    ];
+
+    const first = selectSpellTarget({
+      map,
+      actor: map.tokens[0],
+      spells,
+      spell_id: "acid_splash",
+      target_token_ref: "enemy-1"
+    });
+    const adjacent = selectSpellTarget({
+      map,
+      actor: map.tokens[0],
+      spells,
+      spell_id: "acid_splash",
+      target_token_ref: "enemy-2",
+      existing_selected_targets: first.payload.selected_targets
+    });
+    const distant = selectSpellTarget({
+      map,
+      actor: map.tokens[0],
+      spells,
+      spell_id: "acid_splash",
+      target_token_ref: "enemy-3",
+      existing_selected_targets: first.payload.selected_targets
+    });
+
+    assert.equal(first.ok, true);
+    assert.deepEqual(first.payload.selected_targets, ["enemy-1"]);
+    assert.equal(adjacent.ok, true);
+    assert.deepEqual(adjacent.payload.selected_targets, ["enemy-1", "enemy-2"]);
+    assert.equal(distant.ok, false);
+    assert.equal(String(distant.error).includes("adjacent"), true);
+  }, results);
+
+  runTest("self_centered_area_spells_preview_and_confirm_without_manual_tile_selection", () => {
+    const map = createTestMap();
+    map.tokens[0].team = "heroes";
+    map.tokens[0].position = { x: 1, y: 1 };
+    map.tokens[1].team = "monsters";
+    map.tokens[1].position = { x: 2, y: 1 };
+
+    const spells = [
+      {
+        spell_id: "spirit_guardians",
+        name: "Spirit Guardians",
+        range: "self",
+        targeting: { type: "aura_15ft" }
+      }
+    ];
+
+    const preview = buildSpellPreviewState({
+      map,
+      actor: map.tokens[0],
+      spells,
+      spell_id: "spirit_guardians"
+    });
+    const confirmation = confirmSpellSelection({
+      map,
+      actor: map.tokens[0],
+      spells,
+      spell_id: "spirit_guardians",
+      selected_targets: preview.ok ? preview.payload.selected_targets : [],
+      target_position: preview.ok ? preview.payload.target_position : null,
+      confirmed_area_tiles: preview.ok ? preview.payload.confirmed_area_tiles : []
+    });
+
+    assert.equal(preview.ok, true);
+    assert.deepEqual(preview.payload.target_position, { x: 1, y: 1 });
+    assert.equal(preview.payload.confirmed_area_tiles.length > 0, true);
+    assert.equal(confirmation.ok, true);
+    assert.deepEqual(confirmation.payload.target_position, { x: 1, y: 1 });
+  }, results);
+
+  runTest("object_target_spells_only_offer_object_tokens", () => {
+    const map = createTestMap();
+    map.tokens[0].team = "heroes";
+    map.tokens.push({
+      token_id: "torch-1",
+      token_type: "object",
+      label: "T",
+      position: { x: 1, y: 0 },
+      team: ""
+    });
+
+    const preview = buildSpellPreviewState({
+      map,
+      actor: map.tokens[0],
+      spells: [
+        {
+          spell_id: "light",
+          name: "Light",
+          range: "touch",
+          targeting: { type: "object" }
+        }
+      ],
+      spell_id: "light"
+    });
+
+    assert.equal(preview.ok, true);
+    assert.deepEqual(preview.payload.valid_targets.map((entry) => entry.token_id), ["torch-1"]);
+    assert.equal(
+      preview.payload.invalid_targets.some((entry) => entry.token_id === "hero-1" && entry.reason_summary === "object only"),
+      true
+    );
+  }, results);
+
+  runTest("utility_spells_preview_and_confirm_without_targets", () => {
+    const map = createTestMap();
+    map.tokens[0].team = "heroes";
+
+    const spells = [
+      {
+        spell_id: "detect_magic",
+        name: "Detect Magic",
+        range: "self",
+        targeting: { type: "utility" }
+      }
+    ];
+
+    const preview = buildSpellPreviewState({
+      map,
+      actor: map.tokens[0],
+      spells,
+      spell_id: "detect_magic"
+    });
+    const confirmation = confirmSpellSelection({
+      map,
+      actor: map.tokens[0],
+      spells,
+      spell_id: "detect_magic"
+    });
+
+    assert.equal(preview.ok, true);
+    assert.equal(preview.payload.valid_targets.length, 0);
+    assert.equal(preview.payload.valid_target_tiles.length, 0);
+    assert.equal(confirmation.ok, true);
   }, results);
 
   runTest("spell_confirmation_validates_selection_count", () => {
@@ -1735,8 +2314,9 @@ function runMapSystemTests() {
     });
 
     assert.equal(payload.message_id, "message-1");
-  assert.equal(payload.components.length, 1);
-  assert.equal(payload.components[0].components.length, 4);
+    assert.equal(payload.components.length, 2);
+    assert.equal(payload.components[0].components.length, 4);
+    assert.equal(payload.components[1].components.some((button) => button.label === "Terrain"), true);
     assert.equal(payload.content.includes("Turn: P1"), true);
     assert.equal(payload.content.includes("Mode: Ready"), true);
   }, results);
@@ -1752,9 +2332,10 @@ function runMapSystemTests() {
       ]
     });
 
-    assert.equal(payload.components.length, 2);
+    assert.equal(payload.components.length, 3);
     assert.equal(payload.components[0].components.length, 2);
     assert.equal(payload.components[1].components[0].label, "Back");
+    assert.equal(payload.components[2].components.some((button) => button.label === "Coords"), true);
   }, results);
 
   runTest("token_selection_message_payload_pages_large_choice_sets", () => {
@@ -1770,7 +2351,7 @@ function runMapSystemTests() {
     });
 
     assert.equal(payload.components.length, 5);
-    assert.equal(payload.components[4].components.some((button) => button.label === "Next"), true);
+    assert.equal(payload.components.some((row) => row.components.some((button) => button.label === "Next")), true);
   }, results);
 
   runTest("spell_selection_message_payload_contains_spell_buttons", () => {
@@ -1784,9 +2365,99 @@ function runMapSystemTests() {
       ]
     });
 
-    assert.equal(payload.components.length, 2);
+    assert.equal(payload.components.length, 3);
     assert.equal(payload.components[0].components.length, 2);
     assert.equal(payload.components[1].components[0].label, "Back");
+    assert.equal(payload.components[2].components.some((button) => button.label === "Walls"), true);
+  }, results);
+
+  runTest("move_preview_message_payload_contains_destination_buttons_and_confirm", () => {
+    const payload = buildMovePreviewMessagePayload({
+      actor_id: "actor-1",
+      instance_type: "combat",
+      instance_id: "combat-1",
+      movement_speed_feet: 30,
+      reachable_tiles: [
+        { x: 1, y: 0, movement_cost_feet: 5, remaining_movement_feet: 25 },
+        { x: 1, y: 1, movement_cost_feet: 10, remaining_movement_feet: 20 }
+      ],
+      selected_target_position: { x: 1, y: 1 },
+      selected_target: { x: 1, y: 1, movement_cost_feet: 10, remaining_movement_feet: 20 }
+    });
+
+    assert.equal(payload.components.length, 3);
+    assert.equal(payload.components[0].components[0].label, "1,0 (5ft)");
+    assert.equal(payload.components[1].components[0].label, "Confirm Move");
+    assert.equal(payload.components[2].components.some((button) => button.label === "Terrain"), true);
+    assert.equal(String(payload.content).includes("Speed: 30 ft"), true);
+    assert.equal(String(payload.content).includes("Cost 10 ft"), true);
+  }, results);
+
+  runTest("attack_and_spell_preview_messages_surface_invalid_reason_summaries", () => {
+    const attackPayload = buildAttackPreviewMessagePayload({
+      actor_id: "actor-1",
+      instance_type: "combat",
+      instance_id: "combat-1",
+      valid_targets: [{ token_id: "enemy-1", name: "Goblin 1" }],
+      invalid_targets: [{ token_id: "ally-1", name: "Bramble", reason_summary: "not a valid attack target" }],
+      selected_target_id: "enemy-1"
+    });
+    const spellPayload = buildSpellPreviewMessagePayload({
+      actor_id: "actor-1",
+      instance_type: "combat",
+      instance_id: "combat-1",
+      spell_id: "shatter",
+      spell_name: "Shatter",
+      valid_target_tiles: [{ x: 1, y: 1 }],
+      invalid_target_tile_summary: [{ label: "out of range", count: 8 }],
+      can_confirm: false
+    });
+
+    assert.equal(String(attackPayload.content).includes("Unavailable: Bramble (not a valid attack target)"), true);
+    assert.equal(String(spellPayload.content).includes("Unavailable points: 8 out of range"), true);
+  }, results);
+
+  runTest("spell_preview_message_payload_describes_self_centered_and_utility_spells", () => {
+    const selfCenteredPayload = buildSpellPreviewMessagePayload({
+      actor_id: "actor-1",
+      instance_type: "combat",
+      instance_id: "combat-1",
+      spell_id: "spirit_guardians",
+      spell_name: "Spirit Guardians",
+      range_feet: 0,
+      spell_shape: "aura",
+      area_size_feet: 15,
+      self_centered_area: true,
+      target_position: { x: 1, y: 1 },
+      can_confirm: true
+    });
+    const utilityPayload = buildSpellPreviewMessagePayload({
+      actor_id: "actor-1",
+      instance_type: "combat",
+      instance_id: "combat-1",
+      spell_id: "detect_magic",
+      spell_name: "Detect Magic",
+      range_feet: 0,
+      spell_shape: "utility",
+      can_confirm: true
+    });
+    const linePayload = buildSpellPreviewMessagePayload({
+      actor_id: "actor-1",
+      instance_type: "combat",
+      instance_id: "combat-1",
+      spell_id: "lightning_bolt",
+      spell_name: "Lightning Bolt",
+      range_feet: 0,
+      spell_shape: "line",
+      area_size_feet: 100,
+      line_width_feet: 5,
+      valid_target_tiles: [{ x: 2, y: 1 }],
+      can_confirm: false
+    });
+
+    assert.equal(String(selfCenteredPayload.content).includes("This spell is centered on you"), true);
+    assert.equal(String(utilityPayload.content).includes("No target selection is required"), true);
+    assert.equal(String(linePayload.content).includes("100 ft x 5 ft line"), true);
   }, results);
 
   runTest("spell_preview_message_payload_contains_confirm_button", () => {
@@ -1796,14 +2467,42 @@ function runMapSystemTests() {
       instance_id: "combat-1",
       spell_id: "fire_bolt",
       spell_name: "Fire Bolt",
-      valid_targets: [{ token_id: "enemy-1" }],
+      valid_targets: [{ token_id: "enemy-1", name: "Goblin 1" }],
       selected_targets: ["enemy-1"],
       can_confirm: true
     });
 
-    assert.equal(payload.components.length, 2);
-    assert.equal(payload.components[0].components[0].label, "enemy-1");
+    assert.equal(payload.components.length, 3);
+    assert.equal(payload.components[0].components[0].label, "Goblin 1");
     assert.equal(payload.components[1].components[0].label, "Confirm Spell");
+    assert.equal(payload.components[2].components.some((button) => button.label === "Cover"), true);
+  }, results);
+
+  runTest("spell_preview_message_payload_uses_tile_buttons_for_area_targeting", () => {
+    const payload = buildSpellPreviewMessagePayload({
+      actor_id: "actor-1",
+      instance_type: "combat",
+      instance_id: "combat-1",
+      spell_id: "shatter",
+      spell_name: "Shatter",
+      range_feet: 60,
+      spell_shape: "sphere",
+      area_size_feet: 10,
+      valid_target_tiles: [
+        { x: 3, y: 2, distance_feet: 15, line_of_sight: true },
+        { x: 4, y: 2, distance_feet: 20, line_of_sight: true }
+      ],
+      target_position: { x: 3, y: 2 },
+      target_position_details: { x: 3, y: 2, distance_feet: 15, line_of_sight: true },
+      affected_units: ["Goblin 1"],
+      can_confirm: true
+    });
+
+    assert.equal(payload.components.length, 3);
+    assert.equal(payload.components[0].components[0].label, "3,2");
+    assert.equal(String(payload.content).includes("Affected units: Goblin 1"), true);
+    assert.equal(String(payload.content).includes("Blue tiles = spell range"), true);
+    assert.equal(payload.components[2].components.some((button) => button.label === "Walls"), true);
   }, results);
 
   runTest("spell_preview_message_payload_pages_large_target_sets", () => {
@@ -1821,7 +2520,7 @@ function runMapSystemTests() {
     });
 
     assert.equal(payload.components.length, 5);
-    assert.equal(payload.components[4].components.some((button) => button.label === "Next"), true);
+    assert.equal(payload.components.some((row) => row.components.some((button) => button.label === "Next")), true);
   }, results);
 
   runTest("attack_preview_message_payload_contains_confirm_button", () => {
@@ -1829,13 +2528,14 @@ function runMapSystemTests() {
       actor_id: "actor-1",
       instance_type: "combat",
       instance_id: "combat-1",
-      valid_targets: [{ token_id: "enemy-1" }],
+      valid_targets: [{ token_id: "enemy-1", name: "Goblin 1" }],
       selected_target_id: "enemy-1"
     });
 
-    assert.equal(payload.components.length, 2);
-    assert.equal(payload.components[0].components[0].label, "enemy-1");
+    assert.equal(payload.components.length, 3);
+    assert.equal(payload.components[0].components[0].label, "Goblin 1");
     assert.equal(payload.components[1].components[0].label, "Confirm Attack");
+    assert.equal(payload.components[2].components.some((button) => button.label === "Terrain"), true);
   }, results);
 
   runTest("interaction_controller_enters_move_mode_from_button", () => {
@@ -1881,7 +2581,82 @@ function runMapSystemTests() {
 
     assert.equal(out.ok, true);
     assert.equal(out.preview.overlays[0].metadata.max_cost_feet, 15);
-    assert.equal(out.payload.content.includes("Speed: 15 feet"), true);
+    assert.equal(out.payload.content.includes("Speed: 15 ft"), true);
+  }, results);
+
+  runTest("interaction_controller_selects_move_destination_from_button_before_confirm", () => {
+    const map = createTestMap();
+    map.tokens[0].actor_id = "actor-1";
+    const first = handleButtonAction({
+      map,
+      actor_id: "actor-1",
+      instance_id: "combat-1",
+      instance_type: "combat",
+      message_id: "message-1"
+    }, buildMapButtonCustomId({
+      action: "move",
+      instance_type: "combat",
+      instance_id: "combat-1",
+      actor_id: "actor-1"
+    }));
+
+    const second = handleButtonAction({
+      map,
+      actor_id: "actor-1",
+      instance_id: "combat-1",
+      instance_type: "combat",
+      message_id: "message-1",
+      state: first.state
+    }, buildMapButtonCustomId({
+      action: "move_target,1,0",
+      instance_type: "combat",
+      instance_id: "combat-1",
+      actor_id: "actor-1"
+    }));
+
+    assert.equal(second.ok, true);
+    assert.equal(second.state.mode, INTERACTION_MODES.MOVE);
+    assert.deepEqual(second.preview.selected_target_position, { x: 1, y: 0 });
+    assert.equal(second.payload.content.includes("Cost 5 ft"), true);
+    assert.equal(second.preview.overlays.some((overlay) => overlay.kind === "selection"), true);
+  }, results);
+
+  runTest("interaction_controller_confirms_move_after_button_selection", () => {
+    const map = createTestMap();
+    map.tokens[0].actor_id = "actor-1";
+    const selected = handleButtonAction({
+      map,
+      actor_id: "actor-1",
+      instance_id: "combat-1",
+      instance_type: "combat",
+      message_id: "message-1",
+      state: {
+        mode: INTERACTION_MODES.MOVE,
+        actor_id: "actor-1",
+        instance_id: "combat-1",
+        instance_type: "combat",
+        pending: {
+          preview: {
+            movement_speed_feet: 30,
+            reachable_tiles: [
+              { x: 1, y: 0, movement_cost_feet: 5, remaining_movement_feet: 25 }
+            ],
+            selected_target_position: { x: 1, y: 0 },
+            selected_target: { x: 1, y: 0, movement_cost_feet: 5, remaining_movement_feet: 25 },
+            overlays: []
+          }
+        }
+      }
+    }, buildMapButtonCustomId({
+      action: "move_confirm",
+      instance_type: "combat",
+      instance_id: "combat-1",
+      actor_id: "actor-1"
+    }));
+
+    assert.equal(selected.ok, true);
+    assert.equal(selected.action_contract.action_type, MAP_ACTION_TYPES.MOVE_TO_COORDINATE);
+    assert.deepEqual(selected.action_contract.payload.target_position, { x: 1, y: 0 });
   }, results);
 
   runTest("actor_movement_overlay_reads_enemy_speed_from_shared_reader", () => {
@@ -2027,6 +2802,42 @@ function runMapSystemTests() {
     assert.equal(out.preview.overlays.some((overlay) => overlay.kind === "spell_area"), true);
   }, results);
 
+  runTest("interaction_controller_applies_spell_target_tile_selection_from_button", () => {
+    const map = createTestMap();
+    map.tokens[0].actor_id = "actor-1";
+    map.tokens[0].team = "heroes";
+    map.tokens[0].position = { x: 1, y: 1 };
+    map.tokens[1].team = "monsters";
+    map.tokens[1].position = { x: 3, y: 2 };
+
+    const out = handleButtonAction({
+      map,
+      actor_id: "actor-1",
+      instance_id: "combat-1",
+      instance_type: "combat",
+      spells: [
+        {
+          spell_id: "shatter",
+          name: "Shatter",
+          range: "60 feet",
+          targeting: { type: "sphere_10ft" }
+        }
+      ]
+    }, buildMapButtonCustomId({
+      action: "spell_target_tile,shatter,3,2",
+      instance_type: "combat",
+      instance_id: "combat-1",
+      actor_id: "actor-1"
+    }));
+
+    assert.equal(out.ok, true);
+    assert.equal(out.state.mode, INTERACTION_MODES.SPELL_PREVIEW);
+    assert.deepEqual(out.preview.target_position, { x: 3, y: 2 });
+    assert.equal(out.preview.valid_target_tiles.length > 0, true);
+    assert.equal(out.preview.overlays.some((overlay) => overlay.kind === "spell_area"), true);
+    assert.equal(out.payload.content.includes("Affected units: enemy-1"), true);
+  }, results);
+
   runTest("interaction_controller_applies_spell_target_token_selection_from_button", () => {
     const map = createTestMap();
     map.tokens[0].actor_id = "actor-1";
@@ -2096,6 +2907,44 @@ function runMapSystemTests() {
 
     assert.equal(second.ok, true);
     assert.equal(second.state.pending.page, 2);
+  }, results);
+
+  runTest("interaction_controller_toggles_debug_overlays_without_losing_preview_state", () => {
+    const map = createTestMap();
+    map.tokens[0].actor_id = "actor-1";
+
+    const first = handleButtonAction({
+      map,
+      actor_id: "actor-1",
+      instance_id: "combat-1",
+      instance_type: "combat",
+      message_id: "message-1"
+    }, buildMapButtonCustomId({
+      action: "move",
+      instance_type: "combat",
+      instance_id: "combat-1",
+      actor_id: "actor-1"
+    }));
+
+    const second = handleButtonAction({
+      map,
+      actor_id: "actor-1",
+      instance_id: "combat-1",
+      instance_type: "combat",
+      message_id: "message-1",
+      state: first.state
+    }, buildMapButtonCustomId({
+      action: "debug_toggle,coords",
+      instance_type: "combat",
+      instance_id: "combat-1",
+      actor_id: "actor-1"
+    }));
+
+    assert.equal(second.ok, true);
+    assert.equal(second.state.mode, INTERACTION_MODES.MOVE);
+    assert.equal(second.state.debug_flags.coords, true);
+    assert.equal(Boolean(second.state.pending && second.state.pending.preview), true);
+    assert.equal(String(second.payload.content).includes("Debug overlays: Coords"), true);
   }, results);
 
   runTest("interaction_controller_accumulates_split_spell_targets_until_confirmable", () => {
@@ -2613,7 +3462,52 @@ function runMapSystemTests() {
 
     const svg = renderMapSvg(map, {});
     assert.equal(svg.includes('stroke="#ff3b30"'), true);
-    assert.equal(svg.includes('fill="#ffd6d1">G1</text>'), true);
+    assert.equal(svg.includes('fill="#ffd6d1"'), true);
+    assert.equal(svg.includes('>G1</text>'), true);
+  }, results);
+
+  runTest("svg_renderer_draws_hp_chip_and_active_token_ring", () => {
+    const map = createTestMap();
+    map.tokens = [
+      {
+        token_id: "hero-status",
+        token_type: "player",
+        label: "H1",
+        badge_text: "9/12",
+        badge_color: "#111827",
+        badge_text_color: "#ffffff",
+        active_tile_color: "#ffd166",
+        position: { x: 0, y: 0 }
+      }
+    ];
+
+    const svg = renderMapSvg(map, {});
+    assert.equal(svg.includes('stroke="#ffd166"'), true);
+    assert.equal(svg.includes('>H1</text>'), true);
+    assert.equal(svg.includes('>9/12</text>'), true);
+  }, results);
+
+  runTest("svg_renderer_draws_debug_overlays_when_enabled", () => {
+    const map = createTestMap();
+    map.blocked_tiles = [];
+    map.terrain = [
+      { x: 1, y: 1, terrain_type: "brush", movement_cost: 2, cover_level: "half" }
+    ];
+    map.edge_walls = [
+      { x: 1, y: 1, side: "north", blocks_movement: true, blocks_sight: true }
+    ];
+    map.render_debug = {
+      terrain: true,
+      cover: true,
+      walls: true,
+      coords: true
+    };
+
+    const svg = renderMapSvg(map, {});
+    assert.equal(svg.includes(">1,1</text>"), true);
+    assert.equal(svg.includes(">MV2</text>"), true);
+    assert.equal(svg.includes(">+2</text>"), true);
+    assert.equal(svg.includes('stroke="#06b6d4"'), true);
   }, results);
 
   runTest("svg_renderer_centers_image_tokens_inside_rectangular_grid_cells", () => {

@@ -5,7 +5,12 @@ const { SPELL_TARGETING_SHAPES } = require("../constants");
 const SUPPORTED_TARGET_TYPES = new Set([
   "self",
   "single_target",
-  "single_or_split_target"
+  "single_or_split_target",
+  "single_or_adjacent_pair",
+  "up_to_three_allies",
+  "up_to_three_enemies",
+  "utility",
+  "object"
 ]);
 
 function cleanText(value) {
@@ -29,14 +34,14 @@ function normalizeSpellId(spell) {
 }
 
 function isSupportedAreaTargetType(targetType) {
-  return /^(cone|cube|sphere|line)_\d+ft$/.test(String(targetType || ""));
+  return /^(cone|cube|sphere|aura)_\d+(ft)?$/.test(String(targetType || "")) ||
+    /^line_\d+(ft)?(?:_\d+(ft)?)?$/.test(String(targetType || ""));
 }
 
 function getCombatMapSpellSupport(spell) {
   const spellId = normalizeSpellId(spell);
-  const name = cleanText(spell && spell.name, spellId || "Unknown Spell");
+  const name = cleanText(spell && spell.name) || spellId || "Unknown Spell";
   const targetType = normalizeTargetType(spell);
-  const castingTime = normalizeCastingTime(spell);
 
   if (!spellId) {
     return {
@@ -45,24 +50,10 @@ function getCombatMapSpellSupport(spell) {
     };
   }
 
-  if (castingTime && castingTime !== "1 action") {
-    return {
-      supported: false,
-      reason: `${name} uses ${castingTime}, and map mode currently supports 1-action combat spells only.`
-    };
-  }
-
   if (!targetType) {
     return {
       supported: false,
-      reason: `${name} does not expose a supported targeting profile yet.`
-    };
-  }
-
-  if (targetType === "utility" || targetType === "object") {
-    return {
-      supported: false,
-      reason: `${name} is not a combat targeting spell for map mode.`
+      reason: `${name} does not expose targeting metadata the map-system interpreter can use yet.`
     };
   }
 
@@ -75,7 +66,7 @@ function getCombatMapSpellSupport(spell) {
 
   return {
     supported: false,
-    reason: `${name} uses ${targetType}, which is not in the current supported map-mode spell slice.`
+    reason: `${name} uses ${targetType}, which the map-system interpreter does not understand yet.`
   };
 }
 
@@ -88,7 +79,7 @@ function partitionCombatMapSpells(spells) {
     } else {
       accumulator.unsupported.push({
         spell_id: normalizeSpellId(spell),
-        name: cleanText(spell && spell.name, normalizeSpellId(spell) || "Unknown Spell"),
+        name: cleanText(spell && spell.name) || normalizeSpellId(spell) || "Unknown Spell",
         reason: support.reason
       });
     }
@@ -116,9 +107,15 @@ function getSpellShapeHint(spell) {
   if (targetType === "self") return SPELL_TARGETING_SHAPES.SELF;
   if (targetType === "single_target") return SPELL_TARGETING_SHAPES.SINGLE;
   if (targetType === "single_or_split_target") return SPELL_TARGETING_SHAPES.SPLIT;
+  if (targetType === "single_or_adjacent_pair") return SPELL_TARGETING_SHAPES.SPLIT;
+  if (targetType === "up_to_three_allies") return SPELL_TARGETING_SHAPES.SPLIT;
+  if (targetType === "up_to_three_enemies") return SPELL_TARGETING_SHAPES.SPLIT;
+  if (targetType === "object") return SPELL_TARGETING_SHAPES.SINGLE;
+  if (targetType === "utility") return SPELL_TARGETING_SHAPES.UTILITY;
   if (targetType.startsWith("cone_")) return SPELL_TARGETING_SHAPES.CONE;
   if (targetType.startsWith("cube_")) return SPELL_TARGETING_SHAPES.CUBE;
   if (targetType.startsWith("sphere_")) return SPELL_TARGETING_SHAPES.SPHERE;
+  if (targetType.startsWith("aura_")) return SPELL_TARGETING_SHAPES.AURA;
   if (targetType.startsWith("line_")) return SPELL_TARGETING_SHAPES.LINE;
   return SPELL_TARGETING_SHAPES.NONE;
 }

@@ -901,6 +901,86 @@ function summarizeCombatProgression(outPayload) {
   };
 }
 
+function normalizeCombatSummaryTeam(value) {
+  const safe = String(value || "").trim().toLowerCase();
+  if (safe === "heroes" || safe === "players" || safe === "party") {
+    return "heroes";
+  }
+  if (safe === "monsters" || safe === "enemies") {
+    return "monsters";
+  }
+  return safe || "neutral";
+}
+
+function getCombatMarkerPrefix(team) {
+  const normalized = normalizeCombatSummaryTeam(team);
+  if (normalized === "heroes") {
+    return "H";
+  }
+  if (normalized === "monsters") {
+    return "M";
+  }
+  return "N";
+}
+
+function getCombatMarkerSortRank(team) {
+  const normalized = normalizeCombatSummaryTeam(team);
+  if (normalized === "heroes") {
+    return 0;
+  }
+  if (normalized === "monsters") {
+    return 1;
+  }
+  return 2;
+}
+
+function buildGatewayCombatParticipantMarkers(participants) {
+  const safeParticipants = Array.isArray(participants) ? participants.slice() : [];
+  const ordered = safeParticipants
+    .filter((entry) => entry && entry.participant_id)
+    .sort((left, right) => {
+      const leftRank = getCombatMarkerSortRank(left && left.team);
+      const rightRank = getCombatMarkerSortRank(right && right.team);
+      if (leftRank !== rightRank) {
+        return leftRank - rightRank;
+      }
+      return String(left && left.participant_id || "").localeCompare(String(right && right.participant_id || ""));
+    });
+
+  const counts = {
+    heroes: 0,
+    monsters: 0,
+    neutral: 0
+  };
+  const markers = new Map();
+
+  ordered.forEach((entry) => {
+    const participantId = String(entry && entry.participant_id || "");
+    if (!participantId) {
+      return;
+    }
+    const team = normalizeCombatSummaryTeam(entry && entry.team);
+    counts[team] = (counts[team] || 0) + 1;
+    markers.set(participantId, `${getCombatMarkerPrefix(team)}${counts[team]}`);
+  });
+
+  return markers;
+}
+
+function summarizeParticipantConcentrationForGateway(participant) {
+  const concentration = participant && participant.concentration && typeof participant.concentration === "object"
+    ? participant.concentration
+    : {};
+  return {
+    is_concentrating: concentration.is_concentrating === true,
+    source_spell_id: concentration.source_spell_id ? String(concentration.source_spell_id) : null,
+    started_at_round: Number.isFinite(Number(concentration.started_at_round))
+      ? Number(concentration.started_at_round)
+      : null,
+    broken_reason: concentration.broken_reason ? String(concentration.broken_reason) : null
+  };
+}
+
 function summarizeCombatStateForGateway(combat, activeParticipantId) {
   const safeCombat = combat && typeof combat === "object" ? combat : null;
   if (!safeCombat) {
@@ -908,37 +988,52 @@ function summarizeCombatStateForGateway(combat, activeParticipantId) {
   }
   const participants = Array.isArray(safeCombat.participants) ? safeCombat.participants : [];
   const conditions = Array.isArray(safeCombat.conditions) ? safeCombat.conditions : [];
+  const markers = buildGatewayCombatParticipantMarkers(participants);
+  const initiativeOrder = Array.isArray(safeCombat.initiative_order)
+    ? safeCombat.initiative_order.map((entry) => String(entry || "").trim()).filter(Boolean)
+    : [];
   return {
     combat_id: safeCombat.combat_id || null,
     status: safeCombat.status || null,
     round: Number.isFinite(Number(safeCombat.round)) ? Number(safeCombat.round) : 1,
+    turn_index: Number.isFinite(Number(safeCombat.turn_index)) ? Number(safeCombat.turn_index) : 0,
     active_participant_id: activeParticipantId || null,
     condition_count: conditions.length,
-    participants: participants.slice(0, 8).map((entry) => ({
-      participant_id: entry && entry.participant_id ? String(entry.participant_id) : null,
-      player_id: entry && entry.player_id ? String(entry.player_id) : null,
-      known_spell_ids:
-        entry &&
-        entry.spellbook &&
-        Array.isArray(entry.spellbook.known_spell_ids)
-          ? clone(entry.spellbook.known_spell_ids)
-          : [],
-      team: entry && entry.team ? String(entry.team) : null,
-      current_hp: Number.isFinite(Number(entry && entry.current_hp)) ? Number(entry.current_hp) : null,
-      max_hp: Number.isFinite(Number(entry && entry.max_hp)) ? Number(entry.max_hp) : null,
-      position: entry && entry.position ? clone(entry.position) : null,
-      defeated: Number(entry && entry.current_hp) <= 0,
-      action_available: entry && entry.action_available === true,
-      bonus_action_available: entry && entry.bonus_action_available === true,
-      reaction_available: entry && entry.reaction_available === true,
-      movement_remaining: Number.isFinite(Number(entry && entry.movement_remaining))
-        ? Number(entry.movement_remaining)
-        : null,
-      conditions: conditions
-        .filter((condition) => String(condition && condition.target_actor_id || "") === String(entry && entry.participant_id || ""))
-        .slice(0, 5)
-        .map((condition) => String(condition && condition.condition_type || condition && condition.condition_id || "condition"))
-    }))
+    initiative_order: clone(initiativeOrder),
+    participants: participants.slice(0, 8).map((entry) => {
+      const participantId = entry && entry.participant_id ? String(entry.participant_id) : null;
+      const participantConditions = conditions
+        .filter((condition) => String(condition && condition.target_actor_id || "") === String(participantId || ""))
+        .slice(0, 5);
+
+      return {
+        participant_id: participantId,
+        player_id: entry && entry.player_id ? String(entry.player_id) : null,
+        name: entry && entry.name ? String(entry.name) : null,
+        map_marker: participantId ? markers.get(participantId) || null : null,
+        known_spell_ids:
+          entry &&
+          entry.spellbook &&
+          Array.isArray(entry.spellbook.known_spell_ids)
+            ? clone(entry.spellbook.known_spell_ids)
+            : [],
+        team: entry && entry.team ? String(entry.team) : null,
+        current_hp: Number.isFinite(Number(entry && entry.current_hp)) ? Number(entry.current_hp) : null,
+        max_hp: Number.isFinite(Number(entry && entry.max_hp)) ? Number(entry.max_hp) : null,
+        position: entry && entry.position ? clone(entry.position) : null,
+        defeated: Number(entry && entry.current_hp) <= 0,
+        action_available: entry && entry.action_available === true,
+        bonus_action_available: entry && entry.bonus_action_available === true,
+        reaction_available: entry && entry.reaction_available === true,
+        movement_remaining: Number.isFinite(Number(entry && entry.movement_remaining))
+          ? Number(entry.movement_remaining)
+          : null,
+        condition_count: participantConditions.length,
+        concentration: summarizeParticipantConcentrationForGateway(entry),
+        conditions: participantConditions
+          .map((condition) => String(condition && condition.condition_type || condition && condition.condition_id || "condition"))
+      };
+    })
   };
 }
 
@@ -1735,7 +1830,11 @@ function handleCombatCommandDispatch(event, context) {
       attacker_id: attack.attacker_id || requestEvent.player_id || null,
       target_id: attack.target_id || null,
       hit: Boolean(attack.hit),
-      damage_dealt: attack.damage_dealt || 0,
+      damage_type: attack.damage_type || (attack.damage_result && attack.damage_result.damage_type) || null,
+      damage_dealt: attack.damage_dealt || (attack.damage_result && attack.damage_result.final_damage) || 0,
+      damage_result: attack.damage_result || null,
+      bonus_damage_results: Array.isArray(attack.bonus_damage_results) ? clone(attack.bonus_damage_results) : [],
+      reactive_damage_results: Array.isArray(attack.reactive_damage_results) ? clone(attack.reactive_damage_results) : [],
       target_hp_after: attack.target_hp_after,
       concentration_result: attack.concentration_result || null,
       active_participant_id: progress.active_participant_id,
@@ -1904,6 +2003,7 @@ function handleCombatCommandDispatch(event, context) {
       charges_before: useItem.charges_before,
       charges_after: useItem.charges_after,
       applied_conditions: Array.isArray(useItem.applied_conditions) ? clone(useItem.applied_conditions) : [],
+      removed_conditions: Array.isArray(useItem.removed_conditions) ? clone(useItem.removed_conditions) : [],
       active_participant_id: progress.active_participant_id,
       combat_completed: progress.combat_completed,
       winner_team: progress.winner_team,

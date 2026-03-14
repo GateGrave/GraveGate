@@ -48,7 +48,8 @@ const TARGET_AFFINITIES = Object.freeze({
   SELF: "self",
   ALLY: "ally",
   ENEMY: "enemy",
-  CREATURE: "creature"
+  CREATURE: "creature",
+  OBJECT: "object"
 });
 
 const SPELL_TARGETING_SHAPES = Object.freeze({
@@ -60,6 +61,7 @@ const SPELL_TARGETING_SHAPES = Object.freeze({
   CUBE: "cube",
   SPHERE: "sphere",
   LINE: "line",
+  AURA: "aura",
   UTILITY: "utility"
 });
 

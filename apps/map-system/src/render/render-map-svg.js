@@ -6,6 +6,13 @@ const { assertValidMapState } = require("../schema/map-state.schema");
 const { OVERLAY_KINDS } = require("../constants");
 const { buildTokenVisualProfile } = require("../tokens/token-catalog");
 const { resolveAssetPath } = require("../core/asset-path-utils");
+const { normalizeDebugFlags } = require("../interaction/debug-flags");
+const {
+  buildTerrainVisualTiles,
+  getCoverDebugLabel,
+  buildTerrainDebugLabel,
+  buildEdgeWallVisuals
+} = require("./render-visuals");
 
 function readPngDimensions(absolutePath) {
   const header = fs.readFileSync(absolutePath);
@@ -129,6 +136,133 @@ function renderGridLines(map, metrics) {
   return lines.join("\n");
 }
 
+function renderTerrainSemantics(map, metrics) {
+  return buildTerrainVisualTiles(map)
+    .map((tile) => {
+      const x = metrics.grid_origin_x + (tile.x * metrics.tile_width_px);
+      const y = metrics.grid_origin_y + (tile.y * metrics.tile_height_px);
+      const inset = Math.max(4, Math.round(Math.min(metrics.tile_width_px, metrics.tile_height_px) * 0.12));
+      const innerX = x + inset;
+      const innerY = y + inset;
+      const innerWidth = Math.max(6, metrics.tile_width_px - (inset * 2));
+      const innerHeight = Math.max(6, metrics.tile_height_px - (inset * 2));
+      const centerX = x + (metrics.tile_width_px / 2);
+      const centerY = y + (metrics.tile_height_px / 2);
+      const parts = [];
+
+      if (Number.isFinite(Number(tile.movement_cost)) && Number(tile.movement_cost) > 1 && tile.blocks_movement !== true) {
+        parts.push(`<rect x="${innerX}" y="${innerY}" width="${innerWidth}" height="${innerHeight}" rx="10" ry="10" fill="#8c6a35" fill-opacity="0.14" />`);
+        parts.push(`<line x1="${innerX + 3}" y1="${innerY + innerHeight - 4}" x2="${innerX + (innerWidth * 0.45)}" y2="${innerY + 4}" stroke="#8c6a35" stroke-opacity="0.45" stroke-width="2" stroke-linecap="round" />`);
+        parts.push(`<line x1="${innerX + (innerWidth * 0.3)}" y1="${innerY + innerHeight - 4}" x2="${innerX + (innerWidth * 0.75)}" y2="${innerY + 4}" stroke="#8c6a35" stroke-opacity="0.45" stroke-width="2" stroke-linecap="round" />`);
+        parts.push(`<line x1="${innerX + (innerWidth * 0.6)}" y1="${innerY + innerHeight - 4}" x2="${innerX + innerWidth - 3}" y2="${innerY + 4}" stroke="#8c6a35" stroke-opacity="0.45" stroke-width="2" stroke-linecap="round" />`);
+      }
+
+      if (tile.blocks_movement === true) {
+        parts.push(`<rect x="${innerX}" y="${innerY}" width="${innerWidth}" height="${innerHeight}" rx="10" ry="10" fill="#0f172a" fill-opacity="0.12" stroke="#0f172a" stroke-opacity="0.58" stroke-width="2" />`);
+      }
+
+      if (tile.blocks_sight === true) {
+        parts.push(`<line x1="${innerX + 4}" y1="${centerY}" x2="${innerX + innerWidth - 4}" y2="${centerY}" stroke="#334155" stroke-opacity="0.72" stroke-width="3" stroke-linecap="round" />`);
+      }
+
+      if (tile.is_hazard === true) {
+        parts.push(`<rect x="${innerX + (innerWidth * 0.22)}" y="${innerY + (innerHeight * 0.22)}" width="${innerWidth * 0.56}" height="${innerHeight * 0.56}" rx="8" ry="8" fill="none" stroke="#ff9f0a" stroke-opacity="0.85" stroke-width="2" />`);
+        parts.push(`<rect x="${centerX - 4}" y="${centerY - 4}" width="8" height="8" rx="2" ry="2" fill="#ff9f0a" fill-opacity="0.88" />`);
+      }
+
+      if (tile.cover_level) {
+        parts.push(`<rect x="${x + metrics.tile_width_px - 18}" y="${y + metrics.tile_height_px - 18}" width="14" height="14" rx="4" ry="4" fill="#2563eb" fill-opacity="0.82" />`);
+      }
+
+      return parts.join("\n");
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function renderDebugOverlays(map, metrics) {
+  const debugFlags = normalizeDebugFlags(map && map.render_debug);
+  const pieces = [];
+  const terrainTiles = buildTerrainVisualTiles(map);
+
+  if (debugFlags.coords === true) {
+    for (let y = 0; y < map.grid.height; y += 1) {
+      for (let x = 0; x < map.grid.width; x += 1) {
+        const px = metrics.grid_origin_x + (x * metrics.tile_width_px) + 4;
+        const py = metrics.grid_origin_y + (y * metrics.tile_height_px) + 4;
+        pieces.push(renderTextPlate({
+          x: px,
+          y: py,
+          text: `${x},${y}`,
+          fill: "#0f172a",
+          text_color: "#ffffff",
+          min_width: 22,
+          max_width: Math.max(22, metrics.tile_width_px - 8),
+          height: 16,
+          opacity: 0.8
+        }));
+      }
+    }
+  }
+
+  if (debugFlags.terrain === true) {
+    terrainTiles.forEach((tile) => {
+      const label = buildTerrainDebugLabel(tile);
+      if (!label) {
+        return;
+      }
+      const x = metrics.grid_origin_x + (tile.x * metrics.tile_width_px) + 4;
+      const y = metrics.grid_origin_y + ((tile.y + 1) * metrics.tile_height_px) - 20;
+      pieces.push(renderTextPlate({
+        x,
+        y,
+        text: label,
+        fill: "#7c3aed",
+        text_color: "#ffffff",
+        min_width: 26,
+        max_width: Math.max(26, metrics.tile_width_px - 8),
+        height: 16,
+        opacity: 0.84
+      }));
+    });
+  }
+
+  if (debugFlags.cover === true) {
+    terrainTiles.forEach((tile) => {
+      const label = getCoverDebugLabel(tile.cover_level);
+      if (!label) {
+        return;
+      }
+      const x = metrics.grid_origin_x + ((tile.x + 1) * metrics.tile_width_px) - 28;
+      const y = metrics.grid_origin_y + ((tile.y + 1) * metrics.tile_height_px) - 20;
+      pieces.push(renderTextPlate({
+        x,
+        y,
+        text: label,
+        fill: "#2563eb",
+        text_color: "#ffffff",
+        min_width: 22,
+        max_width: 28,
+        height: 16,
+        opacity: 0.9
+      }));
+    });
+  }
+
+  if (debugFlags.walls === true) {
+    buildEdgeWallVisuals(map).forEach((segment) => {
+      const startX = metrics.grid_origin_x + (segment.start.x * metrics.tile_width_px);
+      const startY = metrics.grid_origin_y + (segment.start.y * metrics.tile_height_px);
+      const endX = metrics.grid_origin_x + (segment.end.x * metrics.tile_width_px);
+      const endY = metrics.grid_origin_y + (segment.end.y * metrics.tile_height_px);
+      const stroke = segment.blocks_sight === true ? "#06b6d4" : "#fb7185";
+      pieces.push(`<line x1="${startX}" y1="${startY}" x2="${endX}" y2="${endY}" stroke="${stroke}" stroke-width="4" stroke-linecap="round" />`);
+    });
+  }
+
+  return pieces.filter(Boolean).join("\n");
+}
+
 function renderFilledOverlays(map, metrics) {
   return (map.overlays || [])
     .filter((overlay) => overlay.kind !== OVERLAY_KINDS.SELECTION)
@@ -178,6 +312,36 @@ function renderSelectionOverlays(map, metrics) {
     }).join("\n");
 }
 
+function getPlateWidth(text, minWidth, maxWidth) {
+  const safeText = String(text || "");
+  const estimated = 14 + (safeText.length * 10);
+  return Math.max(minWidth, Math.min(maxWidth, estimated));
+}
+
+function renderTextPlate(options) {
+  const text = String(options && options.text || "").trim();
+  if (!text) {
+    return "";
+  }
+
+  const width = getPlateWidth(
+    text,
+    Math.max(18, Number(options.min_width || 18)),
+    Math.max(18, Number(options.max_width || 64))
+  );
+  const height = Math.max(16, Number(options.height || 18));
+  const x = Number(options.x || 0);
+  const y = Number(options.y || 0);
+  const fill = escapeXml(options.fill || "#111827");
+  const textColor = escapeXml(options.text_color || "#ffffff");
+  const border = options.border ? escapeXml(options.border) : "";
+
+  return [
+    `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="6" ry="6" fill="${fill}" fill-opacity="${typeof options.opacity === "number" ? options.opacity : 0.92}"${border ? ` stroke="${border}" stroke-width="${Number(options.border_width || 1)}"` : ""} />`,
+    `<text x="${x + (width / 2)}" y="${y + height - 5}" font-family="Verdana, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="${textColor}">${escapeXml(text)}</text>`
+  ].join("\n");
+}
+
 function renderTokens(map, outputPath, metrics) {
   return (map.tokens || []).map((token) => {
     const visualProfile = buildTokenVisualProfile(token);
@@ -191,14 +355,50 @@ function renderTokens(map, outputPath, metrics) {
     const borderColor = visualProfile.border_color || "#ffffff";
     const imageBorderColor = visualProfile.image_border_color || "#d4af37";
     const badgeColor = visualProfile.badge_color || "#4aa3ff";
-    const label = escapeXml(visualProfile.label);
-    const badgeText = visualProfile.badge_text ? escapeXml(visualProfile.badge_text) : "";
+    const badgeTextColor = visualProfile.badge_text_color || "#ffffff";
+    const label = visualProfile.label ? String(visualProfile.label) : "";
+    const labelPlateColor = visualProfile.label_plate_color || "#111827";
+    const labelTextColor = visualProfile.label_text_color || "#ffffff";
+    const badgeText = visualProfile.badge_text ? String(visualProfile.badge_text) : "";
+    const activeOutlineColor = visualProfile.active_tile_color || "";
     const tokenShape = visualProfile.shape || "circle";
     const clipId = `token-clip-${escapeXml(token.token_id || `${token.position.x}-${token.position.y}`)}`;
     const centerX = x + (metrics.tile_width_px / 2);
     const centerY = y + (metrics.tile_height_px / 2);
     const tokenX = centerX - (tokenSize / 2);
     const tokenY = centerY - (tokenSize / 2);
+    const activeOutlinePadding = 5;
+    const activeFrame = activeOutlineColor
+      ? (tokenShape === "square"
+        ? `<rect x="${tokenX - activeOutlinePadding}" y="${tokenY - activeOutlinePadding}" width="${tokenSize + (activeOutlinePadding * 2)}" height="${tokenSize + (activeOutlinePadding * 2)}" rx="16" ry="16" fill="none" stroke="${escapeXml(activeOutlineColor)}" stroke-width="3" />`
+        : `<circle cx="${centerX}" cy="${centerY}" r="${Math.round((tokenSize / 2) + activeOutlinePadding)}" fill="none" stroke="${escapeXml(activeOutlineColor)}" stroke-width="4" />`)
+      : "";
+    const topBadgeWidth = getPlateWidth(badgeText, 26, Math.max(26, metrics.tile_width_px - 8));
+    const topBadge = badgeText
+      ? renderTextPlate({
+          x: x + ((metrics.tile_width_px - topBadgeWidth) / 2),
+          y: y + 2,
+          text: badgeText,
+          fill: badgeColor,
+          text_color: badgeTextColor,
+          min_width: 26,
+          max_width: Math.max(26, metrics.tile_width_px - 8),
+          height: 18
+        })
+      : "";
+    const labelPlateWidth = getPlateWidth(label, 20, Math.max(20, metrics.tile_width_px - 8));
+    const labelPlate = label
+      ? renderTextPlate({
+          x: x + ((metrics.tile_width_px - labelPlateWidth) / 2),
+          y: y + metrics.tile_height_px - 22,
+          text: label,
+          fill: labelPlateColor,
+          text_color: labelTextColor,
+          min_width: 20,
+          max_width: Math.max(20, metrics.tile_width_px - 8),
+          height: 18
+        })
+      : "";
 
     if (visualProfile.asset_path) {
       const tokenAssetPath = toSvgHref(visualProfile.asset_path, outputPath);
@@ -208,33 +408,30 @@ function renderTokens(map, outputPath, metrics) {
 
       return [
         `<defs>${clipPath}</defs>`,
+        activeFrame,
         tokenShape === "square"
           ? `<rect x="${tokenX}" y="${tokenY}" width="${tokenSize}" height="${tokenSize}" rx="12" ry="12" fill="none" stroke="${imageBorderColor}" stroke-width="3" />`
           : `<circle cx="${centerX}" cy="${centerY}" r="${Math.round(tokenSize / 2)}" fill="none" stroke="${imageBorderColor}" stroke-width="3" />`,
         `<image href="${escapeXml(tokenAssetPath)}" x="${tokenX}" y="${tokenY}" width="${tokenSize}" height="${tokenSize}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})" />`,
-        badgeText
-          ? `<text x="${x + metrics.tile_width_px - 10}" y="${y + 18}" font-family="Verdana, sans-serif" font-size="14" font-weight="bold" text-anchor="end" fill="${badgeColor}">${badgeText}</text>`
-          : "",
-        `<text x="${x + (metrics.tile_width_px / 2)}" y="${y + metrics.tile_height_px - 8}" font-family="Verdana, sans-serif" font-size="14" text-anchor="middle" fill="#111">${label}</text>`
+        topBadge,
+        labelPlate
       ].join("\n");
     }
 
     if (tokenShape === "square") {
       return [
+        activeFrame,
         `<rect x="${tokenX}" y="${tokenY}" width="${tokenSize}" height="${tokenSize}" rx="12" ry="12" fill="${fill}" fill-opacity="0.92" stroke="${borderColor}" stroke-width="3" />`,
-        badgeText
-          ? `<text x="${x + metrics.tile_width_px - 10}" y="${y + 18}" font-family="Verdana, sans-serif" font-size="14" font-weight="bold" text-anchor="end" fill="${badgeColor}">${badgeText}</text>`
-          : "",
-        `<text x="${x + (metrics.tile_width_px / 2)}" y="${y + (metrics.tile_height_px / 2) + 5}" font-family="Verdana, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#ffffff">${label}</text>`
+        topBadge,
+        labelPlate
       ].join("\n");
     }
 
     return [
+      activeFrame,
       `<circle cx="${centerX}" cy="${centerY}" r="${Math.round(tokenSize / 2)}" fill="${fill}" fill-opacity="0.9" stroke="${borderColor}" stroke-width="3" />`,
-      badgeText
-        ? `<text x="${x + metrics.tile_width_px - 10}" y="${y + 18}" font-family="Verdana, sans-serif" font-size="14" font-weight="bold" text-anchor="end" fill="${badgeColor}">${badgeText}</text>`
-        : "",
-      `<text x="${x + (metrics.tile_width_px / 2)}" y="${y + (metrics.tile_height_px / 2) + 5}" font-family="Verdana, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#ffffff">${label}</text>`
+      topBadge,
+      labelPlate
     ].join("\n");
   }).join("\n");
 }
@@ -277,10 +474,12 @@ function renderMapSvg(map, options) {
     baseImagePath
       ? `<image href="${escapeXml(baseImagePath)}" x="0" y="0" width="${widthPx}" height="${heightPx}" preserveAspectRatio="none" />`
       : "",
+    renderTerrainSemantics(map, metrics),
     renderFilledOverlays(map, metrics),
     showGrid ? renderGridLines(map, metrics) : "",
     renderTokens(map, outputPath, metrics),
     renderSelectionOverlays(map, metrics),
+    renderDebugOverlays(map, metrics),
     `</svg>`
   ].filter(Boolean).join("\n");
 

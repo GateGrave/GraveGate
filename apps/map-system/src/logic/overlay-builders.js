@@ -41,11 +41,22 @@ function buildMovementOverlay(options) {
     kind: OVERLAY_KINDS.MOVE,
     color: normalizeOverlayColor(options.color, "#34c759"),
     opacity: typeof options.opacity === "number" ? options.opacity : 0.5,
-    tiles: reachable.map((tile) => ({ x: tile.x, y: tile.y })),
+    tiles: reachable.map((tile) => ({
+      x: tile.x,
+      y: tile.y,
+      movement_cost_feet: tile.movement_cost_feet,
+      remaining_movement_feet: Math.max(0, maxCost - tile.movement_cost_feet)
+    })),
     metadata: {
       max_cost_feet: maxCost,
       tile_feet: MOVEMENT_RULES.TILE_FEET,
-      diagonal_rule: diagonalRule
+      diagonal_rule: diagonalRule,
+      reachable_tiles: reachable.map((tile) => ({
+        x: tile.x,
+        y: tile.y,
+        movement_cost_feet: tile.movement_cost_feet,
+        remaining_movement_feet: Math.max(0, maxCost - tile.movement_cost_feet)
+      }))
     }
   };
 }
@@ -116,7 +127,7 @@ function buildSpellRangeOverlay(options) {
     ...options,
     overlay_id: options.overlay_id || "spell-range-overlay",
     kind: OVERLAY_KINDS.SPELL_RANGE,
-    color: options.color || "#ffd60a",
+    color: options.color || "#4dabf7",
     require_line_of_sight: options.require_line_of_sight !== false
   });
 }
@@ -136,12 +147,13 @@ function buildSpellAreaOverlay(options) {
   return {
     overlay_id: options.overlay_id || "spell-area-overlay",
     kind: OVERLAY_KINDS.SPELL_AREA,
-    color: normalizeOverlayColor(options.color, "#ff3b30"),
+    color: normalizeOverlayColor(options.color, "#a855f7"),
     opacity: typeof options.opacity === "number" ? options.opacity : 0.55,
     tiles: tiles.map((tile) => ({ x: tile.x, y: tile.y })),
     metadata: {
       shape: options.profile && options.profile.shape || "",
-      area_size_feet: options.profile && options.profile.area_size_feet || 0
+      area_size_feet: options.profile && options.profile.area_size_feet || 0,
+      line_width_feet: options.profile && options.profile.line_width_feet || 0
     }
   };
 }

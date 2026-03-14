@@ -63,7 +63,11 @@ The following files and areas are integration-sensitive and should be touched ca
 - canonical content/data files that feed multiple systems
 
 Rules:
-- Prefer smaller focused edits over broad rewrites.
+- Prefer meaningful, testable slices over sprawling work-in-progress branches.
+- Do not force artificially tiny PRs just to satisfy process; open review when a slice is coherent, testable, and reviewable.
+- Within each slice, minimize surface area in shared and integration-sensitive files.
+- Touch non-owned hot files only when required for integration, authoritative data exposure, or blocker removal.
+- If repeated changes are needed in a hot file, create or use a safer extension point instead of continuing ad hoc surgery.
 - Prefer PR review for shared-file changes.
 - If two workstreams need the same hot file, merge carefully and test immediately.
 
@@ -71,8 +75,8 @@ Rules:
 
 - `main` is the shared truth branch.
 - New work should start from `main`.
-- Use a feature branch for new work.
-- Open a PR back into `main`.
+- Create a feature branch immediately for new work.
+- Open a PR back into `main` when the current slice is coherent, testable, and reviewable.
 - Use Codex PR review on GitHub when available.
 - Do not work directly on `main` when a feature branch would avoid risk.
 - Do not push generated map renders, local backups, or scratch artifacts.
