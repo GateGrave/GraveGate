@@ -147,9 +147,205 @@ function buildEdgeWallVisuals(map) {
     .sort((left, right) => left.y - right.y || left.x - right.x || left.side.localeCompare(right.side));
 }
 
+const SELECTION_MARKER_CODES = Object.freeze({
+  exit: "EXT",
+  door: "DOR",
+  chest: "CHS",
+  trap: "TRP",
+  shrine: "SHR",
+  lore: "LOR",
+  lever: "LEV",
+  object: "OBJ",
+  encounter: "ENC",
+  path: "PTH",
+  target: "TGT"
+});
+
+function normalizeSelectionMarkerStyle(value) {
+  const safe = String(value || "").trim().toLowerCase();
+  if (!safe) {
+    return "target";
+  }
+  if (safe === "move" || safe === "range" || safe === "spell" || safe === "selection") {
+    return "target";
+  }
+  if (Object.prototype.hasOwnProperty.call(SELECTION_MARKER_CODES, safe)) {
+    return safe;
+  }
+  return "target";
+}
+
+function getSelectionMarkerVisual(style) {
+  const safeStyle = normalizeSelectionMarkerStyle(style);
+
+  if (safeStyle === "path") {
+    return {
+      style: safeStyle,
+      icon: "path",
+      fill_opacity: 0.12,
+      border_thickness: 2,
+      show_badge: false
+    };
+  }
+
+  if (safeStyle === "exit") {
+    return {
+      style: safeStyle,
+      icon: "exit",
+      fill_opacity: 0.16,
+      border_thickness: 3,
+      show_badge: true
+    };
+  }
+
+  if (safeStyle === "door") {
+    return {
+      style: safeStyle,
+      icon: "door",
+      fill_opacity: 0.15,
+      border_thickness: 3,
+      show_badge: true
+    };
+  }
+
+  if (safeStyle === "chest") {
+    return {
+      style: safeStyle,
+      icon: "chest",
+      fill_opacity: 0.15,
+      border_thickness: 3,
+      show_badge: true
+    };
+  }
+
+  if (safeStyle === "trap") {
+    return {
+      style: safeStyle,
+      icon: "trap",
+      fill_opacity: 0.14,
+      border_thickness: 3,
+      show_badge: true
+    };
+  }
+
+  if (safeStyle === "shrine") {
+    return {
+      style: safeStyle,
+      icon: "shrine",
+      fill_opacity: 0.15,
+      border_thickness: 3,
+      show_badge: true
+    };
+  }
+
+  if (safeStyle === "lore") {
+    return {
+      style: safeStyle,
+      icon: "lore",
+      fill_opacity: 0.15,
+      border_thickness: 3,
+      show_badge: true
+    };
+  }
+
+  if (safeStyle === "lever") {
+    return {
+      style: safeStyle,
+      icon: "lever",
+      fill_opacity: 0.15,
+      border_thickness: 3,
+      show_badge: true
+    };
+  }
+
+  if (safeStyle === "object") {
+    return {
+      style: safeStyle,
+      icon: "object",
+      fill_opacity: 0.15,
+      border_thickness: 3,
+      show_badge: true
+    };
+  }
+
+  if (safeStyle === "encounter") {
+    return {
+      style: safeStyle,
+      icon: "encounter",
+      fill_opacity: 0.17,
+      border_thickness: 3,
+      show_badge: true
+    };
+  }
+
+  return {
+    style: "target",
+    icon: "crosshair",
+    fill_opacity: 0.18,
+    border_thickness: 3,
+    show_badge: true
+  };
+}
+
+function getMarkerDebugCode(style) {
+  const safeStyle = normalizeSelectionMarkerStyle(style);
+  if (safeStyle === "path") {
+    return "";
+  }
+  return SELECTION_MARKER_CODES[safeStyle] || "MRK";
+}
+
+function buildMarkerDebugEntries(map) {
+  const overlays = Array.isArray(map && map.overlays) ? map.overlays : [];
+  const grouped = new Map();
+
+  overlays.forEach((overlay) => {
+    if (!overlay || overlay.kind !== "selection") {
+      return;
+    }
+
+    const overlayStyle = normalizeSelectionMarkerStyle(overlay.metadata && overlay.metadata.marker_style);
+    (Array.isArray(overlay.tiles) ? overlay.tiles : []).forEach((tile) => {
+      if (!tile || !Number.isFinite(Number(tile.x)) || !Number.isFinite(Number(tile.y))) {
+        return;
+      }
+
+      const tileStyle = normalizeSelectionMarkerStyle(tile.marker_style || overlayStyle);
+      const code = getMarkerDebugCode(tileStyle);
+      if (!code) {
+        return;
+      }
+
+      const suffix = String(tile.label || "").trim();
+      const key = `${Number(tile.x)},${Number(tile.y)}`;
+      const label = suffix ? `${code} ${suffix}` : code;
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          x: Number(tile.x),
+          y: Number(tile.y),
+          labels: new Set()
+        });
+      }
+      grouped.get(key).labels.add(label);
+    });
+  });
+
+  return Array.from(grouped.values())
+    .map((entry) => ({
+      x: entry.x,
+      y: entry.y,
+      label: Array.from(entry.labels).slice(0, 2).join(" / ")
+    }))
+    .filter((entry) => Boolean(entry.label))
+    .sort((left, right) => left.y - right.y || left.x - right.x);
+}
+
 module.exports = {
   buildTerrainVisualTiles,
   getCoverDebugLabel,
   buildTerrainDebugLabel,
-  buildEdgeWallVisuals
+  buildEdgeWallVisuals,
+  normalizeSelectionMarkerStyle,
+  getSelectionMarkerVisual,
+  buildMarkerDebugEntries
 };

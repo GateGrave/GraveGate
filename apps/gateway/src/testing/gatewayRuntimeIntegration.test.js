@@ -4,7 +4,7 @@ const assert = require("assert");
 const path = require("path");
 const { handleGatewayInteraction, __test } = require("../index");
 const { buildCombatMapState, buildTokenVisualOverrides } = require("../combatMapView");
-const { buildDungeonMapState } = require("../dungeonMapView");
+const { buildDungeonMapState, buildDungeonMapView } = require("../dungeonMapView");
 
 async function runTest(name, fn, results) {
   try {
@@ -1846,10 +1846,12 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(interaction._replyCalls.length, 1);
     const content = interaction._replyCalls[0].content;
     assert.equal(content.includes("Room: Hall of Echoes"), true);
-    assert.equal(content.includes("Visible enemies: 1"), true);
-    assert.equal(content.includes("Exits: west -> room-entry | east -> room-door"), true);
+    assert.equal(content.includes("Party: (1, 1) | Room Type: Empty"), true);
+    assert.equal(content.includes("Routes: East -> room-door | West -> room-entry"), true);
     assert.equal(content.includes("Bronze Door [door; locked]"), true);
-    assert.equal(content.includes("Weathered Tablet [lore_object]"), true);
+    assert.equal(content.includes("Weathered Tablet [lore object]"), true);
+    assert.equal(content.includes("Interactables: Bronze Door [door; locked] | Weathered Tablet [lore object]"), true);
+    assert.equal(content.includes("Threats: Goblin Scout at (6, 6)"), true);
     assert.equal(Array.isArray(interaction._replyCalls[0].files), true);
     assert.equal(interaction._replyCalls[0].files.length >= 1, true);
     assert.equal(Array.isArray(interaction._replyCalls[0].components), true);
@@ -1863,10 +1865,23 @@ async function runGatewayRuntimeIntegrationTests() {
     );
     assert.equal(
       interaction._replyCalls[0].components.some((row) =>
+        Array.isArray(row.components) && row.components.some((button) => button.data.label === "Markers")
+      ),
+      true
+    );
+    assert.equal(
+      interaction._replyCalls[0].components.some((row) =>
         Array.isArray(row.components) && row.components.some((button) => button.data.label === "Open Bronze Door")
       ),
       true
     );
+
+    const debugButton = createButtonInteraction("dungeon-map:view:debug_toggle:session-room-001:markers", "player-gateway-room-001");
+    const debugOut = await handleGatewayInteraction(debugButton, runtime);
+    assert.equal(debugOut.ok, true);
+    assert.equal(debugButton._updateCalls.length, 1);
+    assert.equal(String(debugButton._updateCalls[0].content).includes("Dungeon debug overlays updated."), true);
+    assert.equal(String(debugButton._updateCalls[0].content).includes("Debug: Markers"), true);
 
     const mapPreviewButton = createButtonInteraction("dungeon-map:view:preview_move:session-room-001", "player-gateway-room-001");
     const previewOut = await handleGatewayInteraction(mapPreviewButton, runtime);
@@ -1874,12 +1889,13 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(mapPreviewButton._updateCalls.length, 1);
     assert.equal(String(mapPreviewButton._updateCalls[0].content).includes("Choose a highlighted exit"), true);
     assert.equal(String(mapPreviewButton._updateCalls[0].content).includes("Mode: Move Preview"), true);
-    assert.equal(String(mapPreviewButton._updateCalls[0].content).includes("Visible enemies: 1"), true);
+    assert.equal(String(mapPreviewButton._updateCalls[0].content).includes("Debug: Markers"), true);
+    assert.equal(String(mapPreviewButton._updateCalls[0].content).includes("Threats: Goblin Scout at (6, 6)"), true);
     assert.equal(Array.isArray(mapPreviewButton._updateCalls[0].files), true);
     assert.equal(mapPreviewButton._updateCalls[0].files.length >= 1, true);
     assert.equal(
       mapPreviewButton._updateCalls[0].components.some((row) =>
-        Array.isArray(row.components) && row.components.some((button) => button.data.label.includes("west") || button.data.label.includes("east"))
+        Array.isArray(row.components) && row.components.some((button) => button.data.label.includes("West ->") || button.data.label.includes("East ->"))
       ),
       true
     );
@@ -1890,6 +1906,7 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(backButton._updateCalls.length, 1);
     assert.equal(String(backButton._updateCalls[0].content).includes("Dungeon map ready."), true);
     assert.equal(String(backButton._updateCalls[0].content).includes("Mode: Exploration"), true);
+    assert.equal(String(backButton._updateCalls[0].content).includes("Debug: Markers"), true);
 
     const mapMoveButton = createButtonInteraction("dungeon-map:view:move:session-room-001:east", "player-gateway-room-001");
     const mapMoveOut = await handleGatewayInteraction(mapMoveButton, runtime);
@@ -2006,7 +2023,10 @@ async function runGatewayRuntimeIntegrationTests() {
           ]
         }
       },
-      view_state: { mode: "idle" }
+      view_state: {
+        mode: "idle",
+        debug_flags: { markers: true, walls: true }
+      }
     });
 
     assert.equal(out.ok, true);
@@ -2030,6 +2050,59 @@ async function runGatewayRuntimeIntegrationTests() {
       out.payload.map.overlays.some((overlay) => overlay && String(overlay.overlay_id).includes("dungeon-visible-enemy")),
       true
     );
+    assert.equal(out.payload.map.render_debug.markers, true);
+    assert.equal(out.payload.map.render_debug.walls, true);
+  }, results);
+
+  await runTest("dungeon_map_view_uses_map_exit_positions_and_is_opened_state", async () => {
+    const out = await buildDungeonMapView({
+      data: {
+        session_id: "session-dungeon-open-001",
+        session: {
+          session_id: "session-dungeon-open-001",
+          leader_id: "player-dungeon-leader-001"
+        },
+        room: {
+          room_id: "room-open-001",
+          name: "Treasure Alcove",
+          room_type: "treasure",
+          exits: [],
+          visible_objects: [
+            {
+              object_id: "chest-open-001",
+              object_type: "chest",
+              name: "Ancient Chest",
+              position: { x: 8, y: 4 },
+              state: { is_opened: true }
+            }
+          ]
+        }
+      },
+      map_config: {
+        map_path: path.resolve(process.cwd(), "apps/map-system/data/maps/dungeon/map-12x10.base-map.json"),
+        profile_path: path.resolve(process.cwd(), "apps/map-system/data/profiles/dungeon/map-12x10.dungeon-profile.json"),
+        output_dir: path.resolve(process.cwd(), "apps/map-system/output/live"),
+        dungeon_map: {
+          map_path: "apps/map-system/data/maps/dungeon/map-12x10.base-map.json",
+          party_position: { x: 1, y: 5 },
+          exits: [
+            { direction: "east", to_room_id: "room-open-002", position: { x: 11, y: 5 } }
+          ],
+          objects: [
+            { object_id: "chest-open-001", object_type: "chest", position: { x: 8, y: 4 } }
+          ]
+        }
+      },
+      user_id: "player-dungeon-leader-001"
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.content.includes("Routes: East -> room-open-002"), true);
+    assert.equal(out.payload.content.includes("Ancient Chest [chest; open]"), true);
+    const exitOverlay = out.payload.map.overlays.find((overlay) => overlay && overlay.overlay_id === "dungeon-exit-overlay");
+    assert.equal(Boolean(exitOverlay), true);
+    assert.equal(Array.isArray(exitOverlay.tiles), true);
+    assert.equal(exitOverlay.tiles.some((tile) => tile.x === 11 && tile.y === 5), true);
   }, results);
 
   await runTest("gateway_trade_proposal_wizard_collects_offer_and_submits_runtime_trade", async () => {

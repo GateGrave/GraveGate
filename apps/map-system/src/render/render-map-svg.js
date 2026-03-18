@@ -11,7 +11,9 @@ const {
   buildTerrainVisualTiles,
   getCoverDebugLabel,
   buildTerrainDebugLabel,
-  buildEdgeWallVisuals
+  buildEdgeWallVisuals,
+  getSelectionMarkerVisual,
+  buildMarkerDebugEntries
 } = require("./render-visuals");
 
 function readPngDimensions(absolutePath) {
@@ -180,6 +182,104 @@ function renderTerrainSemantics(map, metrics) {
     .join("\n");
 }
 
+function renderSelectionMarkerEmblem(rect, icon, stroke) {
+  const left = rect.x + 8;
+  const right = rect.x + rect.width - 8;
+  const top = rect.y + 8;
+  const bottom = rect.y + rect.height - 8;
+  const centerX = rect.x + (rect.width / 2);
+  const centerY = rect.y + (rect.height / 2);
+
+  if (icon === "exit") {
+    return [
+      `<line x1="${left}" y1="${top + 4}" x2="${centerX + 4}" y2="${centerY}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
+      `<line x1="${left}" y1="${bottom - 4}" x2="${centerX + 4}" y2="${centerY}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
+      `<line x1="${centerX + 2}" y1="${centerY}" x2="${right - 2}" y2="${centerY}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`
+    ].join("\n");
+  }
+
+  if (icon === "door") {
+    return [
+      `<line x1="${centerX - 4}" y1="${top}" x2="${centerX - 4}" y2="${bottom}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
+      `<line x1="${centerX + 4}" y1="${top + 4}" x2="${centerX + 4}" y2="${bottom - 4}" stroke="${escapeXml(stroke)}" stroke-width="2" stroke-linecap="round" />`,
+      `<rect x="${centerX + 7}" y="${centerY - 2}" width="4" height="4" rx="1" ry="1" fill="${escapeXml(stroke)}" />`
+    ].join("\n");
+  }
+
+  if (icon === "chest") {
+    return [
+      `<rect x="${centerX - 12}" y="${centerY - 9}" width="24" height="18" rx="4" ry="4" fill="none" stroke="${escapeXml(stroke)}" stroke-width="2" />`,
+      `<line x1="${centerX - 12}" y1="${centerY - 3}" x2="${centerX + 12}" y2="${centerY - 3}" stroke="${escapeXml(stroke)}" stroke-width="2" stroke-linecap="round" />`,
+      `<rect x="${centerX - 2}" y="${centerY - 1}" width="4" height="6" rx="1" ry="1" fill="${escapeXml(stroke)}" />`
+    ].join("\n");
+  }
+
+  if (icon === "trap") {
+    return [
+      `<line x1="${centerX}" y1="${top}" x2="${left + 2}" y2="${bottom}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
+      `<line x1="${centerX}" y1="${top}" x2="${right - 2}" y2="${bottom}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
+      `<line x1="${left + 2}" y1="${bottom}" x2="${right - 2}" y2="${bottom}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
+      `<rect x="${centerX - 2}" y="${centerY - 2}" width="4" height="8" rx="1" ry="1" fill="${escapeXml(stroke)}" />`
+    ].join("\n");
+  }
+
+  if (icon === "shrine") {
+    return [
+      `<line x1="${centerX}" y1="${top}" x2="${left + 4}" y2="${centerY}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
+      `<line x1="${left + 4}" y1="${centerY}" x2="${centerX}" y2="${bottom}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
+      `<line x1="${centerX}" y1="${bottom}" x2="${right - 4}" y2="${centerY}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
+      `<line x1="${right - 4}" y1="${centerY}" x2="${centerX}" y2="${top}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
+      `<rect x="${centerX - 3}" y="${centerY - 3}" width="6" height="6" rx="2" ry="2" fill="${escapeXml(stroke)}" />`
+    ].join("\n");
+  }
+
+  if (icon === "lore") {
+    return [
+      `<rect x="${centerX - 12}" y="${centerY - 10}" width="24" height="20" rx="4" ry="4" fill="none" stroke="${escapeXml(stroke)}" stroke-width="2" />`,
+      `<line x1="${centerX}" y1="${centerY - 10}" x2="${centerX}" y2="${centerY + 10}" stroke="${escapeXml(stroke)}" stroke-width="2" stroke-linecap="round" />`,
+      `<line x1="${centerX - 8}" y1="${centerY - 4}" x2="${centerX - 2}" y2="${centerY - 4}" stroke="${escapeXml(stroke)}" stroke-width="2" stroke-linecap="round" />`,
+      `<line x1="${centerX + 2}" y1="${centerY - 4}" x2="${centerX + 8}" y2="${centerY - 4}" stroke="${escapeXml(stroke)}" stroke-width="2" stroke-linecap="round" />`
+    ].join("\n");
+  }
+
+  if (icon === "lever") {
+    return [
+      `<line x1="${centerX - 5}" y1="${bottom}" x2="${centerX - 5}" y2="${centerY - 2}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
+      `<line x1="${centerX - 5}" y1="${centerY - 2}" x2="${centerX + 7}" y2="${centerY - 10}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
+      `<rect x="${centerX + 6}" y="${centerY - 12}" width="6" height="6" rx="2" ry="2" fill="${escapeXml(stroke)}" />`,
+      `<line x1="${centerX - 12}" y1="${bottom}" x2="${centerX + 2}" y2="${bottom}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`
+    ].join("\n");
+  }
+
+  if (icon === "object") {
+    return [
+      `<rect x="${centerX - 10}" y="${centerY - 10}" width="20" height="20" rx="4" ry="4" fill="none" stroke="${escapeXml(stroke)}" stroke-width="2" />`,
+      `<rect x="${centerX - 3}" y="${centerY - 3}" width="6" height="6" rx="2" ry="2" fill="${escapeXml(stroke)}" />`
+    ].join("\n");
+  }
+
+  if (icon === "encounter") {
+    return [
+      `<line x1="${centerX}" y1="${top}" x2="${left + 4}" y2="${centerY}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
+      `<line x1="${left + 4}" y1="${centerY}" x2="${centerX}" y2="${bottom}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
+      `<line x1="${centerX}" y1="${bottom}" x2="${right - 4}" y2="${centerY}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
+      `<line x1="${right - 4}" y1="${centerY}" x2="${centerX}" y2="${top}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
+      `<line x1="${centerX}" y1="${top + 7}" x2="${centerX}" y2="${centerY + 2}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
+      `<rect x="${centerX - 2}" y="${centerY + 6}" width="4" height="4" rx="1" ry="1" fill="${escapeXml(stroke)}" />`
+    ].join("\n");
+  }
+
+  if (icon === "path") {
+    return [
+      `<rect x="${left + 2}" y="${centerY - 3}" width="6" height="6" rx="2" ry="2" fill="${escapeXml(stroke)}" fill-opacity="0.95" />`,
+      `<rect x="${centerX - 3}" y="${centerY - 3}" width="6" height="6" rx="2" ry="2" fill="${escapeXml(stroke)}" fill-opacity="0.95" />`,
+      `<rect x="${right - 8}" y="${centerY - 3}" width="6" height="6" rx="2" ry="2" fill="${escapeXml(stroke)}" fill-opacity="0.95" />`
+    ].join("\n");
+  }
+
+  return "";
+}
+
 function renderDebugOverlays(map, metrics) {
   const debugFlags = normalizeDebugFlags(map && map.render_debug);
   const pieces = [];
@@ -223,6 +323,24 @@ function renderDebugOverlays(map, metrics) {
         max_width: Math.max(26, metrics.tile_width_px - 8),
         height: 16,
         opacity: 0.84
+      }));
+    });
+  }
+
+  if (debugFlags.markers === true) {
+    buildMarkerDebugEntries(map).forEach((entry) => {
+      const x = metrics.grid_origin_x + ((entry.x + 1) * metrics.tile_width_px) - getPlateWidth(entry.label, 34, Math.max(34, metrics.tile_width_px - 8)) - 4;
+      const y = metrics.grid_origin_y + (entry.y * metrics.tile_height_px) + 4;
+      pieces.push(renderTextPlate({
+        x,
+        y,
+        text: entry.label,
+        fill: "#0f766e",
+        text_color: "#ffffff",
+        min_width: 34,
+        max_width: Math.max(34, metrics.tile_width_px - 8),
+        height: 16,
+        opacity: 0.9
       }));
     });
   }
@@ -282,7 +400,6 @@ function renderSelectionOverlays(map, metrics) {
     .filter((overlay) => overlay.kind === OVERLAY_KINDS.SELECTION)
     .map((overlay) => {
       const stroke = overlay.color || "#ffd60a";
-      const fillOpacity = typeof overlay.opacity === "number" ? overlay.opacity : 0.18;
       return (overlay.tiles || []).map((tile) => {
         const x = metrics.grid_origin_x + (tile.x * metrics.tile_width_px);
         const y = metrics.grid_origin_y + (tile.y * metrics.tile_height_px);
@@ -293,18 +410,35 @@ function renderSelectionOverlays(map, metrics) {
         const centerX = x + (metrics.tile_width_px / 2);
         const centerY = y + (metrics.tile_height_px / 2);
         const badgeLabel = tile.label ? escapeXml(tile.label) : "";
+        const visual = getSelectionMarkerVisual(tile.marker_style || (overlay.metadata && overlay.metadata.marker_style));
+        const fillOpacity = typeof overlay.opacity === "number" ? overlay.opacity : visual.fill_opacity;
 
         return [
-          `<rect x="${x + inset}" y="${y + inset}" width="${boxWidth}" height="${boxHeight}" rx="10" ry="10" fill="${escapeXml(stroke)}" fill-opacity="${fillOpacity}" stroke="${escapeXml(stroke)}" stroke-width="4" />`,
-          `<circle cx="${centerX}" cy="${centerY}" r="${Math.round(size / 2.8)}" fill="none" stroke="${escapeXml(stroke)}" stroke-width="3" />`,
-          `<line x1="${centerX}" y1="${y + inset + 8}" x2="${centerX}" y2="${y + inset + 22}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
-          `<line x1="${centerX}" y1="${y + metrics.tile_height_px - inset - 8}" x2="${centerX}" y2="${y + metrics.tile_height_px - inset - 22}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
-          `<line x1="${x + inset + 8}" y1="${centerY}" x2="${x + inset + 22}" y2="${centerY}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
-          `<line x1="${x + metrics.tile_width_px - inset - 8}" y1="${centerY}" x2="${x + metrics.tile_width_px - inset - 22}" y2="${centerY}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`,
-          badgeLabel
+          `<rect x="${x + inset}" y="${y + inset}" width="${boxWidth}" height="${boxHeight}" rx="10" ry="10" fill="${escapeXml(stroke)}" fill-opacity="${fillOpacity}" stroke="${escapeXml(stroke)}" stroke-width="${visual.border_thickness}" />`,
+          visual.style === "target"
+            ? `<line x1="${centerX}" y1="${y + inset + 8}" x2="${centerX}" y2="${y + inset + 22}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`
+            : "",
+          visual.style === "target"
+            ? `<line x1="${centerX}" y1="${y + metrics.tile_height_px - inset - 8}" x2="${centerX}" y2="${y + metrics.tile_height_px - inset - 22}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`
+            : "",
+          visual.style === "target"
+            ? `<line x1="${x + inset + 8}" y1="${centerY}" x2="${x + inset + 22}" y2="${centerY}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`
+            : "",
+          visual.style === "target"
+            ? `<line x1="${x + metrics.tile_width_px - inset - 8}" y1="${centerY}" x2="${x + metrics.tile_width_px - inset - 22}" y2="${centerY}" stroke="${escapeXml(stroke)}" stroke-width="3" stroke-linecap="round" />`
+            : "",
+          visual.style === "target"
+            ? `<circle cx="${centerX}" cy="${centerY}" r="${Math.round(size / 2.8)}" fill="none" stroke="${escapeXml(stroke)}" stroke-width="3" />`
+            : renderSelectionMarkerEmblem({
+              x: x + inset,
+              y: y + inset,
+              width: boxWidth,
+              height: boxHeight
+            }, visual.icon, stroke),
+          (visual.show_badge !== false && badgeLabel)
             ? `<circle cx="${x + metrics.tile_width_px - 14}" cy="${y + 14}" r="12" fill="${escapeXml(stroke)}" />`
             : "",
-          badgeLabel
+          (visual.show_badge !== false && badgeLabel)
             ? `<text x="${x + metrics.tile_width_px - 14}" y="${y + 19}" font-family="Verdana, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#111">${badgeLabel}</text>`
             : ""
         ].join("\n");

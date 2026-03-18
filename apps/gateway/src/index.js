@@ -30,7 +30,8 @@ const {
 const {
   buildDungeonMapView,
   parseDungeonMapCustomId,
-  DUNGEON_MAP_ACTIONS
+  DUNGEON_MAP_ACTIONS,
+  toggleDungeonDebugFlag
 } = require("./dungeonMapView");
 const { listAvailableRaces, getRaceOptions } = require("../../world-system/src/character/rules/raceRules");
 const { listAvailableClasses, getClassOptions, getClassData } = require("../../world-system/src/character/rules/classRules");
@@ -4878,7 +4879,10 @@ async function handleDungeonMapComponent(interaction, runtime) {
       data: storedView.data
     }, userId, {
       ...storedView,
-      view_state: { mode: "move_preview" }
+      view_state: {
+        ...(storedView.view_state || {}),
+        mode: "move_preview"
+      }
     }, {
       map_content: "Choose a highlighted exit to move the party leader through the dungeon.",
       suffix: "dungeon-move-preview"
@@ -4903,7 +4907,10 @@ async function handleDungeonMapComponent(interaction, runtime) {
       data: storedView.data
     }, userId, {
       ...storedView,
-      view_state: { mode: "idle" }
+      view_state: {
+        ...(storedView.view_state || {}),
+        mode: "idle"
+      }
     }, {
       map_content: "Dungeon map ready.",
       suffix: "dungeon-idle"
@@ -4914,6 +4921,35 @@ async function handleDungeonMapComponent(interaction, runtime) {
       embeds: Array.isArray(backReply.embeds) ? backReply.embeds : [],
       components: Array.isArray(backReply.components) ? backReply.components : [],
       files: Array.isArray(backReply.files) ? backReply.files : []
+    });
+    return;
+  }
+
+  if (parsed.action === DUNGEON_MAP_ACTIONS.DEBUG_TOGGLE) {
+    const debugKey = parsed.value || "";
+    const nextReply = await attachDungeonMapToReply({
+      ok: true,
+      content: storedView.data.room && storedView.data.room.name ? `Room: ${cleanText(storedView.data.room.name, storedView.data.room.room_id)}` : "Dungeon room loaded.",
+      embeds: [],
+      components: Array.isArray(buildDungeonRoomComponents(storedView.data)) ? buildDungeonRoomComponents(storedView.data) : [],
+      files: [],
+      data: storedView.data
+    }, userId, {
+      ...storedView,
+      view_state: {
+        ...(storedView.view_state || {}),
+        debug_flags: toggleDungeonDebugFlag(storedView.view_state && storedView.view_state.debug_flags, debugKey)
+      }
+    }, {
+      map_content: "Dungeon debug overlays updated.",
+      suffix: `dungeon-debug-${cleanText(debugKey, "view")}`
+    });
+
+    await refreshInteractionMessage(interaction, {
+      content: nextReply.content,
+      embeds: Array.isArray(nextReply.embeds) ? nextReply.embeds : [],
+      components: Array.isArray(nextReply.components) ? nextReply.components : [],
+      files: Array.isArray(nextReply.files) ? nextReply.files : []
     });
     return;
   }
@@ -4941,7 +4977,10 @@ async function handleDungeonMapComponent(interaction, runtime) {
     const reply = formatGatewayReplyFromRuntime(runtimeResult);
     const nextReply = await attachDungeonMapToReply(reply, userId, {
       ...storedView,
-      view_state: { mode: "idle" }
+      view_state: {
+        ...(storedView.view_state || {}),
+        mode: "idle"
+      }
     }, {
       suffix: "dungeon-map-move"
     });

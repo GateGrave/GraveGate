@@ -10,6 +10,7 @@ const DEBUG_FLAG_LABELS = Object.freeze({
 function normalizeDebugFlags(value) {
   const safe = value && typeof value === "object" ? value : {};
   return {
+    markers: safe.markers === true,
     terrain: safe.terrain === true,
     cover: safe.cover === true,
     walls: safe.walls === true,

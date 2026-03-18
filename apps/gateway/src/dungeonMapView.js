@@ -11,7 +11,8 @@ const {
   buildSelectionOverlay,
   buildPlayerToken,
   buildEnemyToken,
-  buildDungeonEntriesFromMaskPath
+  buildDungeonEntriesFromMaskPath,
+  normalizeDebugFlags
 } = require("../../map-system/src");
 
 const DEFAULT_DUNGEON_MAP_OUTPUT_DIR = "apps/map-system/output/live/dungeon";
@@ -19,7 +20,8 @@ const DEFAULT_PARTY_TOKEN_ASSET_PATH = "apps/map-system/assets/tokens/players/pr
 const DUNGEON_MAP_ACTIONS = Object.freeze({
   PREVIEW_MOVE: "preview_move",
   MOVE: "move",
-  BACK: "back"
+  BACK: "back",
+  DEBUG_TOGGLE: "debug_toggle"
 });
 
 const OBJECT_MARKER_STYLES = Object.freeze({
@@ -30,6 +32,13 @@ const OBJECT_MARKER_STYLES = Object.freeze({
   LORE: "lore",
   LEVER: "lever",
   OBJECT: "object"
+});
+
+const DUNGEON_DEBUG_FLAG_LABELS = Object.freeze({
+  markers: "Markers",
+  walls: "Walls",
+  terrain: "Terrain",
+  coords: "Coords"
 });
 
 function cleanText(value, fallback) {
@@ -77,6 +86,158 @@ function abbreviateMarkerLabel(value, fallback) {
 
 function normalizeDirection(value) {
   return cleanText(value, "").toLowerCase();
+}
+
+function getDirectionSortRank(value) {
+  const safe = normalizeDirection(value);
+  if (safe === "north") return 1;
+  if (safe === "east") return 2;
+  if (safe === "south") return 3;
+  if (safe === "west") return 4;
+  if (safe === "up") return 5;
+  if (safe === "down") return 6;
+  return 99;
+}
+
+function compareEntriesByPosition(left, right) {
+  const leftPosition = normalizePosition(left && left.position);
+  const rightPosition = normalizePosition(right && right.position);
+  const leftY = leftPosition ? leftPosition.y : Number.POSITIVE_INFINITY;
+  const rightY = rightPosition ? rightPosition.y : Number.POSITIVE_INFINITY;
+  const leftX = leftPosition ? leftPosition.x : Number.POSITIVE_INFINITY;
+  const rightX = rightPosition ? rightPosition.x : Number.POSITIVE_INFINITY;
+  return leftY - rightY || leftX - rightX;
+}
+
+function getDungeonExitKey(entry) {
+  const safe = entry && typeof entry === "object" ? entry : {};
+  const direction = normalizeDirection(safe.direction);
+  const toRoomId = cleanText(safe.to_room_id, "");
+  if (direction || toRoomId) {
+    return `${direction}|${toRoomId}`;
+  }
+
+  const position = normalizePosition(safe.position || safe.map_position);
+  return position ? `@${position.x},${position.y}` : "exit";
+}
+
+function mergeDungeonExitEntry(existing, incoming) {
+  const left = existing && typeof existing === "object" ? existing : {};
+  const right = incoming && typeof incoming === "object" ? incoming : {};
+  const leftPosition = normalizePosition(left.position || left.map_position);
+  const rightPosition = normalizePosition(right.position || right.map_position);
+  const position = rightPosition || leftPosition;
+
+  return {
+    ...left,
+    ...right,
+    direction: cleanText(right.direction, cleanText(left.direction, "")),
+    to_room_id: cleanText(right.to_room_id, cleanText(left.to_room_id, "")),
+    label: cleanText(right.label, cleanText(left.label, "")),
+    position,
+    map_position: position
+  };
+}
+
+function getMergedDungeonExits(dungeonMap, room) {
+  const merged = new Map();
+  [].concat(
+    Array.isArray(dungeonMap && dungeonMap.exits) ? dungeonMap.exits : [],
+    Array.isArray(room && room.exits) ? room.exits : []
+  ).forEach((entry) => {
+    if (!entry) {
+      return;
+    }
+
+    const key = getDungeonExitKey(entry);
+    merged.set(key, mergeDungeonExitEntry(merged.get(key), entry));
+  });
+
+  return Array.from(merged.values())
+    .filter((entry) => {
+      const position = normalizePosition(entry && (entry.position || entry.map_position));
+      return Boolean(
+        position
+        || cleanText(entry && entry.direction, "")
+        || cleanText(entry && entry.to_room_id, "")
+        || cleanText(entry && entry.label, "")
+      );
+    })
+    .sort((left, right) => (
+      getDirectionSortRank(left.direction) - getDirectionSortRank(right.direction)
+      || compareEntriesByPosition(left, right)
+      || cleanText(left.to_room_id, left.label).localeCompare(cleanText(right.to_room_id, right.label))
+    ));
+}
+
+function titleCaseWords(value, fallback) {
+  const safe = cleanText(value, fallback || "");
+  if (!safe) {
+    return fallback || "";
+  }
+  return safe
+    .split(/[_\s-]+/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function truncateText(value, limit) {
+  const safe = cleanText(value, "");
+  if (!safe || safe.length <= limit) {
+    return safe;
+  }
+  return `${safe.slice(0, Math.max(0, limit - 3))}...`;
+}
+
+function formatGridPosition(position) {
+  const safe = normalizePosition(position);
+  return safe ? `(${safe.x}, ${safe.y})` : "";
+}
+
+function normalizeDungeonDebugFlags(value) {
+  const flags = normalizeDebugFlags(value);
+  return {
+    markers: flags.markers === true,
+    walls: flags.walls === true,
+    terrain: flags.terrain === true,
+    coords: flags.coords === true
+  };
+}
+
+function toggleDungeonDebugFlag(value, key) {
+  const safeKey = String(key || "").trim().toLowerCase();
+  const flags = normalizeDungeonDebugFlags(value);
+  if (!Object.prototype.hasOwnProperty.call(DUNGEON_DEBUG_FLAG_LABELS, safeKey)) {
+    return flags;
+  }
+  return {
+    ...flags,
+    [safeKey]: !flags[safeKey]
+  };
+}
+
+function getActiveDungeonDebugKeys(value) {
+  const flags = normalizeDungeonDebugFlags(value);
+  return Object.keys(DUNGEON_DEBUG_FLAG_LABELS).filter((key) => flags[key] === true);
+}
+
+function formatDungeonDebugSummary(value) {
+  const active = getActiveDungeonDebugKeys(value);
+  if (active.length === 0) {
+    return "";
+  }
+  return `Debug: ${active.map((key) => DUNGEON_DEBUG_FLAG_LABELS[key]).join(", ")}`;
+}
+
+function formatSummaryList(label, entries, emptyText) {
+  const safeEntries = Array.isArray(entries) ? entries.filter(Boolean) : [];
+  if (safeEntries.length === 0) {
+    return `${label}: ${emptyText}`;
+  }
+  const visible = safeEntries.slice(0, 3);
+  const extra = safeEntries.length - visible.length;
+  return `${label}: ${visible.join(" | ")}${extra > 0 ? ` | +${extra} more` : ""}`;
 }
 
 function buildMarkerOverlay(options) {
@@ -266,11 +427,15 @@ function getDungeonMoveTargets(dungeonMap, room) {
           label: cleanText(entry && entry.label, cleanText(entry && entry.direction, cleanText(entry && entry.to_room_id, "Move")))
         };
       })
-      .filter(Boolean);
+      .filter(Boolean)
+      .sort((left, right) => (
+        getDirectionSortRank(left.direction) - getDirectionSortRank(right.direction)
+        || compareEntriesByPosition(left, right)
+        || cleanText(left.to_room_id, left.label).localeCompare(cleanText(right.to_room_id, right.label))
+      ));
   }
 
-  const exits = Array.isArray(room && room.exits) ? room.exits : [];
-  return exits
+  return getMergedDungeonExits(dungeonMap, room)
     .map((entry) => {
       const position = normalizePosition(entry && (entry.position || entry.map_position));
       if (!position) {
@@ -283,28 +448,22 @@ function getDungeonMoveTargets(dungeonMap, room) {
         label: cleanText(entry && entry.direction, cleanText(entry && entry.to_room_id, "Move"))
       };
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .sort((left, right) => (
+      getDirectionSortRank(left.direction) - getDirectionSortRank(right.direction)
+      || compareEntriesByPosition(left, right)
+      || cleanText(left.to_room_id, left.label).localeCompare(cleanText(right.to_room_id, right.label))
+    ));
 }
 
 function buildExitOverlay(dungeonMap, room) {
-  const exits = Array.isArray(dungeonMap.exits) && dungeonMap.exits.length > 0
-    ? dungeonMap.exits
-    : (Array.isArray(room && room.exits) ? room.exits : []);
-  const tiles = exits
-    .map((entry) => {
-      const position = normalizePosition(entry && (entry.position || entry.map_position));
-      if (!position) {
-        return null;
-      }
-
-      return {
-        x: position.x,
-        y: position.y,
-        label: abbreviateMarkerLabel(entry && entry.direction, "EX"),
-        marker_style: "exit"
-      };
-    })
-    .filter(Boolean);
+  const tiles = getDungeonMoveTargets(dungeonMap, room)
+    .map((entry) => ({
+      x: entry.position.x,
+      y: entry.position.y,
+      label: abbreviateMarkerLabel(entry.direction, "EX"),
+      marker_style: "exit"
+    }));
 
   if (tiles.length === 0) {
     return null;
@@ -487,30 +646,96 @@ function buildPartyPathOverlay(dungeonMap) {
   });
 }
 
-function buildDungeonSummaryLines(payload) {
+function summarizeDungeonExit(entry) {
+  const safe = entry && typeof entry === "object" ? entry : {};
+  const direction = titleCaseWords(safe.direction, "");
+  const destination = cleanText(safe.to_room_id, cleanText(safe.label, "unknown"));
+  if (direction && destination) {
+    return `${direction} -> ${destination}`;
+  }
+  return direction || destination || "Unknown exit";
+}
+
+function summarizeDungeonObject(entry) {
+  const safe = entry && typeof entry === "object" ? entry : {};
+  const state = safe.state && typeof safe.state === "object" ? safe.state : {};
+  const name = cleanText(safe.name, cleanText(safe.object_id, "Unknown object"));
+  const type = titleCaseWords(safe.object_type, "Object").toLowerCase();
+  const tags = [];
+  if (state.is_locked === true) tags.push("locked");
+  if (state.is_open === true || state.is_opened === true) tags.push("open");
+  if (state.is_disarmed === true) tags.push("safe");
+  if (state.is_hidden === true) tags.push("hidden");
+  return `${truncateText(name, 28)} [${type}${tags.length > 0 ? `; ${tags.join(", ")}` : ""}]`;
+}
+
+function summarizeDungeonThreat(entry) {
+  const safe = entry && typeof entry === "object" ? entry : {};
+  const name = cleanText(
+    safe.label,
+    cleanText(safe.name, cleanText(safe.actor_id, cleanText(safe.token_id, "Unknown threat")))
+  );
+  const positionText = formatGridPosition(safe.position);
+  return positionText ? `${truncateText(name, 24)} at ${positionText}` : truncateText(name, 28);
+}
+
+function buildMaskSummaryLine(maskSummary) {
+  const counts = maskSummary && maskSummary.marker_type_counts && typeof maskSummary.marker_type_counts === "object"
+    ? maskSummary.marker_type_counts
+    : {};
+  const parts = Object.keys(counts)
+    .sort()
+    .map((key) => `${titleCaseWords(key, key).toLowerCase()} ${Number(counts[key])}`)
+    .filter((entry) => !entry.endsWith(" 0"));
+
+  if (parts.length === 0) {
+    return "";
+  }
+
+  return `Mask markers: ${parts.slice(0, 4).join(" | ")}${parts.length > 4 ? ` | +${parts.length - 4} more` : ""}`;
+}
+
+function buildDungeonSummaryLines(payload, viewState) {
   const room = payload.room && typeof payload.room === "object" ? payload.room : {};
   const dungeonMap = payload.dungeon_map && typeof payload.dungeon_map === "object" ? payload.dungeon_map : {};
-  const objectCount = Array.isArray(dungeonMap.objects) && dungeonMap.objects.length > 0
-    ? dungeonMap.objects.length
-    : (Array.isArray(room.visible_objects) ? room.visible_objects.length : 0);
-  const exitCount = Array.isArray(dungeonMap.exits) && dungeonMap.exits.length > 0
-    ? dungeonMap.exits.length
-    : (Array.isArray(room.exits) ? room.exits.length : 0);
-  const encounterTriggerCount = Array.isArray(dungeonMap.encounter_triggers) ? dungeonMap.encounter_triggers.length : 0;
-  const visibleEnemyCount = getVisibleEnemyEntries(dungeonMap, room).length;
-  const roomType = cleanText(room.room_type, "unknown");
-  const lines = [
-    `Room: ${payload.room_name}`,
-    `Leader: ${payload.leader_id}`,
-    `Room Type: ${roomType}`,
-    `Exits: ${exitCount} | Objects: ${objectCount} | Visible enemies: ${visibleEnemyCount} | Encounter triggers: ${encounterTriggerCount}`
-  ];
+  const debugFlags = normalizeDungeonDebugFlags(viewState && viewState.debug_flags);
+  const roomType = titleCaseWords(room.room_type, "Unknown");
+  const partyPosition = normalizePosition(dungeonMap.party_position || room.party_position || (payload.session && payload.session.party_position));
+  const exits = getMergedDungeonExits(dungeonMap, room)
+    .map((entry) => summarizeDungeonExit(entry));
+  const objects = mergeUniqueEntriesByKey(
+    Array.isArray(dungeonMap.objects) ? dungeonMap.objects : [],
+    Array.isArray(room.visible_objects) ? room.visible_objects : [],
+    (entry) => cleanText(entry && entry.object_id, `${entry && entry.position ? `${entry.position.x},${entry.position.y}` : "object"}`)
+  )
+    .sort(compareEntriesByPosition)
+    .map((entry) => summarizeDungeonObject(entry));
+  const threats = mergeUniqueEntriesByKey(
+    Array.isArray(dungeonMap.visible_enemy_tokens) ? dungeonMap.visible_enemy_tokens : [],
+    getVisibleEnemyEntries(dungeonMap, room),
+    (entry) => cleanText(entry && entry.token_id, `${entry && entry.position ? `${entry.position.x},${entry.position.y}` : "threat"}`)
+  )
+    .sort(compareEntriesByPosition)
+    .map((entry) => summarizeDungeonThreat(entry));
+  const lines = [[
+    partyPosition ? `Party: ${formatGridPosition(partyPosition)}` : "",
+    `Room Type: ${roomType}`
+  ].filter(Boolean).join(" | ")];
+
+  lines.push(formatSummaryList("Routes", exits, "none visible"));
+  lines.push(formatSummaryList("Interactables", objects, "none visible"));
+  lines.push(formatSummaryList("Threats", threats, "none visible"));
 
   if (room.encounter && typeof room.encounter === "object") {
     lines.push(`Encounter: ${cleanText(room.encounter.name || room.encounter.encounter_id, "active encounter")}`);
   }
 
-  return lines;
+  lines.push(formatDungeonDebugSummary(debugFlags));
+  if (debugFlags.markers === true) {
+    lines.push(buildMaskSummaryLine(dungeonMap.mask_summary));
+  }
+
+  return lines.filter(Boolean);
 }
 
 function buildDungeonMapComponents(options) {
@@ -525,6 +750,20 @@ function buildDungeonMapComponents(options) {
   const moveTargets = getDungeonMoveTargets(dungeonMap, room);
   const isLeader = options.is_leader === true;
   const mode = cleanText(options.mode, "idle");
+  const debugFlags = normalizeDungeonDebugFlags(options.debug_flags);
+
+  function buildDebugToggleButtons() {
+    return Object.keys(DUNGEON_DEBUG_FLAG_LABELS).map((key) => (
+      new ButtonBuilder()
+        .setCustomId(buildDungeonMapCustomId({
+          action: DUNGEON_MAP_ACTIONS.DEBUG_TOGGLE,
+          session_id: sessionId,
+          value: key
+        }))
+        .setLabel(DUNGEON_DEBUG_FLAG_LABELS[key])
+        .setStyle(debugFlags[key] === true ? ButtonStyle.Primary : ButtonStyle.Secondary)
+    ));
+  }
 
   if (mode === "move_preview") {
     const moveButtons = moveTargets
@@ -537,7 +776,7 @@ function buildDungeonMapComponents(options) {
             session_id: sessionId,
             value: entry.direction
           }))
-          .setLabel(toSafeButtonLabel(`${entry.label} (${entry.position.x},${entry.position.y})`, entry.label))
+          .setLabel(toSafeButtonLabel(summarizeDungeonExit(entry), entry.label))
           .setStyle(ButtonStyle.Primary)
           .setDisabled(!isLeader)
       ));
@@ -546,23 +785,22 @@ function buildDungeonMapComponents(options) {
       rows.push(new ActionRowBuilder().addComponents(moveButtons));
     }
 
-    rows.push(
-      new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(buildDungeonMapCustomId({
-            action: DUNGEON_MAP_ACTIONS.BACK,
-            session_id: sessionId
-          }))
-          .setLabel("Back")
-          .setStyle(ButtonStyle.Secondary)
-      )
-    );
+    rows.push(new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(buildDungeonMapCustomId({
+          action: DUNGEON_MAP_ACTIONS.BACK,
+          session_id: sessionId
+        }))
+        .setLabel("Back")
+        .setStyle(ButtonStyle.Secondary),
+      ...buildDebugToggleButtons()
+    ));
     return rows;
   }
 
+  const controlButtons = [];
   if (moveTargets.length > 0) {
-    rows.push(
-      new ActionRowBuilder().addComponents(
+    controlButtons.push(
         new ButtonBuilder()
           .setCustomId(buildDungeonMapCustomId({
             action: DUNGEON_MAP_ACTIONS.PREVIEW_MOVE,
@@ -571,8 +809,12 @@ function buildDungeonMapComponents(options) {
           .setLabel("Preview Move")
           .setStyle(ButtonStyle.Success)
           .setDisabled(!isLeader)
-      )
     );
+  }
+  controlButtons.push(...buildDebugToggleButtons());
+
+  if (controlButtons.length > 0) {
+    rows.push(new ActionRowBuilder().addComponents(controlButtons));
   }
 
   return rows;
@@ -662,6 +904,7 @@ async function buildDungeonMapState(options) {
     }
   }
   map.overlays = [].concat(Array.isArray(map.overlays) ? map.overlays : [], overlays);
+  map.render_debug = normalizeDungeonDebugFlags(options.view_state && options.view_state.debug_flags);
 
   const validation = validateMapStateShape(map);
   if (!validation.ok) {
@@ -732,7 +975,7 @@ async function buildDungeonMapView(options) {
             ? "Dungeon move preview ready."
             : "Dungeon map ready."
         ),
-        ...buildDungeonSummaryLines(payload),
+        ...buildDungeonSummaryLines(payload, options.view_state),
         options.view_state && options.view_state.mode === "move_preview"
           ? "Mode: Move Preview"
           : "Mode: Exploration"
@@ -747,10 +990,12 @@ async function buildDungeonMapView(options) {
         room,
         session_id: payload.session_id,
         is_leader: cleanText(options.user_id, "") === cleanText(payload.leader_id, ""),
-        mode: options.view_state && options.view_state.mode ? options.view_state.mode : "idle"
+        mode: options.view_state && options.view_state.mode ? options.view_state.mode : "idle",
+        debug_flags: options.view_state && options.view_state.debug_flags
       }),
       view_state: {
-        mode: options.view_state && options.view_state.mode ? options.view_state.mode : "idle"
+        mode: options.view_state && options.view_state.mode ? options.view_state.mode : "idle",
+        debug_flags: normalizeDungeonDebugFlags(options.view_state && options.view_state.debug_flags)
       }
     }
   };
@@ -758,9 +1003,12 @@ async function buildDungeonMapView(options) {
 
 module.exports = {
   DUNGEON_MAP_ACTIONS,
+  DUNGEON_DEBUG_FLAG_LABELS,
   resolveDungeonMapConfig,
   buildDungeonMapCustomId,
   parseDungeonMapCustomId,
+  normalizeDungeonDebugFlags,
+  toggleDungeonDebugFlag,
   getDungeonMoveTargets,
   buildDungeonMapState,
   buildDungeonMapView

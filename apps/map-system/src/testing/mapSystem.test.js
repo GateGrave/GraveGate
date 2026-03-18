@@ -3510,6 +3510,31 @@ function runMapSystemTests() {
     assert.equal(svg.includes('stroke="#06b6d4"'), true);
   }, results);
 
+  runTest("svg_renderer_draws_marker_debug_labels_for_dungeon_selection_overlays", () => {
+    const map = createTestMap();
+    map.overlays = [
+      buildSelectionOverlay({
+        overlay_id: "exit-overlay",
+        marker_style: "exit",
+        color: "#5ac8fa",
+        tiles: [{ x: 1, y: 1, label: "WES", marker_style: "exit" }]
+      }),
+      buildSelectionOverlay({
+        overlay_id: "door-overlay",
+        marker_style: "door",
+        color: "#5ac8fa",
+        tiles: [{ x: 2, y: 2, label: "LCK", marker_style: "door" }]
+      })
+    ];
+    map.render_debug = {
+      markers: true
+    };
+
+    const svg = renderMapSvg(map, {});
+    assert.equal(svg.includes(">EXT WES</text>"), true);
+    assert.equal(svg.includes(">DOR LCK</text>"), true);
+  }, results);
+
   runTest("svg_renderer_centers_image_tokens_inside_rectangular_grid_cells", () => {
     const map = {
       map_id: "rectangular-render-map",

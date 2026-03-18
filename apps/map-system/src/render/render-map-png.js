@@ -13,7 +13,9 @@ const {
   buildTerrainVisualTiles,
   getCoverDebugLabel,
   buildTerrainDebugLabel,
-  buildEdgeWallVisuals
+  buildEdgeWallVisuals,
+  getSelectionMarkerVisual,
+  buildMarkerDebugEntries
 } = require("./render-visuals");
 
 function readPngDimensions(absolutePath) {
@@ -221,6 +223,97 @@ async function drawLineSegment(image, startX, startY, endX, endY, hex, opacity, 
   }
 }
 
+async function drawSelectionMarkerEmblem(image, rect, icon, stroke) {
+  const left = rect.x + 8;
+  const right = rect.x + rect.width - 8;
+  const top = rect.y + 8;
+  const bottom = rect.y + rect.height - 8;
+  const centerX = rect.x + Math.round(rect.width / 2);
+  const centerY = rect.y + Math.round(rect.height / 2);
+
+  if (icon === "exit") {
+    await drawLineSegment(image, left, top + 4, centerX + 4, centerY, stroke, 1, 3);
+    await drawLineSegment(image, left, bottom - 4, centerX + 4, centerY, stroke, 1, 3);
+    await drawLineSegment(image, centerX + 2, centerY, right - 2, centerY, stroke, 1, 3);
+    return;
+  }
+
+  if (icon === "door") {
+    await drawLineSegment(image, centerX - 4, top, centerX - 4, bottom, stroke, 1, 3);
+    await drawLineSegment(image, centerX + 4, top + 4, centerX + 4, bottom - 4, stroke, 1, 2);
+    await drawFilledRect(image, { x: centerX + 7, y: centerY - 2, width: 4, height: 4 }, stroke, 1);
+    return;
+  }
+
+  if (icon === "chest") {
+    const box = {
+      x: centerX - 12,
+      y: centerY - 9,
+      width: 24,
+      height: 18
+    };
+    await drawRectBorder(image, box, stroke, 2);
+    await drawLineSegment(image, box.x, box.y + 6, box.x + box.width, box.y + 6, stroke, 1, 2);
+    await drawFilledRect(image, { x: centerX - 2, y: centerY - 1, width: 4, height: 6 }, stroke, 1);
+    return;
+  }
+
+  if (icon === "trap") {
+    await drawLineSegment(image, centerX, top, left + 2, bottom, stroke, 1, 3);
+    await drawLineSegment(image, centerX, top, right - 2, bottom, stroke, 1, 3);
+    await drawLineSegment(image, left + 2, bottom, right - 2, bottom, stroke, 1, 3);
+    await drawFilledRect(image, { x: centerX - 2, y: centerY - 2, width: 4, height: 8 }, stroke, 1);
+    return;
+  }
+
+  if (icon === "shrine") {
+    await drawLineSegment(image, centerX, top, left + 4, centerY, stroke, 1, 3);
+    await drawLineSegment(image, left + 4, centerY, centerX, bottom, stroke, 1, 3);
+    await drawLineSegment(image, centerX, bottom, right - 4, centerY, stroke, 1, 3);
+    await drawLineSegment(image, right - 4, centerY, centerX, top, stroke, 1, 3);
+    await drawFilledRect(image, { x: centerX - 3, y: centerY - 3, width: 6, height: 6 }, stroke, 1);
+    return;
+  }
+
+  if (icon === "lore") {
+    await drawRectBorder(image, { x: centerX - 12, y: centerY - 10, width: 24, height: 20 }, stroke, 2);
+    await drawLineSegment(image, centerX, centerY - 10, centerX, centerY + 10, stroke, 1, 2);
+    await drawLineSegment(image, centerX - 8, centerY - 4, centerX - 2, centerY - 4, stroke, 1, 2);
+    await drawLineSegment(image, centerX + 2, centerY - 4, centerX + 8, centerY - 4, stroke, 1, 2);
+    return;
+  }
+
+  if (icon === "lever") {
+    await drawLineSegment(image, centerX - 5, bottom, centerX - 5, centerY - 2, stroke, 1, 3);
+    await drawLineSegment(image, centerX - 5, centerY - 2, centerX + 7, centerY - 10, stroke, 1, 3);
+    await drawFilledRect(image, { x: centerX + 6, y: centerY - 12, width: 6, height: 6 }, stroke, 1);
+    await drawLineSegment(image, centerX - 12, bottom, centerX + 2, bottom, stroke, 1, 3);
+    return;
+  }
+
+  if (icon === "object") {
+    await drawRectBorder(image, { x: centerX - 10, y: centerY - 10, width: 20, height: 20 }, stroke, 2);
+    await drawFilledRect(image, { x: centerX - 3, y: centerY - 3, width: 6, height: 6 }, stroke, 1);
+    return;
+  }
+
+  if (icon === "encounter") {
+    await drawLineSegment(image, centerX, top, left + 4, centerY, stroke, 1, 3);
+    await drawLineSegment(image, left + 4, centerY, centerX, bottom, stroke, 1, 3);
+    await drawLineSegment(image, centerX, bottom, right - 4, centerY, stroke, 1, 3);
+    await drawLineSegment(image, right - 4, centerY, centerX, top, stroke, 1, 3);
+    await drawLineSegment(image, centerX, top + 7, centerX, centerY + 2, stroke, 1, 3);
+    await drawFilledRect(image, { x: centerX - 2, y: centerY + 6, width: 4, height: 4 }, stroke, 1);
+    return;
+  }
+
+  if (icon === "path") {
+    await drawFilledRect(image, { x: left + 2, y: centerY - 3, width: 6, height: 6 }, stroke, 0.95);
+    await drawFilledRect(image, { x: centerX - 3, y: centerY - 3, width: 6, height: 6 }, stroke, 0.95);
+    await drawFilledRect(image, { x: right - 8, y: centerY - 3, width: 6, height: 6 }, stroke, 0.95);
+  }
+}
+
 async function renderTerrainSemantics(image, map, metrics) {
   const tiles = buildTerrainVisualTiles(map);
 
@@ -303,11 +396,28 @@ async function renderSelectionOverlays(image, map, metrics, fonts) {
         width: Math.max(1, rect.width - (inset * 2)),
         height: Math.max(1, rect.height - (inset * 2))
       };
+      const visual = getSelectionMarkerVisual(tile.marker_style || (overlay.metadata && overlay.metadata.marker_style));
 
-      await drawFilledRect(image, selectionRect, stroke, typeof overlay.opacity === "number" ? overlay.opacity : 0.18);
-      await drawRectBorder(image, selectionRect, stroke, 3);
+      await drawFilledRect(
+        image,
+        selectionRect,
+        stroke,
+        typeof overlay.opacity === "number" ? overlay.opacity : visual.fill_opacity
+      );
+      await drawRectBorder(image, selectionRect, stroke, visual.border_thickness);
 
-      if (tile.label) {
+      if (visual.style === "target") {
+        const centerX = selectionRect.x + Math.round(selectionRect.width / 2);
+        const centerY = selectionRect.y + Math.round(selectionRect.height / 2);
+        await drawLineSegment(image, centerX, selectionRect.y + 8, centerX, selectionRect.y + 22, stroke, 1, 3);
+        await drawLineSegment(image, centerX, selectionRect.y + selectionRect.height - 8, centerX, selectionRect.y + selectionRect.height - 22, stroke, 1, 3);
+        await drawLineSegment(image, selectionRect.x + 8, centerY, selectionRect.x + 22, centerY, stroke, 1, 3);
+        await drawLineSegment(image, selectionRect.x + selectionRect.width - 8, centerY, selectionRect.x + selectionRect.width - 22, centerY, stroke, 1, 3);
+      } else {
+        await drawSelectionMarkerEmblem(image, selectionRect, visual.icon, stroke);
+      }
+
+      if (visual.show_badge !== false && tile.label) {
         const badgeWidth = getPlateWidth(tile.label, 22, Math.max(22, selectionRect.width - 12));
         await drawTextPlate(image, fonts, {
           x: selectionRect.x + selectionRect.width - badgeWidth - 4,
@@ -364,6 +474,24 @@ async function renderDebugOverlays(image, map, metrics, fonts) {
         max_width: Math.max(26, rect.width - 8),
         height: 16,
         opacity: 0.84
+      });
+    }
+  }
+
+  if (debugFlags.markers === true) {
+    for (const entry of buildMarkerDebugEntries(map)) {
+      const rect = tileRect(metrics, entry);
+      const plateWidth = getPlateWidth(entry.label, 34, Math.max(34, rect.width - 8));
+      await drawTextPlate(image, fonts, {
+        x: rect.x + rect.width - plateWidth - 4,
+        y: rect.y + 4,
+        text: entry.label,
+        fill: "#0f766e",
+        text_color: "#ffffff",
+        min_width: 34,
+        max_width: Math.max(34, rect.width - 8),
+        height: 16,
+        opacity: 0.9
       });
     }
   }
