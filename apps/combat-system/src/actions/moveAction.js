@@ -7,7 +7,12 @@ const {
   normalizeMoveCostFeet,
   validateParticipantActionAvailability
 } = require("./actionEconomy");
-const { participantHasCondition } = require("../conditions/conditionHelpers");
+const {
+  participantHasCondition,
+  getActiveConditionsForParticipant,
+  normalizeCombatControlConditions
+} = require("../conditions/conditionHelpers");
+const { gridDistanceFeet } = require("../validation/validation-helpers");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -52,6 +57,39 @@ function normalizePosition(position) {
     x: Math.floor(x),
     y: Math.floor(y)
   };
+}
+
+function findFrightenedMovementBlocker(combat, participantId, currentPosition, targetPosition) {
+  const activeConditions = getActiveConditionsForParticipant(combat, participantId);
+  const frightenedConditions = activeConditions.filter((condition) => {
+    return String(condition && condition.condition_type || "") === "frightened";
+  });
+  const participants = Array.isArray(combat && combat.participants) ? combat.participants : [];
+  for (let index = 0; index < frightenedConditions.length; index += 1) {
+    const condition = frightenedConditions[index];
+    const sourceId = String(condition && condition.source_actor_id || "").trim();
+    if (!sourceId) {
+      continue;
+    }
+    const source = findParticipantById(participants, sourceId);
+    if (!source || !source.position) {
+      continue;
+    }
+    const sourceHp = Number.isFinite(Number(source.current_hp)) ? Number(source.current_hp) : 0;
+    if (sourceHp <= 0) {
+      continue;
+    }
+    const currentDistance = gridDistanceFeet(currentPosition, source.position);
+    const nextDistance = gridDistanceFeet(targetPosition, source.position);
+    if (Number.isFinite(currentDistance) && Number.isFinite(nextDistance) && nextDistance < currentDistance) {
+      return {
+        source,
+        current_distance_feet: currentDistance,
+        next_distance_feet: nextDistance
+      };
+    }
+  }
+  return null;
 }
 
 function performMoveAction(input) {
@@ -130,6 +168,17 @@ function performMoveAction(input) {
       participant_id: String(participantId)
     });
   }
+  const currentPosition = normalizePosition(actor.position) || { x: 0, y: 0 };
+  const frightenedBlocker = findFrightenedMovementBlocker(combat, participantId, currentPosition, targetPosition);
+  if (frightenedBlocker) {
+    return failure("move_action_failed", "frightened participants cannot move closer to the source of fear", {
+      combat_id: String(combatId),
+      participant_id: String(participantId),
+      fear_source_actor_id: String(frightenedBlocker.source.participant_id || ""),
+      current_distance_feet: frightenedBlocker.current_distance_feet,
+      next_distance_feet: frightenedBlocker.next_distance_feet
+    });
+  }
 
   const initiativeOrder = Array.isArray(combat.initiative_order) ? combat.initiative_order : [];
   const expectedActorId = initiativeOrder[combat.turn_index];
@@ -170,7 +219,7 @@ function performMoveAction(input) {
     });
   }
 
-  const previousPosition = normalizePosition(actor.position) || { x: 0, y: 0 };
+  const previousPosition = currentPosition;
   const moveCostFeet = normalizeMoveCostFeet(previousPosition, targetPosition);
   const consumedMovement = consumeParticipantAction(actor, ACTION_TYPES.MOVE, {
     move_cost_feet: moveCostFeet
@@ -190,6 +239,10 @@ function performMoveAction(input) {
   };
 
   combat.event_log = Array.isArray(combat.event_log) ? combat.event_log : [];
+  const normalizedConditions = normalizeCombatControlConditions(combat);
+  if (normalizedConditions.ok) {
+    combat.conditions = normalizedConditions.next_state.conditions;
+  }
   combat.event_log.push({
     event_type: "move_action",
     timestamp: new Date().toISOString(),

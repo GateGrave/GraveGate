@@ -2399,6 +2399,228 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(String(interaction._replyCalls[0].content).includes("Result: Dodge active"), true);
   }, results);
 
+  await runTest("gateway_formats_dash_response_with_combat_state", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "dash",
+                  ok: true,
+                  data: {
+                    participant_id: "hero-001",
+                    movement_before: 5,
+                    movement_added: 30,
+                    movement_after: 35,
+                    active_participant_id: "monster-001",
+                    combat_completed: false,
+                    ai_turns: [],
+                    combat_summary: {
+                      combat_id: "combat-gateway-dash-001",
+                      round: 2,
+                      active_participant_id: "monster-001",
+                      participants: [
+                        { participant_id: "hero-001", current_hp: 9, max_hp: 12 },
+                        { participant_id: "monster-001", current_hp: 7, max_hp: 7 }
+                      ]
+                    }
+                  },
+                  error: null
+                }
+              }
+            ],
+            events_processed: [event],
+            final_state: {}
+          },
+          error: null
+        };
+      }
+    };
+
+    const interaction = createInteraction("dash", [
+      { name: "combat_id", value: "combat-gateway-dash-001" }
+    ], "player-gateway-dash-001");
+    const out = await handleGatewayInteraction(interaction, runtime);
+
+    assert.equal(out.ok, true);
+    assert.equal(interaction._replyCalls.length, 1);
+    assert.equal(interaction._replyCalls[0].embeds[0].data.title, "Dash Taken");
+    assert.equal(interaction._replyCalls[0].embeds[1].data.title, "Battle Window");
+    assert.equal(String(interaction._replyCalls[0].content).includes("Movement: 5 -> 35"), true);
+  }, results);
+
+  await runTest("gateway_formats_assist_response_with_combat_state", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "assist",
+                  ok: true,
+                  data: {
+                    helper_id: "hero-001",
+                    target_id: "ally-001",
+                    applied_condition: {
+                      condition_type: "helped_attack"
+                    },
+                    active_participant_id: "monster-001",
+                    combat_completed: false,
+                    ai_turns: [],
+                    combat_summary: {
+                      combat_id: "combat-gateway-assist-001",
+                      round: 2,
+                      active_participant_id: "monster-001",
+                      participants: [
+                        { participant_id: "hero-001", current_hp: 9, max_hp: 12 },
+                        { participant_id: "ally-001", current_hp: 7, max_hp: 7 }
+                      ]
+                    }
+                  },
+                  error: null
+                }
+              }
+            ],
+            events_processed: [event],
+            final_state: {}
+          },
+          error: null
+        };
+      }
+    };
+
+    const interaction = createInteraction("assist", [
+      { name: "target_id", value: "ally-001" },
+      { name: "combat_id", value: "combat-gateway-assist-001" }
+    ], "player-gateway-assist-001");
+    const out = await handleGatewayInteraction(interaction, runtime);
+
+    assert.equal(out.ok, true);
+    assert.equal(interaction._replyCalls.length, 1);
+    assert.equal(interaction._replyCalls[0].embeds[0].data.title, "Assist Used");
+    assert.equal(interaction._replyCalls[0].embeds[1].data.title, "Battle Window");
+    assert.equal(String(interaction._replyCalls[0].content).includes("Effect: helped_attack applied"), true);
+  }, results);
+
+  await runTest("gateway_formats_ready_response_with_combat_state", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "ready",
+                  ok: true,
+                  data: {
+                    participant_id: "hero-001",
+                    ready_action: {
+                      trigger_type: "enemy_enters_reach",
+                      action_type: "attack"
+                    },
+                    active_participant_id: "monster-001",
+                    combat_completed: false,
+                    ai_turns: [],
+                    combat_summary: {
+                      combat_id: "combat-gateway-ready-001",
+                      round: 2,
+                      active_participant_id: "monster-001",
+                      participants: [
+                        { participant_id: "hero-001", current_hp: 9, max_hp: 12 },
+                        { participant_id: "monster-001", current_hp: 7, max_hp: 7 }
+                      ]
+                    }
+                  },
+                  error: null
+                }
+              }
+            ],
+            events_processed: [event],
+            final_state: {}
+          },
+          error: null
+        };
+      }
+    };
+
+    const interaction = createInteraction("ready", [
+      { name: "combat_id", value: "combat-gateway-ready-001" },
+      { name: "trigger_type", value: "enemy_enters_reach" },
+      { name: "readied_action_type", value: "attack" }
+    ], "player-gateway-ready-001");
+    const out = await handleGatewayInteraction(interaction, runtime);
+
+    assert.equal(out.ok, true);
+    assert.equal(interaction._replyCalls.length, 1);
+    assert.equal(interaction._replyCalls[0].embeds[0].data.title, "Ready Set");
+    assert.equal(interaction._replyCalls[0].embeds[1].data.title, "Battle Window");
+    assert.equal(String(interaction._replyCalls[0].content).includes("Readied Action: attack"), true);
+  }, results);
+
+  await runTest("gateway_formats_disengage_response_with_combat_state", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "disengage",
+                  ok: true,
+                  data: {
+                    participant_id: "hero-001",
+                    active_participant_id: "monster-001",
+                    combat_completed: false,
+                    ai_turns: [],
+                    combat_summary: {
+                      combat_id: "combat-gateway-disengage-001",
+                      round: 2,
+                      active_participant_id: "monster-001",
+                      participants: [
+                        { participant_id: "hero-001", current_hp: 9, max_hp: 12 },
+                        { participant_id: "monster-001", current_hp: 7, max_hp: 7 }
+                      ]
+                    }
+                  },
+                  error: null
+                }
+              }
+            ],
+            events_processed: [event],
+            final_state: {}
+          },
+          error: null
+        };
+      }
+    };
+
+    const interaction = createInteraction("disengage", [
+      { name: "combat_id", value: "combat-gateway-disengage-001" }
+    ], "player-gateway-disengage-001");
+    const out = await handleGatewayInteraction(interaction, runtime);
+
+    assert.equal(out.ok, true);
+    assert.equal(interaction._replyCalls.length, 1);
+    assert.equal(interaction._replyCalls[0].embeds[0].data.title, "Disengage Taken");
+    assert.equal(interaction._replyCalls[0].embeds[1].data.title, "Battle Window");
+    assert.equal(String(interaction._replyCalls[0].content).includes("Status: Disengaged"), true);
+  }, results);
+
   await runTest("gateway_formats_spell_effect_details_in_cast_response", async () => {
     const runtime = {
       processGatewayReadCommandEvent(event) {
@@ -2497,6 +2719,21 @@ async function runGatewayRuntimeIntegrationTests() {
                       turn_index: 0,
                       condition_count: 1,
                       initiative_order: ["hero-001", "monster-001"],
+                      recent_events: [
+                        {
+                          event_type: "attack_action",
+                          attacker_id: "hero-001",
+                          target_id: "monster-001",
+                          hit: true,
+                          damage_dealt: 4
+                        },
+                        {
+                          event_type: "move_action",
+                          participant_id: "monster-001",
+                          from_position: { x: 2, y: 1 },
+                          to_position: { x: 3, y: 1 }
+                        }
+                      ],
                       participants: [
                         {
                           participant_id: "hero-001",
@@ -2564,6 +2801,14 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(String(interaction._replyCalls[0].embeds[0].data.fields[1].value).includes("2. [M1] Goblin 1"), true);
     assert.equal(String(interaction._replyCalls[0].embeds[0].data.fields[2].value).includes("[M1] Goblin 1 | HP 3/7 | Grid (3, 1) | Conditions Poisoned"), true);
     assert.equal(
+      interaction._replyCalls[0].embeds[0].data.fields.some((field) => (
+        String(field.name).startsWith("Recent Flow") &&
+        String(field.value).includes("Aelar -> Goblin 1 hit 4") &&
+        String(field.value).includes("Goblin 1 moved 2,1 -> 3,1")
+      )),
+      true
+    );
+    assert.equal(
       interaction._replyCalls[0].components.some((row) =>
         Array.isArray(row.components) && row.components.some((button) => String(button.data.label) === "Terrain")
       ),
@@ -2578,6 +2823,74 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(button._updateCalls[0].embeds[0].data.title, "Battle Window");
     assert.equal(Array.isArray(button._updateCalls[0].files), true);
     assert.equal(button._updateCalls[0].files.length >= 1, true);
+  }, results);
+
+  await runTest("gateway_combat_view_buttons_dispatch_dodge_dash_and_disengage_actions", async () => {
+    const receivedEvents = [];
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        receivedEvents.push(event);
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "combat",
+                  ok: true,
+                  data: {
+                    combat_id: "combat-gateway-buttons-001",
+                    combat_summary: {
+                      combat_id: "combat-gateway-buttons-001",
+                      status: "active",
+                      round: 1,
+                      active_participant_id: "hero-001",
+                      condition_count: 0,
+                      participants: [
+                        {
+                          participant_id: "hero-001",
+                          player_id: "player-gateway-buttons-001",
+                          team: "heroes",
+                          current_hp: 10,
+                          max_hp: 10,
+                          position: { x: 1, y: 1 },
+                          action_available: true,
+                          bonus_action_available: true,
+                          reaction_available: true,
+                          movement_remaining: 30,
+                          conditions: []
+                        }
+                      ]
+                    }
+                  },
+                  error: null
+                }
+              }
+            ],
+            events_processed: [event],
+            final_state: {}
+          },
+          error: null
+        };
+      }
+    };
+
+    const dodgeButton = createButtonInteraction("combat:view:dodge:combat-gateway-buttons-001", "player-gateway-buttons-001");
+    const dashButton = createButtonInteraction("combat:view:dash:combat-gateway-buttons-001", "player-gateway-buttons-001");
+    const disengageButton = createButtonInteraction("combat:view:disengage:combat-gateway-buttons-001", "player-gateway-buttons-001");
+    const dodgeOut = await handleGatewayInteraction(dodgeButton, runtime);
+    const dashOut = await handleGatewayInteraction(dashButton, runtime);
+    const disengageOut = await handleGatewayInteraction(disengageButton, runtime);
+
+    assert.equal(dodgeOut.ok, true);
+    assert.equal(dashOut.ok, true);
+    assert.equal(disengageOut.ok, true);
+    assert.equal(receivedEvents.length, 3);
+    assert.equal(receivedEvents[0].event_type, "player_dodge");
+    assert.equal(receivedEvents[1].event_type, "player_dash");
+    assert.equal(receivedEvents[2].event_type, "player_disengage");
   }, results);
 
   await runTest("gateway_chunks_battle_window_fields_for_large_combats", async () => {

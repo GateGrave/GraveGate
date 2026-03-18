@@ -8,6 +8,7 @@ const {
 } = require("../battlefield");
 const { initializeParticipantReactions } = require("../reactions/reactionState");
 const { initializeParticipantConcentration } = require("../concentration/concentrationState");
+const { initializeParticipantSpellcastingTurnState } = require("../spells/spellcastingHelpers");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -37,7 +38,7 @@ function findParticipantById(participants, participantId) {
 
 function initializeParticipantTurnState(participant) {
   const movementSpeed = Number(participant && participant.movement_speed);
-  return initializeParticipantConcentration(Object.assign({}, participant, {
+  return initializeParticipantSpellcastingTurnState(initializeParticipantConcentration(Object.assign({}, participant, {
     action_available:
       participant && typeof participant.action_available === "boolean"
         ? participant.action_available
@@ -50,7 +51,7 @@ function initializeParticipantTurnState(participant) {
       Number.isFinite(participant && participant.movement_remaining)
         ? Number(participant.movement_remaining)
         : (Number.isFinite(movementSpeed) ? movementSpeed : 30)
-  }));
+  })));
 }
 
 function normalizePosition(position) {

@@ -233,6 +233,58 @@ function runMoveActionTests() {
     assert.equal(out.error, "paralyzed participants cannot move");
   }, results);
 
+  runTest("frightened_participant_cannot_move_closer_to_fear_source", () => {
+    const manager = createActiveCombatForMoveTests();
+    const found = manager.getCombatById("combat-move-001");
+    const combat = found.payload.combat;
+    combat.conditions = [
+      {
+        condition_id: "condition-move-fear-001",
+        condition_type: "frightened",
+        source_actor_id: "p2",
+        target_actor_id: "p1",
+        expiration_trigger: "manual"
+      }
+    ];
+    manager.combats.set("combat-move-001", combat);
+
+    const out = performMoveAction({
+      combatManager: manager,
+      combat_id: "combat-move-001",
+      participant_id: "p1",
+      target_position: { x: 1, y: 1 }
+    });
+
+    assert.equal(out.ok, false);
+    assert.equal(out.error, "frightened participants cannot move closer to the source of fear");
+  }, results);
+
+  runTest("moving_grappler_out_of_reach_clears_grappled_condition", () => {
+    const manager = createActiveCombatForMoveTests();
+    const combat = manager.getCombatById("combat-move-001").payload.combat;
+    combat.participants[1].position = { x: 1, y: 0 };
+    combat.conditions = [{
+      condition_id: "condition-grapple-move-001",
+      condition_type: "grappled",
+      source_actor_id: "p1",
+      target_actor_id: "p2",
+      expiration_trigger: "manual"
+    }];
+    manager.combats.set("combat-move-001", combat);
+
+    const out = performMoveAction({
+      combatManager: manager,
+      combat_id: "combat-move-001",
+      participant_id: "p1",
+      target_position: { x: 4, y: 0 }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.combat.conditions.some((entry) => {
+      return String(entry && entry.condition_type || "") === "grappled";
+    }), false);
+  }, results);
+
   const passed = results.filter((x) => x.ok).length;
   const failed = results.length - passed;
   return {

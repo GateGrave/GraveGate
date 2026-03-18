@@ -1,6 +1,6 @@
 # GateGrave Implementation Status
 
-Last updated: 2026-03-13
+Last updated: 2026-03-18
 
 This is the working roadmap for the actual repo state.
 
@@ -159,7 +159,46 @@ Next recommended resume point:
   - `bless`, `bane`, `heroism`, and `aid` style multi-target effects can now resolve across up to three targets through the canonical cast flow
   - `magic_missile` split-target behavior is now live on the canonical combat path using per-projectile force damage
 - [x] Core action and movement resource consumption
+- [x] Canonical assist/help attack-support action
+  - `assist` now routes through gateway -> controller -> runtime -> combat on a single canonical path
+  - assist applies a temporary `helped_attack` condition to an ally and consumes action economy
+  - the ally's next attack roll now gains advantage from `helped_attack`, then consumes that condition
+- [x] Canonical ready action scaffold
+  - `ready` now routes through gateway -> controller -> runtime -> combat on a single canonical path
+  - ready now stores trigger/action metadata in combat participant state and consumes action economy
+  - movement now resolves `enemy_enters_reach` readied attack reactions through canonical combat move flow
+  - readied attacks consume the reactor's reaction, use canonical attack resolution, and clear the stored ready state on trigger
+  - ready state still clears safely at the actor's next turn start through canonical turn lifecycle hooks
+- [x] Canonical disengage action support
+  - `disengage` now consumes the action resource on the combat action path
+  - the actor gains temporary `opportunity_attack_immunity` until the start of their next turn
+  - disengage is now routed end-to-end through gateway -> controller -> runtime -> combat without bypass paths
+- [x] Canonical dash action support
+  - `dash` now consumes action economy on the canonical combat action path
+  - dash adds movement equal to speed for the current turn and is persisted through the standard combat mutation flow
+  - dash is now routed end-to-end through gateway -> controller -> runtime -> combat and exposed in combat button UX
+- [x] Canonical grapple action scaffold
+  - `grapple` now routes through gateway -> controller -> runtime -> combat on one canonical path
+  - grapple now resolves a contested check and applies `grappled` only on success
+  - grapple applies the reusable `grappled` condition to a valid adjacent hostile target
+  - existing movement validation already respects `grappled` by rejecting movement while affected
+  - central combat condition normalization now clears stale grapples when the grappler is defeated, incapacitated, or no longer adjacent
+- [x] Canonical escape-grapple action support
+  - `escape` now routes through gateway -> controller -> runtime -> combat on one canonical path
+  - escape uses contested check resolution and removes `grappled` on success
+  - failed escapes still consume action economy and log outcome consistently
+- [x] Canonical shove action support
+  - `shove` now routes through gateway -> controller -> runtime -> combat on one canonical path
+  - shove supports `push` and `prone` modes via contested check resolution
+  - `push` moves a target one tile away when valid; `prone` applies the canonical `prone` condition
+  - shove/move/spell/attack lifecycles now all share the same grapple cleanup pass so forced separation does not leave invalid control state behind
 - [x] Spellcasting starter slice
+  - per-turn spellcasting state now resets on turn start through the canonical turn lifecycle
+  - the 5e bonus-action spell restriction is now enforced centrally on the combat spell path
+  - bonus-action spells can still be followed by a cantrip with a 1 action casting time on the same turn
+  - Dodge now feeds Dexterity saving throw advantage through the same central combat save resolver used by spells and other save-driven effects
+  - `escape_grapple` now has its own canonical action-economy classification instead of piggybacking on basic attack validation
+  - the supported combat spell library now includes additional resolver-safe cantrips: `eldritch_blast`, `toll_the_dead`, and `vicious_mockery`
 - [x] Concentration support foundations
 - [x] Bless/Bane style combat support
   - `bless` and `bane` now apply reusable attack/save d4 modifiers on the canonical combat path
@@ -200,6 +239,7 @@ Next recommended resume point:
 - [~] SRD spell content coverage for future map/template work
   - area-template spell content now includes representative SRD shapes for cone, cube, line, sphere, aura, and cylinder-style effects
   - current scaffold entries now include `burning_hands`, `thunderwave`, `fog_cloud`, `shatter`, `fireball`, `lightning_bolt`, and `spirit_guardians`
+  - direct combat content entries now also include `inflict_wounds`, `acid_arrow`, `hellish_rebuke`, and `dissonant_whispers`
   - this content is intended to support later map-side targeting/template work without making map state authoritative
 - [ ] Advanced combat AI behavior profiles
 - [ ] Full action economy enforcement across all action types
@@ -214,6 +254,8 @@ Next recommended resume point:
 - [x] Out-of-bounds render safety
 - [x] Removed/defeated actors stop rendering
 - [x] Player-facing combat output readability
+  - combat state now surfaces recent combat flow entries from the authoritative event log
+  - active-turn readout now includes spell-tempo state alongside action, bonus action, reaction, and movement
 - [x] Canonical `/combat` battle-state read path
 - [~] Cleaner combat screen UX in Discord
   - live map attachments, preview flows, and PNG output exist

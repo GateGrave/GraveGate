@@ -9,7 +9,8 @@ const {
   getActiveConditionsForParticipant,
   applyConditionToCombatState,
   participantHasCondition,
-  removeConditionFromCombatState
+  removeConditionFromCombatState,
+  normalizeCombatControlConditions
 } = require("../conditions/conditionHelpers");
 const { resolveConcentrationDamageCheck } = require("../concentration/concentrationState");
 const { applyDamageToCombatState } = require("../damage/apply-damage-to-combat-state");
@@ -137,6 +138,59 @@ function removeConditionTypeFromParticipant(combat, participantId, conditionType
   };
 }
 
+function removeBreakOnHarmfulActionConditions(combat, participantId) {
+  let nextCombat = clone(combat);
+  const activeConditions = getActiveConditionsForParticipant(nextCombat, participantId);
+  const toRemove = activeConditions.filter((condition) => {
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object"
+      ? condition.metadata
+      : {};
+    return metadata.breaks_on_harmful_action === true;
+  });
+  let removedCount = 0;
+  for (let index = 0; index < toRemove.length; index += 1) {
+    const condition = toRemove[index];
+    if (!condition || !condition.condition_id) {
+      continue;
+    }
+    const removed = removeConditionFromCombatState(nextCombat, condition.condition_id);
+    if (!removed.ok) {
+      return removed;
+    }
+    nextCombat = removed.next_state;
+    removedCount += 1;
+  }
+  return {
+    ok: true,
+    next_state: nextCombat,
+    removed_count: removedCount
+  };
+}
+
+function isAttackBlockedByCharm(combat, attackerId, targetId) {
+  const attackerConditions = getActiveConditionsForParticipant(combat, attackerId);
+  for (let index = 0; index < attackerConditions.length; index += 1) {
+    const condition = attackerConditions[index];
+    if (String(condition && condition.condition_type || "") !== "charmed") {
+      continue;
+    }
+    const sourceActorId = String(condition && condition.source_actor_id || "").trim();
+    if (sourceActorId && sourceActorId === String(targetId || "")) {
+      return true;
+    }
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object"
+      ? condition.metadata
+      : {};
+    const blockedTargets = Array.isArray(metadata.cannot_target_actor_ids)
+      ? metadata.cannot_target_actor_ids.map((entry) => String(entry || ""))
+      : [];
+    if (blockedTargets.includes(String(targetId || ""))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function resolveAttackDamageProfile(attacker, input) {
   const readiness = attacker && attacker.readiness && typeof attacker.readiness === "object"
     ? attacker.readiness
@@ -261,15 +315,46 @@ function resolveAttackRoll(input) {
   const attackerIsPoisoned = attackerConditions.some((condition) => String(condition && condition.condition_type || "") === "poisoned");
   const attackerIsRestrained = attackerConditions.some((condition) => String(condition && condition.condition_type || "") === "restrained");
   const attackerIsProne = attackerConditions.some((condition) => String(condition && condition.condition_type || "") === "prone");
+  const attackerIsBlinded = attackerConditions.some((condition) => String(condition && condition.condition_type || "") === "blinded");
+  const attackerIsInvisible = attackerConditions.some((condition) => String(condition && condition.condition_type || "") === "invisible");
+  const attackerIsFrightened = attackerConditions.some((condition) => String(condition && condition.condition_type || "") === "frightened");
   const targetIsProne = targetConditions.some((condition) => String(condition && condition.condition_type || "") === "prone");
+  const targetIsBlinded = targetConditions.some((condition) => String(condition && condition.condition_type || "") === "blinded");
+  const targetIsInvisible = targetConditions.some((condition) => String(condition && condition.condition_type || "") === "invisible");
   const attackerHasConditionDisadvantage = attackerConditions.some((condition) => {
     const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
     return metadata.has_attack_disadvantage === true;
   });
+  const attackerHasConditionAdvantage = attackerConditions.some((condition) => {
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
+    return metadata.has_attack_advantage === true;
+  });
+  const attackerHasHelpedAttack = attackerConditions.some((condition) => {
+    return String(condition && condition.condition_type || "") === "helped_attack";
+  });
   const targetProneAdvantage = targetIsProne && data.attack_mode === "melee" && Number(data.distance_feet) <= 5;
   const targetProneDisadvantage = targetIsProne && data.attack_mode === "ranged";
-  const targetHasAttackAdvantage = targetIsMarked || targetIsFaerieLit || targetIsRestrained || targetIsParalyzed || targetGrantsAttackAdvantage || targetProneAdvantage;
-  const attackerHasAttackDisadvantage = attackerIsPoisoned || attackerIsRestrained || attackerIsProne || targetImposesDisadvantage || attackerHasConditionDisadvantage || targetProneDisadvantage;
+  const targetHasAttackAdvantage =
+    targetIsMarked ||
+    targetIsFaerieLit ||
+    targetIsRestrained ||
+    targetIsParalyzed ||
+    targetIsBlinded ||
+    targetGrantsAttackAdvantage ||
+    targetProneAdvantage ||
+    attackerIsInvisible ||
+    attackerHasConditionAdvantage ||
+    attackerHasHelpedAttack;
+  const attackerHasAttackDisadvantage =
+    attackerIsPoisoned ||
+    attackerIsRestrained ||
+    attackerIsProne ||
+    attackerIsBlinded ||
+    attackerIsFrightened ||
+    targetIsInvisible ||
+    targetImposesDisadvantage ||
+    attackerHasConditionDisadvantage ||
+    targetProneDisadvantage;
 
   const targetIsDodging = target && target.is_dodging === true;
   if (!targetIsDodging && !targetHasAttackAdvantage && !attackerHasAttackDisadvantage) {
@@ -294,7 +379,8 @@ function resolveAttackRoll(input) {
       roll_mode: "advantage",
       roll_values: [rollA, rollB],
       final_roll: Math.max(rollA, rollB),
-      consumed_target_condition_type: targetIsMarked ? "guiding_bolt_marked" : null
+      consumed_target_condition_type: targetIsMarked ? "guiding_bolt_marked" : null,
+      consumed_attacker_condition_type: attackerHasHelpedAttack ? "helped_attack" : null
     };
   }
 
@@ -305,7 +391,8 @@ function resolveAttackRoll(input) {
       roll_mode: "normal",
       roll_values: [roll],
       final_roll: roll,
-      consumed_target_condition_type: targetIsMarked ? "guiding_bolt_marked" : null
+      consumed_target_condition_type: targetIsMarked ? "guiding_bolt_marked" : null,
+      consumed_attacker_condition_type: attackerHasHelpedAttack ? "helped_attack" : null
     };
   }
 
@@ -316,7 +403,8 @@ function resolveAttackRoll(input) {
     ok: bothValid,
     roll_mode: "disadvantage",
     roll_values: [rollA, rollB],
-    final_roll: Math.min(rollA, rollB)
+    final_roll: Math.min(rollA, rollB),
+    consumed_attacker_condition_type: attackerHasHelpedAttack ? "helped_attack" : null
   };
 }
 
@@ -368,6 +456,13 @@ function resolveAttackAgainstCombatState(input) {
       current_hp: targetHp
     });
   }
+  if (isAttackBlockedByCharm(combat, attackerId, targetId)) {
+    return failure("attack_action_failed", "charmed participants cannot make harmful attacks against the charmer", {
+      combat_id: String(combat.combat_id || ""),
+      attacker_id: String(attackerId),
+      target_id: String(targetId)
+    });
+  }
   const rangeProfile = computeAttackRangeProfile(attacker, target, data);
   if (Number.isFinite(rangeProfile.distance_feet) && rangeProfile.distance_feet > rangeProfile.max_range_feet) {
     return failure("attack_action_failed", "target is out of attack range", {
@@ -400,11 +495,16 @@ function resolveAttackAgainstCombatState(input) {
   }
 
   let updatedCombat = combat;
-  const removedSelfWard = removeConditionTypeFromParticipant(combat, attackerId, "sanctuary");
+  const removedSelfWard = removeConditionTypeFromParticipant(updatedCombat, attackerId, "sanctuary");
   if (!removedSelfWard.ok) {
     return failure("attack_action_failed", removedSelfWard.error || "failed to clear attacker ward");
   }
   updatedCombat = removedSelfWard.next_state;
+  const removedBreakingConditions = removeBreakOnHarmfulActionConditions(updatedCombat, attackerId);
+  if (!removedBreakingConditions.ok) {
+    return failure("attack_action_failed", removedBreakingConditions.error || "failed to clear harmful-action conditions");
+  }
+  updatedCombat = removedBreakingConditions.next_state;
 
   const refreshedAttacker = findParticipantById(updatedCombat.participants || [], attackerId) || attacker;
   const refreshedTarget = findParticipantById(updatedCombat.participants || [], targetId) || target;
@@ -458,6 +558,18 @@ function resolveAttackAgainstCombatState(input) {
     const targetConditions = getActiveConditionsForParticipant(updatedCombat, targetId);
     const consumedCondition = targetConditions.find((condition) => {
       return String(condition && condition.condition_type || "") === String(attackRollResult.consumed_target_condition_type);
+    });
+    if (consumedCondition && consumedCondition.condition_id) {
+      const removed = removeConditionFromCombatState(updatedCombat, consumedCondition.condition_id);
+      if (removed.ok) {
+        updatedCombat = removed.next_state;
+      }
+    }
+  }
+  if (attackRollResult.consumed_attacker_condition_type) {
+    const attackerConditions = getActiveConditionsForParticipant(updatedCombat, attackerId);
+    const consumedCondition = attackerConditions.find((condition) => {
+      return String(condition && condition.condition_type || "") === String(attackRollResult.consumed_attacker_condition_type);
     });
     if (consumedCondition && consumedCondition.condition_id) {
       const removed = removeConditionFromCombatState(updatedCombat, consumedCondition.condition_id);
@@ -556,6 +668,11 @@ function resolveAttackAgainstCombatState(input) {
     return mobileProtection;
   }
   updatedCombat = clone(mobileProtection.payload.next_state);
+  const normalizedConditions = normalizeCombatControlConditions(updatedCombat);
+  if (!normalizedConditions.ok) {
+    return failure("attack_action_failed", normalizedConditions.error || "failed to normalize combat conditions");
+  }
+  updatedCombat = clone(normalizedConditions.next_state);
   if (!reactionMode) {
     const attackerIndex = participants.findIndex((entry) => String(entry.participant_id || "") === String(attackerId));
     if (attackerIndex !== -1) {
@@ -598,6 +715,7 @@ function resolveAttackAgainstCombatState(input) {
     target_hp_after: finalTargetHp,
     reaction_mode: reactionMode,
     consumed_target_condition_type: attackRollResult.consumed_target_condition_type || null,
+    consumed_attacker_condition_type: attackRollResult.consumed_attacker_condition_type || null,
     concentration_result: clone(concentrationResult)
   });
   updatedCombat.updated_at = new Date().toISOString();

@@ -128,6 +128,30 @@ function runNextTurnTests() {
     assert.equal(participant.reaction_available, true);
   }, results);
 
+  runTest("spellcasting_turn_state_resets_for_new_active_participant", () => {
+    const manager = createBaseCombat();
+    const combat = manager.getCombatById("combat-next-001").payload.combat;
+    combat.participants[1].spellcasting_turn_state = {
+      bonus_action_spell_cast: true,
+      action_spell_cast: true,
+      action_spell_was_cantrip: false
+    };
+    manager.combats.set("combat-next-001", combat);
+
+    const out = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001"
+    });
+
+    assert.equal(out.ok, true);
+    const participant = out.payload.combat.participants.find((entry) => entry.participant_id === "p2");
+    assert.deepEqual(participant.spellcasting_turn_state, {
+      bonus_action_spell_cast: false,
+      action_spell_cast: false,
+      action_spell_was_cantrip: false
+    });
+  }, results);
+
   runTest("start_of_turn_condition_expires_for_active_participant", () => {
     const manager = createBaseCombat();
     const found = manager.getCombatById("combat-next-001");

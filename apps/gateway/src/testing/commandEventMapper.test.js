@@ -391,6 +391,146 @@ function runCommandEventMapperTests() {
     assert.equal(isValidEvent(out.payload.event), true);
   }, results);
 
+  runTest("dash_command_maps_to_canonical_event_shape", () => {
+    const out = mapSlashCommandToGatewayEvent(
+      createInteraction("dash", {
+        options: {
+          data: [
+            { name: "combat_id", value: "combat-207b" }
+          ]
+        }
+      })
+    );
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.event.event_type, "player_dash");
+    assert.equal(out.payload.event.target_system, "combat_system");
+    assert.equal(out.payload.event.combat_id, "combat-207b");
+    assert.equal(isValidEvent(out.payload.event), true);
+  }, results);
+
+  runTest("grapple_command_maps_to_canonical_event_shape", () => {
+    const out = mapSlashCommandToGatewayEvent(
+      createInteraction("grapple", {
+        options: {
+          data: [
+            { name: "target_id", value: "enemy-020" },
+            { name: "combat_id", value: "combat-207c" }
+          ]
+        }
+      })
+    );
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.event.event_type, "player_grapple");
+    assert.equal(out.payload.event.target_system, "combat_system");
+    assert.equal(out.payload.event.combat_id, "combat-207c");
+    assert.equal(out.payload.event.payload.target_id, "enemy-020");
+    assert.equal(isValidEvent(out.payload.event), true);
+  }, results);
+
+  runTest("escape_command_maps_to_canonical_event_shape", () => {
+    const out = mapSlashCommandToGatewayEvent(
+      createInteraction("escape", {
+        options: {
+          data: [
+            { name: "combat_id", value: "combat-207d" }
+          ]
+        }
+      })
+    );
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.event.event_type, "player_escape_grapple");
+    assert.equal(out.payload.event.target_system, "combat_system");
+    assert.equal(out.payload.event.combat_id, "combat-207d");
+    assert.equal(isValidEvent(out.payload.event), true);
+  }, results);
+
+  runTest("shove_command_maps_to_canonical_event_shape", () => {
+    const out = mapSlashCommandToGatewayEvent(
+      createInteraction("shove", {
+        options: {
+          data: [
+            { name: "target_id", value: "enemy-021" },
+            { name: "shove_mode", value: "push" },
+            { name: "combat_id", value: "combat-207e" }
+          ]
+        }
+      })
+    );
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.event.event_type, "player_shove");
+    assert.equal(out.payload.event.target_system, "combat_system");
+    assert.equal(out.payload.event.combat_id, "combat-207e");
+    assert.equal(out.payload.event.payload.target_id, "enemy-021");
+    assert.equal(out.payload.event.payload.shove_mode, "push");
+    assert.equal(isValidEvent(out.payload.event), true);
+  }, results);
+
+  runTest("assist_command_maps_to_canonical_event_shape", () => {
+    const out = mapSlashCommandToGatewayEvent(
+      createInteraction("assist", {
+        options: {
+          data: [
+            { name: "target_id", value: "ally-001" },
+            { name: "combat_id", value: "combat-206" }
+          ]
+        }
+      })
+    );
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.event.event_type, "player_help_action");
+    assert.equal(out.payload.event.target_system, "combat_system");
+    assert.equal(out.payload.event.combat_id, "combat-206");
+    assert.equal(out.payload.event.payload.target_id, "ally-001");
+    assert.equal(isValidEvent(out.payload.event), true);
+  }, results);
+
+  runTest("ready_command_maps_to_canonical_event_shape", () => {
+    const out = mapSlashCommandToGatewayEvent(
+      createInteraction("ready", {
+        options: {
+          data: [
+            { name: "combat_id", value: "combat-206b" },
+            { name: "trigger_type", value: "enemy_enters_reach" },
+            { name: "readied_action_type", value: "attack" },
+            { name: "target_id", value: "enemy-002" }
+          ]
+        }
+      })
+    );
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.event.event_type, "player_ready_action");
+    assert.equal(out.payload.event.target_system, "combat_system");
+    assert.equal(out.payload.event.combat_id, "combat-206b");
+    assert.equal(out.payload.event.payload.trigger_type, "enemy_enters_reach");
+    assert.equal(out.payload.event.payload.readied_action_type, "attack");
+    assert.equal(out.payload.event.payload.target_id, "enemy-002");
+    assert.equal(isValidEvent(out.payload.event), true);
+  }, results);
+
+  runTest("disengage_command_maps_to_canonical_event_shape", () => {
+    const out = mapSlashCommandToGatewayEvent(
+      createInteraction("disengage", {
+        options: {
+          data: [
+            { name: "combat_id", value: "combat-208" }
+          ]
+        }
+      })
+    );
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.event.event_type, "player_disengage");
+    assert.equal(out.payload.event.target_system, "combat_system");
+    assert.equal(out.payload.event.combat_id, "combat-208");
+    assert.equal(isValidEvent(out.payload.event), true);
+  }, results);
+
   runTest("cast_command_maps_to_canonical_event_shape", () => {
     const out = mapSlashCommandToGatewayEvent(
       createInteraction("cast", {

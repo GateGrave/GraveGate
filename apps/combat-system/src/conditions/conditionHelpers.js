@@ -1,5 +1,7 @@
 "use strict";
 
+const { gridDistanceFeet } = require("../validation/validation-helpers");
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -143,11 +145,80 @@ function expireConditionsForTrigger(combatState, input) {
   };
 }
 
+function findParticipantById(combatState, participantId) {
+  const participants = Array.isArray(combatState && combatState.participants) ? combatState.participants : [];
+  return participants.find((entry) => String(entry && entry.participant_id || "") === String(participantId || "")) || null;
+}
+
+function participantIsIncapacitated(combatState, participantId) {
+  return Boolean(getParticipantIncapacitationType(combatState, participantId));
+}
+
+function getParticipantIncapacitationType(combatState, participantId) {
+  if (participantHasCondition(combatState, participantId, "stunned")) {
+    return "stunned";
+  }
+  if (participantHasCondition(combatState, participantId, "paralyzed")) {
+    return "paralyzed";
+  }
+  return null;
+}
+
+function normalizeCombatControlConditions(combatState) {
+  const existing = normalizeCombatConditions(combatState);
+  const removed = [];
+  const kept = [];
+
+  for (let index = 0; index < existing.length; index += 1) {
+    const condition = existing[index];
+    if (String(condition && condition.condition_type || "") !== "grappled") {
+      kept.push(condition);
+      continue;
+    }
+
+    const sourceId = String(condition && condition.source_actor_id || "");
+    const targetId = String(condition && condition.target_actor_id || "");
+    const source = findParticipantById(combatState, sourceId);
+    const target = findParticipantById(combatState, targetId);
+    const sourceHp = Number.isFinite(Number(source && source.current_hp)) ? Number(source.current_hp) : 0;
+    const targetHp = Number.isFinite(Number(target && target.current_hp)) ? Number(target.current_hp) : 0;
+    const sourceDistance = source && source.position && target && target.position
+      ? gridDistanceFeet(source.position, target.position)
+      : null;
+    const invalid =
+      !source ||
+      !target ||
+      sourceHp <= 0 ||
+      targetHp <= 0 ||
+      participantIsIncapacitated(combatState, sourceId) ||
+      !Number.isFinite(sourceDistance) ||
+      sourceDistance > 5;
+
+    if (invalid) {
+      removed.push(clone(condition));
+      continue;
+    }
+
+    kept.push(condition);
+  }
+
+  return {
+    ok: true,
+    removed_conditions: removed,
+    next_state: Object.assign({}, combatState, {
+      conditions: kept,
+      updated_at: removed.length > 0 ? new Date().toISOString() : combatState.updated_at
+    })
+  };
+}
+
 module.exports = {
   createCombatCondition,
   applyConditionToCombatState,
   removeConditionFromCombatState,
   expireConditionsForTrigger,
   getActiveConditionsForParticipant,
-  participantHasCondition
+  getParticipantIncapacitationType,
+  participantHasCondition,
+  normalizeCombatControlConditions
 };

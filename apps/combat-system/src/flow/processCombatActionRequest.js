@@ -2,13 +2,22 @@
 
 const { performAttackAction } = require("../actions/attackAction");
 const { performCastSpellAction } = require("../actions/castSpellAction");
+const { performHelpAction } = require("../actions/helpAction");
+const { performReadyAction } = require("../actions/readyAction");
+const { performDisengageAction } = require("../actions/disengageAction");
 const { performDodgeAction } = require("../actions/dodgeAction");
+const { performDashAction } = require("../actions/dashAction");
+const { performGrappleAction } = require("../actions/grappleAction");
+const { performEscapeGrappleAction } = require("../actions/escapeGrappleAction");
+const { performShoveAction } = require("../actions/shoveAction");
 const { performMoveAction } = require("../actions/moveAction");
 const { useItemAction } = require("../actions/useItemAction");
 const { createCombatSnapshot } = require("../snapshots/create-combat-snapshot");
 const { renderCombatById } = require("./renderCombatState");
 const { resolveOpportunityAttacksForMove } = require("./opportunityAttackFlow");
+const { resolveReadiedAttacksForMove } = require("./readyActionFlow");
 const { progressCombatAfterResolvedTurn } = require("./progressCombatState");
+const { normalizeCombatControlConditions } = require("../conditions/conditionHelpers");
 const {
   removeItemFromInventory,
   normalizeInventoryShape
@@ -198,7 +207,19 @@ function finalizeCombatMutation(input) {
     });
   }
 
-  const persisted = persistCombatSnapshot(context, loaded.payload.combat);
+  const normalizedConditions = normalizeCombatControlConditions(loaded.payload.combat);
+  if (!normalizedConditions.ok) {
+    if (combatBeforeMutation) {
+      restoreRawCombatState(context, combatId, combatBeforeMutation);
+    }
+    return failure(responseEventType, normalizedConditions.error || "failed to normalize combat conditions", {
+      combat_id: combatId
+    });
+  }
+  const normalizedCombat = clone(normalizedConditions.next_state);
+  context.combatManager.combats.set(String(combatId), normalizedCombat);
+
+  const persisted = persistCombatSnapshot(context, normalizedCombat);
   if (!persisted.ok) {
     if (combatBeforeMutation) {
       restoreRawCombatState(context, combatId, combatBeforeMutation);
@@ -208,7 +229,7 @@ function finalizeCombatMutation(input) {
   const rendered = renderCombatStateNonFatal(context, combatId);
 
   return success("combat_mutation_finalized", {
-    combat: clone(loaded.payload.combat),
+    combat: clone(normalizedCombat),
     progression: clone(progression.payload),
     snapshot: persisted.payload.snapshot || null,
     render: rendered.ok ? rendered.payload : null,
@@ -504,6 +525,7 @@ function processCombatAttackRequest(input) {
     combat_id: String(combatId),
     attacker_id: controlled.payload.participant_id,
     target_id: payload.target_id,
+    attack_roll_fn: context.attackRollFn,
     targeting_save_fn: context.targetingSaveFn,
     targeting_save_bonus_rng: context.targetingSaveBonusRng,
     concentration_save_rng: context.concentrationSaveRng
@@ -591,7 +613,18 @@ function processCombatMoveRequest(input) {
   if (!opportunityAttacks.ok) {
     return failure("player_move_failed", opportunityAttacks.error || "opportunity attack resolution failed", opportunityAttacks.payload);
   }
-  context.combatManager.combats.set(String(combatId), clone(opportunityAttacks.payload.combat));
+  const readyReactions = resolveReadiedAttacksForMove({
+    combat: opportunityAttacks.payload.combat,
+    mover_id: controlled.payload.participant_id,
+    from_position: out.payload.from_position,
+    to_position: out.payload.to_position,
+    attack_roll_fn: context.opportunityAttackAttackRollFn,
+    damage_roll_fn: context.opportunityAttackDamageRollFn
+  });
+  if (!readyReactions.ok) {
+    return failure("player_move_failed", readyReactions.error || "ready action resolution failed", readyReactions.payload);
+  }
+  context.combatManager.combats.set(String(combatId), clone(readyReactions.payload.combat));
   const finalized = finalizeCombatMutation({
     context,
     combat_id: String(combatId),
@@ -607,7 +640,8 @@ function processCombatMoveRequest(input) {
       combat: clone(finalized.payload.combat)
     }),
     reactions: {
-      opportunity_attacks: clone(opportunityAttacks.payload.triggered_attacks)
+      opportunity_attacks: clone(opportunityAttacks.payload.triggered_attacks),
+      ready_attacks: clone(readyReactions.payload.triggered_ready_attacks)
     },
     progression: clone(finalized.payload.progression),
     snapshot: finalized.payload.snapshot || null,
@@ -864,9 +898,413 @@ function processCombatDodgeRequest(input) {
   });
 }
 
+function processCombatHelpRequest(input) {
+  const data = input || {};
+  const context = data.context || {};
+  const combatId = data.combat_id;
+  const playerId = data.player_id;
+  const payload = data.payload;
+
+  if (!combatId || String(combatId).trim() === "") {
+    return failure("player_help_failed", "combat_id is required");
+  }
+  if (!isPlainObject(payload)) {
+    return failure("player_help_failed", "payload must be an object");
+  }
+  if (!payload.target_id || String(payload.target_id).trim() === "") {
+    return failure("player_help_failed", "target_id is required");
+  }
+
+  const controlled = resolveControlledParticipant({
+    context,
+    combat_id: String(combatId),
+    player_id: String(playerId || ""),
+    payload
+  });
+  if (!controlled.ok) {
+    return failure("player_help_failed", controlled.error, controlled.payload);
+  }
+  const combatBeforeHelp = getRawCombatState(context, combatId);
+
+  const out = performHelpAction({
+    combatManager: context.combatManager,
+    combat_id: String(combatId),
+    helper_id: controlled.payload.participant_id,
+    target_id: payload.target_id
+  });
+  if (!out.ok) {
+    return failure("player_help_failed", out.error || "help action failed", out.payload);
+  }
+  const finalized = finalizeCombatMutation({
+    context,
+    combat_id: String(combatId),
+    combat_before_mutation: combatBeforeHelp,
+    response_event_type: "player_help_failed"
+  });
+  if (!finalized.ok) {
+    return finalized;
+  }
+
+  return success("player_help_processed", {
+    help: Object.assign({}, clone(out.payload), {
+      combat: clone(finalized.payload.combat)
+    }),
+    progression: clone(finalized.payload.progression),
+    snapshot: finalized.payload.snapshot || null,
+    render: finalized.payload.render,
+    render_error: finalized.payload.render_error
+  });
+}
+
+function processCombatReadyRequest(input) {
+  const data = input || {};
+  const context = data.context || {};
+  const combatId = data.combat_id;
+  const playerId = data.player_id;
+  const payload = data.payload;
+
+  if (!combatId || String(combatId).trim() === "") {
+    return failure("player_ready_failed", "combat_id is required");
+  }
+  if (!isPlainObject(payload)) {
+    return failure("player_ready_failed", "payload must be an object");
+  }
+
+  const controlled = resolveControlledParticipant({
+    context,
+    combat_id: String(combatId),
+    player_id: String(playerId || ""),
+    payload
+  });
+  if (!controlled.ok) {
+    return failure("player_ready_failed", controlled.error, controlled.payload);
+  }
+  const combatBeforeReady = getRawCombatState(context, combatId);
+
+  const out = performReadyAction({
+    combatManager: context.combatManager,
+    combat_id: String(combatId),
+    participant_id: controlled.payload.participant_id,
+    trigger_type: payload.trigger_type || null,
+    readied_action_type: payload.readied_action_type || null,
+    target_id: payload.target_id || null
+  });
+  if (!out.ok) {
+    return failure("player_ready_failed", out.error || "ready action failed", out.payload);
+  }
+  const finalized = finalizeCombatMutation({
+    context,
+    combat_id: String(combatId),
+    combat_before_mutation: combatBeforeReady,
+    response_event_type: "player_ready_failed"
+  });
+  if (!finalized.ok) {
+    return finalized;
+  }
+
+  return success("player_ready_processed", {
+    ready: Object.assign({}, clone(out.payload), {
+      combat: clone(finalized.payload.combat)
+    }),
+    progression: clone(finalized.payload.progression),
+    snapshot: finalized.payload.snapshot || null,
+    render: finalized.payload.render,
+    render_error: finalized.payload.render_error
+  });
+}
+
+function processCombatDisengageRequest(input) {
+  const data = input || {};
+  const context = data.context || {};
+  const combatId = data.combat_id;
+  const playerId = data.player_id;
+  const payload = data.payload;
+
+  if (!combatId || String(combatId).trim() === "") {
+    return failure("player_disengage_failed", "combat_id is required");
+  }
+  if (!isPlainObject(payload)) {
+    return failure("player_disengage_failed", "payload must be an object");
+  }
+
+  const controlled = resolveControlledParticipant({
+    context,
+    combat_id: String(combatId),
+    player_id: String(playerId || ""),
+    payload
+  });
+  if (!controlled.ok) {
+    return failure("player_disengage_failed", controlled.error, controlled.payload);
+  }
+  const combatBeforeDisengage = getRawCombatState(context, combatId);
+
+  const out = performDisengageAction({
+    combatManager: context.combatManager,
+    combat_id: String(combatId),
+    participant_id: controlled.payload.participant_id
+  });
+  if (!out.ok) {
+    return failure("player_disengage_failed", out.error || "disengage action failed", out.payload);
+  }
+  const finalized = finalizeCombatMutation({
+    context,
+    combat_id: String(combatId),
+    combat_before_mutation: combatBeforeDisengage,
+    response_event_type: "player_disengage_failed"
+  });
+  if (!finalized.ok) {
+    return finalized;
+  }
+
+  return success("player_disengage_processed", {
+    disengage: Object.assign({}, clone(out.payload), {
+      combat: clone(finalized.payload.combat)
+    }),
+    progression: clone(finalized.payload.progression),
+    snapshot: finalized.payload.snapshot || null,
+    render: finalized.payload.render,
+    render_error: finalized.payload.render_error
+  });
+}
+
+function processCombatDashRequest(input) {
+  const data = input || {};
+  const context = data.context || {};
+  const combatId = data.combat_id;
+  const playerId = data.player_id;
+  const payload = data.payload;
+
+  if (!combatId || String(combatId).trim() === "") {
+    return failure("player_dash_failed", "combat_id is required");
+  }
+  if (!isPlainObject(payload)) {
+    return failure("player_dash_failed", "payload must be an object");
+  }
+
+  const controlled = resolveControlledParticipant({
+    context,
+    combat_id: String(combatId),
+    player_id: String(playerId || ""),
+    payload
+  });
+  if (!controlled.ok) {
+    return failure("player_dash_failed", controlled.error, controlled.payload);
+  }
+  const combatBeforeDash = getRawCombatState(context, combatId);
+
+  const out = performDashAction({
+    combatManager: context.combatManager,
+    combat_id: String(combatId),
+    participant_id: controlled.payload.participant_id
+  });
+  if (!out.ok) {
+    return failure("player_dash_failed", out.error || "dash action failed", out.payload);
+  }
+  const finalized = finalizeCombatMutation({
+    context,
+    combat_id: String(combatId),
+    combat_before_mutation: combatBeforeDash,
+    response_event_type: "player_dash_failed"
+  });
+  if (!finalized.ok) {
+    return finalized;
+  }
+
+  return success("player_dash_processed", {
+    dash: Object.assign({}, clone(out.payload), {
+      combat: clone(finalized.payload.combat)
+    }),
+    progression: clone(finalized.payload.progression),
+    snapshot: finalized.payload.snapshot || null,
+    render: finalized.payload.render,
+    render_error: finalized.payload.render_error
+  });
+}
+
+function processCombatGrappleRequest(input) {
+  const data = input || {};
+  const context = data.context || {};
+  const combatId = data.combat_id;
+  const playerId = data.player_id;
+  const payload = data.payload;
+
+  if (!combatId || String(combatId).trim() === "") {
+    return failure("player_grapple_failed", "combat_id is required");
+  }
+  if (!isPlainObject(payload)) {
+    return failure("player_grapple_failed", "payload must be an object");
+  }
+  if (!payload.target_id || String(payload.target_id).trim() === "") {
+    return failure("player_grapple_failed", "target_id is required");
+  }
+
+  const controlled = resolveControlledParticipant({
+    context,
+    combat_id: String(combatId),
+    player_id: String(playerId || ""),
+    payload
+  });
+  if (!controlled.ok) {
+    return failure("player_grapple_failed", controlled.error, controlled.payload);
+  }
+  const combatBeforeGrapple = getRawCombatState(context, combatId);
+
+  const out = performGrappleAction({
+    combatManager: context.combatManager,
+    combat_id: String(combatId),
+    attacker_id: controlled.payload.participant_id,
+    target_id: String(payload.target_id),
+    contest_roll_fn: context.grappleContestRollFn
+  });
+  if (!out.ok) {
+    return failure("player_grapple_failed", out.error || "grapple action failed", out.payload);
+  }
+  const finalized = finalizeCombatMutation({
+    context,
+    combat_id: String(combatId),
+    combat_before_mutation: combatBeforeGrapple,
+    response_event_type: "player_grapple_failed"
+  });
+  if (!finalized.ok) {
+    return finalized;
+  }
+
+  return success("player_grapple_processed", {
+    grapple: Object.assign({}, clone(out.payload), {
+      combat: clone(finalized.payload.combat)
+    }),
+    progression: clone(finalized.payload.progression),
+    snapshot: finalized.payload.snapshot || null,
+    render: finalized.payload.render,
+    render_error: finalized.payload.render_error
+  });
+}
+
+function processCombatEscapeGrappleRequest(input) {
+  const data = input || {};
+  const context = data.context || {};
+  const combatId = data.combat_id;
+  const playerId = data.player_id;
+  const payload = data.payload;
+
+  if (!combatId || String(combatId).trim() === "") {
+    return failure("player_escape_grapple_failed", "combat_id is required");
+  }
+  if (!isPlainObject(payload)) {
+    return failure("player_escape_grapple_failed", "payload must be an object");
+  }
+
+  const controlled = resolveControlledParticipant({
+    context,
+    combat_id: String(combatId),
+    player_id: String(playerId || ""),
+    payload
+  });
+  if (!controlled.ok) {
+    return failure("player_escape_grapple_failed", controlled.error, controlled.payload);
+  }
+  const combatBeforeEscape = getRawCombatState(context, combatId);
+
+  const out = performEscapeGrappleAction({
+    combatManager: context.combatManager,
+    combat_id: String(combatId),
+    participant_id: controlled.payload.participant_id,
+    contest_roll_fn: context.grappleContestRollFn
+  });
+  if (!out.ok) {
+    return failure("player_escape_grapple_failed", out.error || "escape grapple action failed", out.payload);
+  }
+  const finalized = finalizeCombatMutation({
+    context,
+    combat_id: String(combatId),
+    combat_before_mutation: combatBeforeEscape,
+    response_event_type: "player_escape_grapple_failed"
+  });
+  if (!finalized.ok) {
+    return finalized;
+  }
+
+  return success("player_escape_grapple_processed", {
+    escape: Object.assign({}, clone(out.payload), {
+      combat: clone(finalized.payload.combat)
+    }),
+    progression: clone(finalized.payload.progression),
+    snapshot: finalized.payload.snapshot || null,
+    render: finalized.payload.render,
+    render_error: finalized.payload.render_error
+  });
+}
+
+function processCombatShoveRequest(input) {
+  const data = input || {};
+  const context = data.context || {};
+  const combatId = data.combat_id;
+  const playerId = data.player_id;
+  const payload = data.payload;
+
+  if (!combatId || String(combatId).trim() === "") {
+    return failure("player_shove_failed", "combat_id is required");
+  }
+  if (!isPlainObject(payload)) {
+    return failure("player_shove_failed", "payload must be an object");
+  }
+  if (!payload.target_id || String(payload.target_id).trim() === "") {
+    return failure("player_shove_failed", "target_id is required");
+  }
+
+  const controlled = resolveControlledParticipant({
+    context,
+    combat_id: String(combatId),
+    player_id: String(playerId || ""),
+    payload
+  });
+  if (!controlled.ok) {
+    return failure("player_shove_failed", controlled.error, controlled.payload);
+  }
+  const combatBeforeShove = getRawCombatState(context, combatId);
+
+  const out = performShoveAction({
+    combatManager: context.combatManager,
+    combat_id: String(combatId),
+    attacker_id: controlled.payload.participant_id,
+    target_id: String(payload.target_id),
+    shove_mode: payload.shove_mode || "push",
+    contest_roll_fn: context.grappleContestRollFn
+  });
+  if (!out.ok) {
+    return failure("player_shove_failed", out.error || "shove action failed", out.payload);
+  }
+  const finalized = finalizeCombatMutation({
+    context,
+    combat_id: String(combatId),
+    combat_before_mutation: combatBeforeShove,
+    response_event_type: "player_shove_failed"
+  });
+  if (!finalized.ok) {
+    return finalized;
+  }
+
+  return success("player_shove_processed", {
+    shove: Object.assign({}, clone(out.payload), {
+      combat: clone(finalized.payload.combat)
+    }),
+    progression: clone(finalized.payload.progression),
+    snapshot: finalized.payload.snapshot || null,
+    render: finalized.payload.render,
+    render_error: finalized.payload.render_error
+  });
+}
+
 module.exports = {
   processCombatAttackRequest,
   processCombatCastSpellRequest,
+  processCombatHelpRequest,
+  processCombatReadyRequest,
+  processCombatDashRequest,
+  processCombatGrappleRequest,
+  processCombatEscapeGrappleRequest,
+  processCombatShoveRequest,
+  processCombatDisengageRequest,
   processCombatDodgeRequest,
   processCombatMoveRequest,
   processCombatUseItemRequest

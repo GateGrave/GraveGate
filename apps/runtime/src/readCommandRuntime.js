@@ -233,6 +233,8 @@ function createReadCommandRuntime(options) {
       mutationReplayStore,
       adminAccessControl,
       logger: cfg.logger || null,
+      attackRollFn: typeof cfg.attackRollFn === "function" ? cfg.attackRollFn : null,
+      grappleContestRollFn: typeof cfg.grappleContestRollFn === "function" ? cfg.grappleContestRollFn : null,
       queue: {
         enqueue(nextEvent) {
           queuedEvents.push(nextEvent);
@@ -307,7 +309,9 @@ function createReadCommandRuntime(options) {
       adminMutationReplayStore,
       mutationReplayStore,
       adminAccessControl,
-      logger: cfg.logger || null
+      logger: cfg.logger || null,
+      attackRollFn: typeof cfg.attackRollFn === "function" ? cfg.attackRollFn : null,
+      grappleContestRollFn: typeof cfg.grappleContestRollFn === "function" ? cfg.grappleContestRollFn : null
     };
   }
 

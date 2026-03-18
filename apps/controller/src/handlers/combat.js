@@ -28,7 +28,35 @@ function handleCombatEvent(event, context) {
     return [createRuntimeDispatchEvent(event, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED, "combat_system")];
   }
 
+  if (event.event_type === EVENT_TYPES.PLAYER_HELP_ACTION) {
+    return [createRuntimeDispatchEvent(event, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED, "combat_system")];
+  }
+
+  if (event.event_type === EVENT_TYPES.PLAYER_READY_ACTION) {
+    return [createRuntimeDispatchEvent(event, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED, "combat_system")];
+  }
+
   if (event.event_type === EVENT_TYPES.PLAYER_DODGE) {
+    return [createRuntimeDispatchEvent(event, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED, "combat_system")];
+  }
+
+  if (event.event_type === EVENT_TYPES.PLAYER_DASH) {
+    return [createRuntimeDispatchEvent(event, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED, "combat_system")];
+  }
+
+  if (event.event_type === EVENT_TYPES.PLAYER_GRAPPLE) {
+    return [createRuntimeDispatchEvent(event, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED, "combat_system")];
+  }
+
+  if (event.event_type === EVENT_TYPES.PLAYER_ESCAPE_GRAPPLE) {
+    return [createRuntimeDispatchEvent(event, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED, "combat_system")];
+  }
+
+  if (event.event_type === EVENT_TYPES.PLAYER_SHOVE) {
+    return [createRuntimeDispatchEvent(event, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED, "combat_system")];
+  }
+
+  if (event.event_type === EVENT_TYPES.PLAYER_DISENGAGE) {
     return [createRuntimeDispatchEvent(event, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED, "combat_system")];
   }
 

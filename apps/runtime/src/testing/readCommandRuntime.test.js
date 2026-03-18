@@ -2698,7 +2698,11 @@ async function runReadCommandRuntimeTests() {
     const adapter = createInMemoryAdapter();
     const combatManager = new CombatManager();
     const combatPersistence = new CombatPersistenceBridge({ adapter });
-    const runtime = createReadCommandRuntime({ combatManager, combatPersistence });
+    const runtime = createReadCommandRuntime({
+      combatManager,
+      combatPersistence,
+      attackRollFn: () => 20
+    });
     const playerId = "player-runtime-attack-001";
     const combatId = "combat-runtime-attack-001";
     createActiveCombat(combatManager, combatId, playerId, "enemy-runtime-attack-001");
@@ -2791,6 +2795,21 @@ async function runReadCommandRuntimeTests() {
         target_actor_id: playerId
       }
     ];
+    seededCombat.event_log = [
+      {
+        event_type: "attack_action",
+        attacker_id: playerId,
+        target_id: "enemy-runtime-read-001",
+        hit: true,
+        damage_dealt: 4
+      },
+      {
+        event_type: "move_action",
+        participant_id: "enemy-runtime-read-001",
+        from_position: { x: 2, y: 1 },
+        to_position: { x: 3, y: 1 }
+      }
+    ];
     combatManager.combats.set(combatId, seededCombat);
     combatPersistence.saveCombatSnapshot({
       combat_state: combatManager.getCombatById(combatId).payload.combat
@@ -2833,6 +2852,10 @@ async function runReadCommandRuntimeTests() {
     assert.equal(summaryHero.condition_count, 1);
     assert.equal(summaryHero.concentration.is_concentrating, true);
     assert.equal(summaryHero.concentration.source_spell_id, "shield_of_faith");
+    assert.equal(Array.isArray(response.payload.data.combat_summary.recent_events), true);
+    assert.equal(response.payload.data.combat_summary.recent_events[0].hit, true);
+    assert.equal(response.payload.data.combat_summary.recent_events[0].damage_dealt, 4);
+    assert.deepEqual(response.payload.data.combat_summary.recent_events[1].to_position, { x: 3, y: 1 });
   }, results);
 
   await runTest("duplicate_replay_cast_request_is_rejected_cleanly", async () => {
@@ -3039,6 +3062,332 @@ async function runReadCommandRuntimeTests() {
     assert.equal(response.payload.ok, true);
     assert.equal(response.payload.data.is_dodging, true);
     assert.equal(response.payload.data.combat_summary.combat_id, combatId);
+  }, results);
+
+  await runTest("player_dash_request_is_processed_on_canonical_combat_path", async () => {
+    const adapter = createInMemoryAdapter();
+    const combatManager = new CombatManager();
+    const combatPersistence = new CombatPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({
+      combatManager,
+      combatPersistence,
+      attackRollFn: () => 20
+    });
+    const playerId = "player-runtime-dash-001";
+    const combatId = "combat-runtime-dash-001";
+    createActiveCombat(combatManager, combatId, playerId, "enemy-runtime-dash-001");
+
+    const loaded = combatManager.getCombatById(combatId);
+    const combat = loaded.payload.combat;
+    const actor = combat.participants.find((entry) => String(entry && entry.participant_id || "") === playerId);
+    actor.movement_speed = 30;
+    actor.movement_remaining = 5;
+    combatManager.combats.set(combatId, combat);
+
+    const event = createEvent(EVENT_TYPES.PLAYER_DASH, {
+      command_name: "dash",
+      request_id: "dash-request-001"
+    }, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: playerId,
+      combat_id: combatId
+    });
+
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    const response = findResponse(out, "dash");
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.ok, true);
+    assert.equal(response.payload.data.movement_before, 5);
+    assert.equal(response.payload.data.movement_added, 30);
+    assert.equal(response.payload.data.movement_after, 35);
+    assert.equal(response.payload.data.combat_summary.combat_id, combatId);
+  }, results);
+
+  await runTest("player_assist_request_is_processed_on_canonical_combat_path", async () => {
+    const adapter = createInMemoryAdapter();
+    const combatManager = new CombatManager();
+    const combatPersistence = new CombatPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({ combatManager, combatPersistence });
+    const playerId = "player-runtime-assist-001";
+    const combatId = "combat-runtime-assist-001";
+
+    combatManager.createCombat({
+      combat_id: combatId,
+      status: "pending"
+    });
+    combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: playerId,
+        name: "Runtime Helper",
+        team: "heroes",
+        armor_class: 12,
+        current_hp: 20,
+        max_hp: 20,
+        attack_bonus: 5,
+        damage: 4,
+        position: { x: 0, y: 0 }
+      }
+    });
+    combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "ally-runtime-assist-001",
+        name: "Runtime Ally",
+        team: "heroes",
+        armor_class: 11,
+        current_hp: 12,
+        max_hp: 12,
+        attack_bonus: 3,
+        damage: 3,
+        position: { x: 1, y: 0 }
+      }
+    });
+    combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "enemy-runtime-assist-001",
+        name: "Runtime Enemy",
+        team: "monsters",
+        armor_class: 10,
+        current_hp: 12,
+        max_hp: 12,
+        attack_bonus: 2,
+        damage: 3,
+        position: { x: 2, y: 0 }
+      }
+    });
+    startCombat({
+      combatManager,
+      combat_id: combatId,
+      roll_function: (participant) => (participant.participant_id === playerId ? 20 : 1)
+    });
+
+    const event = createEvent(EVENT_TYPES.PLAYER_HELP_ACTION, {
+      command_name: "assist",
+      target_id: "ally-runtime-assist-001",
+      request_id: "assist-request-001"
+    }, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: playerId,
+      combat_id: combatId
+    });
+
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    const response = findResponse(out, "assist");
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.ok, true);
+    assert.equal(String(response.payload.data.helper_id || ""), playerId);
+    assert.equal(String(response.payload.data.target_id || ""), "ally-runtime-assist-001");
+    assert.equal(String(response.payload.data.applied_condition.condition_type || ""), "helped_attack");
+  }, results);
+
+  await runTest("player_grapple_request_is_processed_on_canonical_combat_path", async () => {
+    const adapter = createInMemoryAdapter();
+    const combatManager = new CombatManager();
+    const combatPersistence = new CombatPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({
+      combatManager,
+      combatPersistence,
+      grappleContestRollFn(_participant, _ability, _combat, role) {
+        return role === "attacker" ? 18 : 4;
+      }
+    });
+    const playerId = "player-runtime-grapple-001";
+    const combatId = "combat-runtime-grapple-001";
+    createActiveCombat(combatManager, combatId, playerId, "enemy-runtime-grapple-001");
+
+    const event = createEvent(EVENT_TYPES.PLAYER_GRAPPLE, {
+      command_name: "grapple",
+      target_id: "enemy-runtime-grapple-001",
+      request_id: "grapple-request-001"
+    }, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: playerId,
+      combat_id: combatId
+    });
+
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    const response = findResponse(out, "grapple");
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.ok, true);
+    assert.equal(String(response.payload.data.attacker_id || ""), playerId);
+    assert.equal(String(response.payload.data.target_id || ""), "enemy-runtime-grapple-001");
+    assert.equal(String(response.payload.data.applied_condition.condition_type || ""), "grappled");
+  }, results);
+
+  await runTest("player_escape_grapple_request_is_processed_on_canonical_combat_path", async () => {
+    const adapter = createInMemoryAdapter();
+    const combatManager = new CombatManager();
+    const combatPersistence = new CombatPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({
+      combatManager,
+      combatPersistence,
+      grappleContestRollFn(_participant, _ability, _combat, role) {
+        return role === "attacker" ? 18 : 4;
+      }
+    });
+    const playerId = "player-runtime-escape-001";
+    const combatId = "combat-runtime-escape-001";
+    createActiveCombat(combatManager, combatId, playerId, "enemy-runtime-escape-001");
+
+    const grappleEvent = createEvent(EVENT_TYPES.PLAYER_GRAPPLE, {
+      command_name: "grapple",
+      target_id: "enemy-runtime-escape-001",
+      request_id: "grapple-request-before-escape-001"
+    }, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: playerId,
+      combat_id: combatId
+    });
+    const grappleOut = await runtime.processGatewayReadCommandEvent(grappleEvent);
+    const grappleResponse = findResponse(grappleOut, "grapple");
+    assert.equal(Boolean(grappleResponse), true);
+    assert.equal(grappleResponse.payload.ok, true);
+
+    const loaded = combatManager.getCombatById(combatId);
+    const combat = loaded.payload.combat;
+    const player = combat.participants.find((entry) => String(entry && entry.participant_id || "") === playerId);
+    const enemy = combat.participants.find((entry) => String(entry && entry.participant_id || "") === "enemy-runtime-escape-001");
+    const originalTurn = Number.isFinite(Number(combat.turn_index)) ? Number(combat.turn_index) : 0;
+    const enemyIndex = Array.isArray(combat.initiative_order)
+      ? combat.initiative_order.findIndex((id) => String(id) === "enemy-runtime-escape-001")
+      : -1;
+    if (player) {
+      player.action_available = true;
+    }
+    if (enemy) {
+      enemy.action_available = true;
+    }
+    if (enemyIndex >= 0) {
+      combat.turn_index = enemyIndex;
+    }
+    combatManager.combats.set(combatId, combat);
+
+    const escapeEvent = createEvent(EVENT_TYPES.PLAYER_ESCAPE_GRAPPLE, {
+      command_name: "escape",
+      request_id: "escape-request-001"
+    }, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: "enemy-runtime-escape-001",
+      combat_id: combatId
+    });
+
+    const out = await runtime.processGatewayReadCommandEvent(escapeEvent);
+    const response = findResponse(out, "escape");
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.ok, true);
+    assert.equal(response.payload.data.escaped, true);
+    assert.equal(String(response.payload.data.participant_id || ""), "enemy-runtime-escape-001");
+
+    const after = combatManager.getCombatById(combatId).payload.combat;
+    assert.equal(Array.isArray(after.conditions), true);
+    assert.equal(after.conditions.some((entry) => {
+      return String(entry && entry.condition_type || "") === "grappled" &&
+        String(entry && entry.target_actor_id || "") === "enemy-runtime-escape-001";
+    }), false);
+    after.turn_index = originalTurn;
+    combatManager.combats.set(combatId, after);
+  }, results);
+
+  await runTest("player_shove_request_is_processed_on_canonical_combat_path", async () => {
+    const adapter = createInMemoryAdapter();
+    const combatManager = new CombatManager();
+    const combatPersistence = new CombatPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({
+      combatManager,
+      combatPersistence,
+      grappleContestRollFn(_participant, _ability, _combat, role) {
+        return role === "attacker" ? 18 : 3;
+      }
+    });
+    const playerId = "player-runtime-shove-001";
+    const combatId = "combat-runtime-shove-001";
+    createActiveCombat(combatManager, combatId, playerId, "enemy-runtime-shove-001");
+
+    const event = createEvent(EVENT_TYPES.PLAYER_SHOVE, {
+      command_name: "shove",
+      target_id: "enemy-runtime-shove-001",
+      shove_mode: "push",
+      request_id: "shove-request-001"
+    }, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: playerId,
+      combat_id: combatId
+    });
+
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    const response = findResponse(out, "shove");
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.ok, true);
+    assert.equal(String(response.payload.data.attacker_id || ""), playerId);
+    assert.equal(String(response.payload.data.target_id || ""), "enemy-runtime-shove-001");
+    assert.equal(response.payload.data.success, true);
+  }, results);
+
+  await runTest("player_ready_request_is_processed_on_canonical_combat_path", async () => {
+    const adapter = createInMemoryAdapter();
+    const combatManager = new CombatManager();
+    const combatPersistence = new CombatPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({ combatManager, combatPersistence });
+    const playerId = "player-runtime-ready-001";
+    const combatId = "combat-runtime-ready-001";
+    createActiveCombat(combatManager, combatId, playerId, "enemy-runtime-ready-001");
+
+    const event = createEvent(EVENT_TYPES.PLAYER_READY_ACTION, {
+      command_name: "ready",
+      request_id: "ready-request-001",
+      trigger_type: "enemy_enters_reach",
+      readied_action_type: "attack",
+      target_id: "enemy-runtime-ready-001"
+    }, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: playerId,
+      combat_id: combatId
+    });
+
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    const response = findResponse(out, "ready");
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.ok, true);
+    assert.equal(String(response.payload.data.participant_id || ""), playerId);
+    assert.equal(String(response.payload.data.ready_action.trigger_type || ""), "enemy_enters_reach");
+    assert.equal(String(response.payload.data.ready_action.action_type || ""), "attack");
+  }, results);
+
+  await runTest("player_disengage_request_is_processed_on_canonical_combat_path", async () => {
+    const adapter = createInMemoryAdapter();
+    const combatManager = new CombatManager();
+    const combatPersistence = new CombatPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({ combatManager, combatPersistence });
+    const playerId = "player-runtime-disengage-001";
+    const combatId = "combat-runtime-disengage-001";
+    createActiveCombat(combatManager, combatId, playerId, "enemy-runtime-disengage-001");
+
+    const event = createEvent(EVENT_TYPES.PLAYER_DISENGAGE, {
+      command_name: "disengage",
+      request_id: "disengage-request-001"
+    }, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: playerId,
+      combat_id: combatId
+    });
+
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    const response = findResponse(out, "disengage");
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.ok, true);
+    assert.equal(String(response.payload.data.participant_id || ""), playerId);
+    assert.equal(response.payload.data.combat_summary.combat_id, combatId);
+    assert.equal(String(response.payload.data.immunity_condition.condition_type || ""), "opportunity_attack_immunity");
   }, results);
 
   await runTest("invalid_state_rejections_for_active_action_commands", async () => {

@@ -194,6 +194,36 @@ function runAttackActionTests() {
     assert.equal(target.current_hp, 9);
   }, results);
 
+  runTest("defeating_grappler_clears_grappled_condition", () => {
+    const manager = createActiveCombatForAttackTests();
+    const combat = manager.getCombatById("combat-attack-001").payload.combat;
+    combat.turn_index = 1;
+    combat.participants[0].current_hp = 4;
+    combat.conditions = [{
+      condition_id: "condition-attack-grapple-001",
+      condition_type: "grappled",
+      source_actor_id: "attacker-001",
+      target_actor_id: "target-001",
+      expiration_trigger: "manual"
+    }];
+    manager.combats.set("combat-attack-001", combat);
+
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "target-001",
+      target_id: "attacker-001",
+      attack_roll_fn: () => 18,
+      damage_roll_fn: () => 5
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.target_hp_after, 0);
+    assert.equal(out.payload.combat.conditions.some((entry) => {
+      return String(entry && entry.condition_type || "") === "grappled";
+    }), false);
+  }, results);
+
   runTest("typed_weapon_damage_respects_target_resistance", () => {
     const manager = createActiveCombatForAttackTests();
     const found = manager.getCombatById("combat-attack-001");
@@ -1042,6 +1072,185 @@ function runAttackActionTests() {
     assert.equal(out.payload.condition_bonus, -1);
     assert.equal(out.payload.attack_total, 12);
     assert.equal(out.payload.hit, true);
+  }, results);
+
+  runTest("helped_attack_condition_grants_advantage_and_is_consumed", () => {
+    const manager = createActiveCombatForAttackTests();
+    const found = manager.getCombatById("combat-attack-001");
+    const combat = found.payload.combat;
+    combat.conditions = [ {
+      condition_id: "condition-helped-attack-001",
+      condition_type: "helped_attack",
+      source_actor_id: "helper-001",
+      target_actor_id: "attacker-001",
+      expiration_trigger: "start_of_source_turn",
+      metadata: {
+        source: "help_action",
+        apply_to_attack_roll: true
+      }
+    } ];
+    manager.combats.set("combat-attack-001", combat);
+
+    let rollCall = 0;
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "attacker-001",
+      target_id: "target-001",
+      attack_roll_fn: () => {
+        rollCall += 1;
+        return rollCall === 1 ? 4 : 16;
+      },
+      damage_roll_fn: () => 3
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.attack_roll_mode, "advantage");
+    const updated = manager.getCombatById("combat-attack-001").payload.combat;
+    assert.equal(updated.conditions.some((entry) => {
+      return String(entry && entry.condition_type || "") === "helped_attack" &&
+        String(entry && entry.target_actor_id || "") === "attacker-001";
+    }), false);
+  }, results);
+
+  runTest("blinded_attacker_has_disadvantage_and_blinded_target_grants_advantage", () => {
+    const manager = createActiveCombatForAttackTests();
+    const combat = manager.getCombatById("combat-attack-001").payload.combat;
+    combat.conditions = [
+      {
+        condition_id: "condition-blinded-attacker-001",
+        condition_type: "blinded",
+        target_actor_id: "attacker-001",
+        expiration_trigger: "manual",
+        metadata: {
+          has_attack_disadvantage: true
+        }
+      },
+      {
+        condition_id: "condition-blinded-target-001",
+        condition_type: "blinded",
+        target_actor_id: "target-001",
+        expiration_trigger: "manual",
+        metadata: {
+          attackers_have_advantage: true
+        }
+      }
+    ];
+    manager.combats.set("combat-attack-001", combat);
+
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "attacker-001",
+      target_id: "target-001",
+      attack_roll_fn: () => 10,
+      damage_roll_fn: () => 3
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.attack_roll_mode, "normal");
+  }, results);
+
+  runTest("invisible_attacker_has_advantage_and_invisible_target_imposes_disadvantage", () => {
+    const manager = createActiveCombatForAttackTests();
+    const combat = manager.getCombatById("combat-attack-001").payload.combat;
+    combat.conditions = [
+      {
+        condition_id: "condition-invisible-attacker-001",
+        condition_type: "invisible",
+        target_actor_id: "attacker-001",
+        expiration_trigger: "manual",
+        metadata: {
+          has_attack_advantage: true
+        }
+      },
+      {
+        condition_id: "condition-invisible-target-001",
+        condition_type: "invisible",
+        target_actor_id: "target-001",
+        expiration_trigger: "manual",
+        metadata: {
+          attackers_have_disadvantage: true
+        }
+      }
+    ];
+    manager.combats.set("combat-attack-001", combat);
+
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "attacker-001",
+      target_id: "target-001",
+      attack_roll_fn: () => 10,
+      damage_roll_fn: () => 3
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.attack_roll_mode, "normal");
+  }, results);
+
+  runTest("harmful_attack_breaks_harmful_action_conditions_on_attacker", () => {
+    const manager = createActiveCombatForAttackTests();
+    const combat = manager.getCombatById("combat-attack-001").payload.combat;
+    combat.conditions = [
+      {
+        condition_id: "condition-invisibility-break-001",
+        condition_type: "invisible",
+        source_actor_id: "attacker-001",
+        target_actor_id: "attacker-001",
+        expiration_trigger: "manual",
+        metadata: {
+          breaks_on_harmful_action: true
+        }
+      }
+    ];
+    manager.combats.set("combat-attack-001", combat);
+
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "attacker-001",
+      target_id: "target-001",
+      attack_roll_fn: () => 16,
+      damage_roll_fn: () => 3
+    });
+
+    assert.equal(out.ok, true);
+    const updated = manager.getCombatById("combat-attack-001").payload.combat;
+    const remaining = (updated.conditions || []).filter((condition) => {
+      return String(condition && condition.target_actor_id || "") === "attacker-001";
+    });
+    assert.equal(remaining.length, 0);
+  }, results);
+
+  runTest("charmed_attacker_cannot_attack_the_charmer", () => {
+    const manager = createActiveCombatForAttackTests();
+    const combat = manager.getCombatById("combat-attack-001").payload.combat;
+    combat.conditions = [
+      {
+        condition_id: "condition-charmed-attack-001",
+        condition_type: "charmed",
+        source_actor_id: "target-001",
+        target_actor_id: "attacker-001",
+        expiration_trigger: "manual",
+        metadata: {
+          cannot_target_actor_ids: ["target-001"]
+        }
+      }
+    ];
+    manager.combats.set("combat-attack-001", combat);
+
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "attacker-001",
+      target_id: "target-001",
+      attack_roll_fn: () => 16,
+      damage_roll_fn: () => 3
+    });
+
+    assert.equal(out.ok, false);
+    assert.equal(out.error, "charmed participants cannot make harmful attacks against the charmer");
   }, results);
 
   const passed = results.filter((x) => x.ok).length;

@@ -1093,6 +1093,33 @@
       }
     },
     {
+      "id": "invisibility",
+      "spell_id": "invisibility",
+      "name": "Invisibility",
+      "level": 2,
+      "school": "illusion",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "concentration, up to 1 hour",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": ["bard", "sorcerer", "warlock", "wizard"],
+      "effect": {
+        "status_hint": "invisibility"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage17_combat_depth",
+        "class_refs": ["bard", "sorcerer", "warlock", "wizard"]
+      }
+    },
+    {
       "id": "longstrider",
       "spell_id": "longstrider",
       "name": "Longstrider",
@@ -1200,6 +1227,62 @@
         "starter_spell": true,
         "source": "stage17_combat_depth",
         "class_refs": ["cleric"]
+      }
+    },
+    {
+      "id": "charm_person",
+      "spell_id": "charm_person",
+      "name": "Charm Person",
+      "level": 1,
+      "school": "enchantment",
+      "casting_time": "1 action",
+      "range": "30 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "1 hour",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "wisdom"
+      },
+      "damage": null,
+      "class_refs": ["bard", "druid", "sorcerer", "warlock", "wizard"],
+      "effect": {
+        "status_hint": "charm_person"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage17_combat_depth",
+        "class_refs": ["bard", "druid", "sorcerer", "warlock", "wizard"]
+      }
+    },
+    {
+      "id": "fear",
+      "spell_id": "fear",
+      "name": "Fear",
+      "level": 3,
+      "school": "illusion",
+      "casting_time": "1 action",
+      "range": "30 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "concentration, up to 1 minute",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "wisdom"
+      },
+      "damage": null,
+      "class_refs": ["bard", "sorcerer", "warlock", "wizard"],
+      "effect": {
+        "status_hint": "fear"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage17_combat_depth",
+        "class_refs": ["bard", "sorcerer", "warlock", "wizard"]
       }
     },
     {
@@ -1415,6 +1498,230 @@
         "starter_spell": true,
         "source": "stage15_content_pack_1",
         "class_refs": ["sorcerer", "wizard"]
+      }
+    },
+    {
+      "id": "inflict_wounds",
+      "spell_id": "inflict_wounds",
+      "name": "Inflict Wounds",
+      "level": 1,
+      "school": "necromancy",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "spell_attack",
+        "ability": "spellcasting_ability"
+      },
+      "damage": {
+        "dice": "3d10",
+        "damage_type": "necrotic"
+      },
+      "class_refs": ["cleric"],
+      "effect": {
+        "damage_ref": "spell_damage_inflict_wounds",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage16_combat_depth",
+        "class_refs": ["cleric"]
+      }
+    },
+    {
+      "id": "acid_arrow",
+      "spell_id": "acid_arrow",
+      "name": "Acid Arrow",
+      "level": 2,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "90 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "spell_attack",
+        "ability": "spellcasting_ability"
+      },
+      "damage": {
+        "dice": "4d4",
+        "damage_type": "acid"
+      },
+      "class_refs": ["wizard"],
+      "effect": {
+        "damage_ref": "spell_damage_acid_arrow",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage16_combat_depth",
+        "class_refs": ["wizard"]
+      }
+    },
+    {
+      "id": "hellish_rebuke",
+      "spell_id": "hellish_rebuke",
+      "name": "Hellish Rebuke",
+      "level": 1,
+      "school": "evocation",
+      "casting_time": "1 reaction",
+      "range": "60 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "dexterity"
+      },
+      "damage": {
+        "dice": "2d10",
+        "damage_type": "fire"
+      },
+      "class_refs": ["warlock"],
+      "effect": {
+        "damage_ref": "spell_damage_hellish_rebuke",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage16_combat_depth",
+        "class_refs": ["warlock"]
+      }
+    },
+    {
+      "id": "dissonant_whispers",
+      "spell_id": "dissonant_whispers",
+      "name": "Dissonant Whispers",
+      "level": 1,
+      "school": "enchantment",
+      "casting_time": "1 action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "wisdom"
+      },
+      "damage": {
+        "dice": "3d6",
+        "damage_type": "psychic"
+      },
+      "class_refs": ["bard"],
+      "effect": {
+        "damage_ref": "spell_damage_dissonant_whispers",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage16_combat_depth",
+        "class_refs": ["bard"]
+      }
+    },
+    {
+      "id": "eldritch_blast",
+      "spell_id": "eldritch_blast",
+      "name": "Eldritch Blast",
+      "level": 0,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "120 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "spell_attack",
+        "ability": "spellcasting_ability"
+      },
+      "damage": {
+        "dice": "1d10",
+        "damage_type": "force"
+      },
+      "class_refs": ["warlock"],
+      "effect": {
+        "damage_ref": "spell_damage_eldritch_blast",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage18_combat_depth",
+        "class_refs": ["warlock"]
+      }
+    },
+    {
+      "id": "toll_the_dead",
+      "spell_id": "toll_the_dead",
+      "name": "Toll the Dead",
+      "level": 0,
+      "school": "necromancy",
+      "casting_time": "1 action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "wisdom"
+      },
+      "damage": {
+        "dice": "1d8",
+        "damage_type": "necrotic"
+      },
+      "class_refs": ["cleric", "warlock", "wizard"],
+      "effect": {
+        "damage_ref": "spell_damage_toll_the_dead",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage18_combat_depth",
+        "class_refs": ["cleric", "warlock", "wizard"]
+      }
+    },
+    {
+      "id": "vicious_mockery",
+      "spell_id": "vicious_mockery",
+      "name": "Vicious Mockery",
+      "level": 0,
+      "school": "enchantment",
+      "casting_time": "1 action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "wisdom"
+      },
+      "damage": {
+        "dice": "1d4",
+        "damage_type": "psychic"
+      },
+      "class_refs": ["bard"],
+      "effect": {
+        "damage_ref": "spell_damage_vicious_mockery",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage18_combat_depth",
+        "class_refs": ["bard"]
       }
     }
   ]

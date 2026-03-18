@@ -530,6 +530,134 @@ function runEventRouterReadRoutingTests() {
     assert.equal(setup.queued[0].payload.request_event.event_type, EVENT_TYPES.PLAYER_ATTACK);
   }, results);
 
+  runTest("assist_event_routes_to_combat_and_emits_combat_dispatch_event", () => {
+    const router = new EventRouter();
+    const setup = createRouteContext();
+    const combatId = "combat-router-assist-001";
+
+    setup.combatManager.createCombat({
+      combat_id: combatId,
+      status: "pending"
+    });
+    setup.combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "player-router-assist-001",
+        name: "Router Hero",
+        team: "heroes",
+        armor_class: 12,
+        current_hp: 20,
+        max_hp: 20,
+        attack_bonus: 5,
+        damage: 4,
+        position: { x: 0, y: 0 }
+      }
+    });
+    setup.combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "ally-router-assist-001",
+        name: "Router Ally",
+        team: "heroes",
+        armor_class: 11,
+        current_hp: 10,
+        max_hp: 10,
+        attack_bonus: 3,
+        damage: 3,
+        position: { x: 1, y: 0 }
+      }
+    });
+    setup.combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "enemy-router-assist-001",
+        name: "Router Goblin",
+        team: "monsters",
+        armor_class: 10,
+        current_hp: 10,
+        max_hp: 10,
+        attack_bonus: 2,
+        damage: 3,
+        position: { x: 2, y: 0 }
+      }
+    });
+    startCombat({
+      combatManager: setup.combatManager,
+      combat_id: combatId,
+      roll_function: (participant) => (participant.participant_id === "player-router-assist-001" ? 20 : 1)
+    });
+
+    const event = createEvent(EVENT_TYPES.PLAYER_HELP_ACTION, { target_id: "ally-router-assist-001" }, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: "player-router-assist-001",
+      combat_id: combatId
+    });
+
+    const out = router.route(event, setup.context);
+    assert.equal(out.system, "combat");
+    assert.equal(setup.queued.length, 1);
+    assert.equal(setup.queued[0].event_type, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED);
+    assert.equal(setup.queued[0].payload.request_event.event_type, EVENT_TYPES.PLAYER_HELP_ACTION);
+  }, results);
+
+  runTest("ready_event_routes_to_combat_and_emits_combat_dispatch_event", () => {
+    const router = new EventRouter();
+    const setup = createRouteContext();
+    const combatId = "combat-router-ready-001";
+
+    setup.combatManager.createCombat({
+      combat_id: combatId,
+      status: "pending"
+    });
+    setup.combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "player-router-ready-001",
+        name: "Router Hero",
+        team: "heroes",
+        armor_class: 12,
+        current_hp: 20,
+        max_hp: 20,
+        attack_bonus: 5,
+        damage: 4,
+        position: { x: 0, y: 0 }
+      }
+    });
+    setup.combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "enemy-router-ready-001",
+        name: "Router Goblin",
+        team: "monsters",
+        armor_class: 10,
+        current_hp: 10,
+        max_hp: 10,
+        attack_bonus: 2,
+        damage: 3,
+        position: { x: 1, y: 0 }
+      }
+    });
+    startCombat({
+      combatManager: setup.combatManager,
+      combat_id: combatId,
+      roll_function: (participant) => (participant.participant_id === "player-router-ready-001" ? 20 : 1)
+    });
+
+    const event = createEvent(EVENT_TYPES.PLAYER_READY_ACTION, {}, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: "player-router-ready-001",
+      combat_id: combatId
+    });
+
+    const out = router.route(event, setup.context);
+    assert.equal(out.system, "combat");
+    assert.equal(setup.queued.length, 1);
+    assert.equal(setup.queued[0].event_type, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED);
+    assert.equal(setup.queued[0].payload.request_event.event_type, EVENT_TYPES.PLAYER_READY_ACTION);
+  }, results);
+
   runTest("dodge_event_routes_to_combat_and_emits_combat_dispatch_event", () => {
     const router = new EventRouter();
     const setup = createRouteContext();
@@ -585,6 +713,296 @@ function runEventRouterReadRoutingTests() {
     assert.equal(setup.queued.length, 1);
     assert.equal(setup.queued[0].event_type, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED);
     assert.equal(setup.queued[0].payload.request_event.event_type, EVENT_TYPES.PLAYER_DODGE);
+  }, results);
+
+  runTest("dash_event_routes_to_combat_and_emits_combat_dispatch_event", () => {
+    const router = new EventRouter();
+    const setup = createRouteContext();
+    const combatId = "combat-router-dash-001";
+
+    setup.combatManager.createCombat({
+      combat_id: combatId,
+      status: "pending"
+    });
+    setup.combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "player-router-dash-001",
+        name: "Router Hero",
+        team: "heroes",
+        armor_class: 12,
+        current_hp: 20,
+        max_hp: 20,
+        attack_bonus: 5,
+        damage: 4,
+        position: { x: 0, y: 0 }
+      }
+    });
+    setup.combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "enemy-router-dash-001",
+        name: "Router Goblin",
+        team: "monsters",
+        armor_class: 10,
+        current_hp: 10,
+        max_hp: 10,
+        attack_bonus: 2,
+        damage: 3,
+        position: { x: 1, y: 0 }
+      }
+    });
+    startCombat({
+      combatManager: setup.combatManager,
+      combat_id: combatId,
+      roll_function: (participant) => (participant.participant_id === "player-router-dash-001" ? 20 : 1)
+    });
+
+    const event = createEvent(EVENT_TYPES.PLAYER_DASH, {}, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: "player-router-dash-001",
+      combat_id: combatId
+    });
+
+    const out = router.route(event, setup.context);
+    assert.equal(out.system, "combat");
+    assert.equal(setup.queued.length, 1);
+    assert.equal(setup.queued[0].event_type, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED);
+    assert.equal(setup.queued[0].payload.request_event.event_type, EVENT_TYPES.PLAYER_DASH);
+  }, results);
+
+  runTest("grapple_event_routes_to_combat_and_emits_combat_dispatch_event", () => {
+    const router = new EventRouter();
+    const setup = createRouteContext();
+    const combatId = "combat-router-grapple-001";
+
+    setup.combatManager.createCombat({
+      combat_id: combatId,
+      status: "pending"
+    });
+    setup.combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "player-router-grapple-001",
+        name: "Router Hero",
+        team: "heroes",
+        armor_class: 12,
+        current_hp: 20,
+        max_hp: 20,
+        attack_bonus: 5,
+        damage: 4,
+        position: { x: 0, y: 0 }
+      }
+    });
+    setup.combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "enemy-router-grapple-001",
+        name: "Router Goblin",
+        team: "monsters",
+        armor_class: 10,
+        current_hp: 10,
+        max_hp: 10,
+        attack_bonus: 2,
+        damage: 3,
+        position: { x: 1, y: 0 }
+      }
+    });
+    startCombat({
+      combatManager: setup.combatManager,
+      combat_id: combatId,
+      roll_function: (participant) => (participant.participant_id === "player-router-grapple-001" ? 20 : 1)
+    });
+
+    const event = createEvent(EVENT_TYPES.PLAYER_GRAPPLE, {
+      target_id: "enemy-router-grapple-001"
+    }, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: "player-router-grapple-001",
+      combat_id: combatId
+    });
+
+    const out = router.route(event, setup.context);
+    assert.equal(out.system, "combat");
+    assert.equal(setup.queued.length, 1);
+    assert.equal(setup.queued[0].event_type, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED);
+    assert.equal(setup.queued[0].payload.request_event.event_type, EVENT_TYPES.PLAYER_GRAPPLE);
+  }, results);
+
+  runTest("escape_grapple_event_routes_to_combat_and_emits_combat_dispatch_event", () => {
+    const router = new EventRouter();
+    const setup = createRouteContext();
+    const combatId = "combat-router-escape-001";
+
+    setup.combatManager.createCombat({
+      combat_id: combatId,
+      status: "pending"
+    });
+    setup.combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "player-router-escape-001",
+        name: "Router Hero",
+        team: "heroes",
+        armor_class: 12,
+        current_hp: 20,
+        max_hp: 20,
+        attack_bonus: 5,
+        damage: 4,
+        position: { x: 0, y: 0 }
+      }
+    });
+    setup.combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "enemy-router-escape-001",
+        name: "Router Goblin",
+        team: "monsters",
+        armor_class: 10,
+        current_hp: 10,
+        max_hp: 10,
+        attack_bonus: 2,
+        damage: 3,
+        position: { x: 1, y: 0 }
+      }
+    });
+    startCombat({
+      combatManager: setup.combatManager,
+      combat_id: combatId,
+      roll_function: (participant) => (participant.participant_id === "player-router-escape-001" ? 20 : 1)
+    });
+
+    const event = createEvent(EVENT_TYPES.PLAYER_ESCAPE_GRAPPLE, {}, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: "player-router-escape-001",
+      combat_id: combatId
+    });
+
+    const out = router.route(event, setup.context);
+    assert.equal(out.system, "combat");
+    assert.equal(setup.queued.length, 1);
+    assert.equal(setup.queued[0].event_type, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED);
+    assert.equal(setup.queued[0].payload.request_event.event_type, EVENT_TYPES.PLAYER_ESCAPE_GRAPPLE);
+  }, results);
+
+  runTest("shove_event_routes_to_combat_and_emits_combat_dispatch_event", () => {
+    const router = new EventRouter();
+    const setup = createRouteContext();
+    const combatId = "combat-router-shove-001";
+
+    setup.combatManager.createCombat({
+      combat_id: combatId,
+      status: "pending"
+    });
+    setup.combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "player-router-shove-001",
+        name: "Router Hero",
+        team: "heroes",
+        armor_class: 12,
+        current_hp: 20,
+        max_hp: 20,
+        attack_bonus: 5,
+        damage: 4,
+        position: { x: 0, y: 0 }
+      }
+    });
+    setup.combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "enemy-router-shove-001",
+        name: "Router Goblin",
+        team: "monsters",
+        armor_class: 10,
+        current_hp: 10,
+        max_hp: 10,
+        attack_bonus: 2,
+        damage: 3,
+        position: { x: 1, y: 0 }
+      }
+    });
+    startCombat({
+      combatManager: setup.combatManager,
+      combat_id: combatId,
+      roll_function: (participant) => (participant.participant_id === "player-router-shove-001" ? 20 : 1)
+    });
+
+    const event = createEvent(EVENT_TYPES.PLAYER_SHOVE, {
+      target_id: "enemy-router-shove-001",
+      shove_mode: "push"
+    }, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: "player-router-shove-001",
+      combat_id: combatId
+    });
+
+    const out = router.route(event, setup.context);
+    assert.equal(out.system, "combat");
+    assert.equal(setup.queued.length, 1);
+    assert.equal(setup.queued[0].event_type, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED);
+    assert.equal(setup.queued[0].payload.request_event.event_type, EVENT_TYPES.PLAYER_SHOVE);
+  }, results);
+
+  runTest("disengage_event_routes_to_combat_and_emits_combat_dispatch_event", () => {
+    const router = new EventRouter();
+    const setup = createRouteContext();
+    const combatId = "combat-router-disengage-001";
+
+    setup.combatManager.createCombat({
+      combat_id: combatId,
+      status: "pending"
+    });
+    setup.combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "player-router-disengage-001",
+        name: "Router Hero",
+        team: "heroes",
+        armor_class: 12,
+        current_hp: 20,
+        max_hp: 20,
+        attack_bonus: 5,
+        damage: 4,
+        position: { x: 0, y: 0 }
+      }
+    });
+    setup.combatManager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "enemy-router-disengage-001",
+        name: "Router Goblin",
+        team: "monsters",
+        armor_class: 10,
+        current_hp: 10,
+        max_hp: 10,
+        attack_bonus: 2,
+        damage: 3,
+        position: { x: 1, y: 0 }
+      }
+    });
+    startCombat({
+      combatManager: setup.combatManager,
+      combat_id: combatId,
+      roll_function: (participant) => (participant.participant_id === "player-router-disengage-001" ? 20 : 1)
+    });
+
+    const event = createEvent(EVENT_TYPES.PLAYER_DISENGAGE, {}, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: "player-router-disengage-001",
+      combat_id: combatId
+    });
+
+    const out = router.route(event, setup.context);
+    assert.equal(out.system, "combat");
+    assert.equal(setup.queued.length, 1);
+    assert.equal(setup.queued[0].event_type, EVENT_TYPES.RUNTIME_COMBAT_COMMAND_REQUESTED);
+    assert.equal(setup.queued[0].payload.request_event.event_type, EVENT_TYPES.PLAYER_DISENGAGE);
   }, results);
 
   runTest("combat_read_event_routes_to_combat_and_emits_combat_dispatch_event", () => {
