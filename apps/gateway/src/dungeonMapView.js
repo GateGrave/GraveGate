@@ -109,6 +109,67 @@ function compareEntriesByPosition(left, right) {
   return leftY - rightY || leftX - rightX;
 }
 
+function getDungeonExitKey(entry) {
+  const safe = entry && typeof entry === "object" ? entry : {};
+  const direction = normalizeDirection(safe.direction);
+  const toRoomId = cleanText(safe.to_room_id, "");
+  if (direction || toRoomId) {
+    return `${direction}|${toRoomId}`;
+  }
+
+  const position = normalizePosition(safe.position || safe.map_position);
+  return position ? `@${position.x},${position.y}` : "exit";
+}
+
+function mergeDungeonExitEntry(existing, incoming) {
+  const left = existing && typeof existing === "object" ? existing : {};
+  const right = incoming && typeof incoming === "object" ? incoming : {};
+  const leftPosition = normalizePosition(left.position || left.map_position);
+  const rightPosition = normalizePosition(right.position || right.map_position);
+  const position = rightPosition || leftPosition;
+
+  return {
+    ...left,
+    ...right,
+    direction: cleanText(right.direction, cleanText(left.direction, "")),
+    to_room_id: cleanText(right.to_room_id, cleanText(left.to_room_id, "")),
+    label: cleanText(right.label, cleanText(left.label, "")),
+    position,
+    map_position: position
+  };
+}
+
+function getMergedDungeonExits(dungeonMap, room) {
+  const merged = new Map();
+  [].concat(
+    Array.isArray(dungeonMap && dungeonMap.exits) ? dungeonMap.exits : [],
+    Array.isArray(room && room.exits) ? room.exits : []
+  ).forEach((entry) => {
+    if (!entry) {
+      return;
+    }
+
+    const key = getDungeonExitKey(entry);
+    merged.set(key, mergeDungeonExitEntry(merged.get(key), entry));
+  });
+
+  return Array.from(merged.values())
+    .filter((entry) => {
+      const position = normalizePosition(entry && (entry.position || entry.map_position));
+      return Boolean(
+        position
+        || cleanText(entry && entry.direction, "")
+        || cleanText(entry && entry.to_room_id, "")
+        || cleanText(entry && entry.label, "")
+      );
+    })
+    .sort((left, right) => (
+      getDirectionSortRank(left.direction) - getDirectionSortRank(right.direction)
+      || compareEntriesByPosition(left, right)
+      || cleanText(left.to_room_id, left.label).localeCompare(cleanText(right.to_room_id, right.label))
+    ));
+}
+
 function titleCaseWords(value, fallback) {
   const safe = cleanText(value, fallback || "");
   if (!safe) {
@@ -374,8 +435,7 @@ function getDungeonMoveTargets(dungeonMap, room) {
       ));
   }
 
-  const exits = Array.isArray(room && room.exits) ? room.exits : [];
-  return exits
+  return getMergedDungeonExits(dungeonMap, room)
     .map((entry) => {
       const position = normalizePosition(entry && (entry.position || entry.map_position));
       if (!position) {
@@ -603,7 +663,7 @@ function summarizeDungeonObject(entry) {
   const type = titleCaseWords(safe.object_type, "Object").toLowerCase();
   const tags = [];
   if (state.is_locked === true) tags.push("locked");
-  if (state.is_open === true) tags.push("open");
+  if (state.is_open === true || state.is_opened === true) tags.push("open");
   if (state.is_disarmed === true) tags.push("safe");
   if (state.is_hidden === true) tags.push("hidden");
   return `${truncateText(name, 28)} [${type}${tags.length > 0 ? `; ${tags.join(", ")}` : ""}]`;
@@ -641,15 +701,7 @@ function buildDungeonSummaryLines(payload, viewState) {
   const debugFlags = normalizeDungeonDebugFlags(viewState && viewState.debug_flags);
   const roomType = titleCaseWords(room.room_type, "Unknown");
   const partyPosition = normalizePosition(dungeonMap.party_position || room.party_position || (payload.session && payload.session.party_position));
-  const exits = mergeUniqueEntriesByKey(
-    Array.isArray(dungeonMap.exits) ? dungeonMap.exits : [],
-    Array.isArray(room.exits) ? room.exits : [],
-    (entry) => cleanText(entry && entry.to_room_id, `${entry && entry.position ? `${entry.position.x},${entry.position.y}` : "exit"}`)
-  )
-    .sort((left, right) => (
-      getDirectionSortRank(left && left.direction) - getDirectionSortRank(right && right.direction)
-      || compareEntriesByPosition(left, right)
-    ))
+  const exits = getMergedDungeonExits(dungeonMap, room)
     .map((entry) => summarizeDungeonExit(entry));
   const objects = mergeUniqueEntriesByKey(
     Array.isArray(dungeonMap.objects) ? dungeonMap.objects : [],

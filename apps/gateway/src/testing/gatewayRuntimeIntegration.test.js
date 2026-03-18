@@ -4,7 +4,7 @@ const assert = require("assert");
 const path = require("path");
 const { handleGatewayInteraction, __test } = require("../index");
 const { buildCombatMapState, buildTokenVisualOverrides } = require("../combatMapView");
-const { buildDungeonMapState } = require("../dungeonMapView");
+const { buildDungeonMapState, buildDungeonMapView } = require("../dungeonMapView");
 
 async function runTest(name, fn, results) {
   try {
@@ -2052,6 +2052,57 @@ async function runGatewayRuntimeIntegrationTests() {
     );
     assert.equal(out.payload.map.render_debug.markers, true);
     assert.equal(out.payload.map.render_debug.walls, true);
+  }, results);
+
+  await runTest("dungeon_map_view_uses_map_exit_positions_and_is_opened_state", async () => {
+    const out = await buildDungeonMapView({
+      data: {
+        session_id: "session-dungeon-open-001",
+        session: {
+          session_id: "session-dungeon-open-001",
+          leader_id: "player-dungeon-leader-001"
+        },
+        room: {
+          room_id: "room-open-001",
+          name: "Treasure Alcove",
+          room_type: "treasure",
+          exits: [],
+          visible_objects: [
+            {
+              object_id: "chest-open-001",
+              object_type: "chest",
+              name: "Ancient Chest",
+              position: { x: 8, y: 4 },
+              state: { is_opened: true }
+            }
+          ]
+        }
+      },
+      map_config: {
+        map_path: path.resolve(process.cwd(), "apps/map-system/data/maps/dungeon/map-12x10.base-map.json"),
+        profile_path: path.resolve(process.cwd(), "apps/map-system/data/profiles/dungeon/map-12x10.dungeon-profile.json"),
+        output_dir: path.resolve(process.cwd(), "apps/map-system/output/live"),
+        dungeon_map: {
+          map_path: "apps/map-system/data/maps/dungeon/map-12x10.base-map.json",
+          party_position: { x: 1, y: 5 },
+          exits: [
+            { direction: "east", to_room_id: "room-open-002", position: { x: 11, y: 5 } }
+          ],
+          objects: [
+            { object_id: "chest-open-001", object_type: "chest", position: { x: 8, y: 4 } }
+          ]
+        }
+      },
+      user_id: "player-dungeon-leader-001"
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.content.includes("Routes: East -> room-open-002"), true);
+    assert.equal(out.payload.content.includes("Ancient Chest [chest; open]"), true);
+    const exitOverlay = out.payload.map.overlays.find((overlay) => overlay && overlay.overlay_id === "dungeon-exit-overlay");
+    assert.equal(Boolean(exitOverlay), true);
+    assert.equal(Array.isArray(exitOverlay.tiles), true);
+    assert.equal(exitOverlay.tiles.some((tile) => tile.x === 11 && tile.y === 5), true);
   }, results);
 
   await runTest("gateway_trade_proposal_wizard_collects_offer_and_submits_runtime_trade", async () => {
