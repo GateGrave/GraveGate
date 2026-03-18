@@ -9,6 +9,13 @@ const { InventoryPersistenceBridge } = require("../../../inventory-system/src/in
 const { createInventoryRecord } = require("../../../inventory-system/src/inventory.schema");
 const {
   processCombatAttackRequest,
+  processCombatHelpRequest,
+  processCombatReadyRequest,
+  processCombatDashRequest,
+  processCombatGrappleRequest,
+  processCombatEscapeGrappleRequest,
+  processCombatShoveRequest,
+  processCombatDisengageRequest,
   processCombatUseItemRequest,
   processCombatMoveRequest
 } = require("../flow/processCombatActionRequest");
@@ -771,6 +778,269 @@ function runProcessCombatActionRequestTests() {
     assert.equal(mover.current_hp, 7);
   }, results);
 
+  runTest("player_disengage_request_applies_oa_immunity_on_canonical_combat_path", () => {
+    const playerId = "player-combat-disengage-001";
+    const combatId = "combat-disengage-request-001";
+    const manager = createCombatReadyForMove(combatId, playerId);
+
+    const out = processCombatDisengageRequest({
+      context: createMoveRequestContext(manager),
+      player_id: playerId,
+      combat_id: combatId,
+      payload: {}
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.event_type, "player_disengage_processed");
+    assert.equal(Boolean(out.payload.disengage && out.payload.disengage.immunity_condition), true);
+    assert.equal(String(out.payload.disengage.immunity_condition.condition_type || ""), "opportunity_attack_immunity");
+
+    const loaded = manager.getCombatById(combatId);
+    const combat = loaded.payload.combat;
+    const actor = combat.participants.find((entry) => entry.participant_id === playerId);
+    assert.equal(actor.action_available, true);
+    assert.equal(combat.conditions.some((entry) => {
+      return String(entry && entry.condition_type || "") === "opportunity_attack_immunity" &&
+        String(entry && entry.target_actor_id || "") === String(playerId);
+    }), false);
+    assert.equal(combat.event_log.some((entry) => String(entry && entry.event_type || "") === "disengage_action"), true);
+  }, results);
+
+  runTest("player_dash_request_adds_movement_on_canonical_combat_path", () => {
+    const playerId = "player-combat-dash-001";
+    const combatId = "combat-dash-request-001";
+    const manager = createCombatReadyForMove(combatId, playerId);
+    const loadedBefore = manager.getCombatById(combatId);
+    const combatBefore = loadedBefore.payload.combat;
+    const actorBefore = combatBefore.participants.find((entry) => entry.participant_id === playerId);
+    actorBefore.movement_speed = 30;
+    actorBefore.movement_remaining = 10;
+    manager.combats.set(combatId, combatBefore);
+
+    const out = processCombatDashRequest({
+      context: createMoveRequestContext(manager),
+      player_id: playerId,
+      combat_id: combatId,
+      payload: {}
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.event_type, "player_dash_processed");
+    assert.equal(Number(out.payload.dash.movement_before), 10);
+    assert.equal(Number(out.payload.dash.movement_added), 30);
+    assert.equal(Number(out.payload.dash.movement_after), 40);
+
+    const loaded = manager.getCombatById(combatId);
+    const combat = loaded.payload.combat;
+    const actor = combat.participants.find((entry) => entry.participant_id === playerId);
+    assert.equal(Number(actor.movement_remaining), 30);
+    assert.equal(combat.event_log.some((entry) => String(entry && entry.event_type || "") === "dash_action"), true);
+  }, results);
+
+  runTest("player_help_request_applies_attack_advantage_condition_to_ally", () => {
+    const playerId = "player-combat-help-001";
+    const combatId = "combat-help-request-001";
+    const manager = new CombatManager();
+    manager.createCombat({
+      combat_id: combatId,
+      status: "pending"
+    });
+    manager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: playerId,
+        name: "Helper",
+        team: "heroes",
+        armor_class: 12,
+        current_hp: 10,
+        max_hp: 10,
+        attack_bonus: 3,
+        damage: 4,
+        position: { x: 0, y: 0 },
+        metadata: { owner_player_id: playerId }
+      }
+    });
+    manager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "ally-help-001",
+        name: "Ally",
+        team: "heroes",
+        armor_class: 12,
+        current_hp: 10,
+        max_hp: 10,
+        attack_bonus: 3,
+        damage: 4,
+        position: { x: 1, y: 0 },
+        metadata: { owner_player_id: "ally-owner-001" }
+      }
+    });
+    manager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "enemy-help-001",
+        name: "Enemy",
+        team: "monsters",
+        armor_class: 10,
+        current_hp: 10,
+        max_hp: 10,
+        attack_bonus: 2,
+        damage: 3,
+        position: { x: 2, y: 0 }
+      }
+    });
+    startCombat({
+      combatManager: manager,
+      combat_id: combatId,
+      roll_function: (participant) => (participant.participant_id === playerId ? 20 : 1)
+    });
+
+    const out = processCombatHelpRequest({
+      context: createMoveRequestContext(manager),
+      player_id: playerId,
+      combat_id: combatId,
+      payload: {
+        target_id: "ally-help-001"
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.event_type, "player_help_processed");
+    const loaded = manager.getCombatById(combatId);
+    const combat = loaded.payload.combat;
+    const helper = combat.participants.find((entry) => entry.participant_id === playerId);
+    assert.equal(helper.action_available, false);
+    assert.equal(Boolean(out.payload.help && out.payload.help.applied_condition), true);
+    assert.equal(String(out.payload.help.applied_condition.condition_type || ""), "helped_attack");
+    assert.equal(combat.conditions.some((entry) => {
+      return String(entry && entry.condition_type || "") === "helped_attack" &&
+        String(entry && entry.target_actor_id || "") === "ally-help-001";
+    }), true);
+    assert.equal(combat.event_log.some((entry) => String(entry && entry.event_type || "") === "help_action"), true);
+  }, results);
+
+  runTest("player_grapple_request_applies_grappled_condition_on_canonical_combat_path", () => {
+    const playerId = "player-combat-grapple-001";
+    const combatId = "combat-grapple-request-001";
+    const manager = createCombatReadyForMove(combatId, playerId);
+
+    const out = processCombatGrappleRequest({
+      context: createMoveRequestContext(manager, {
+        grappleContestRollFn(_participant, _ability, _combat, role) {
+          return role === "attacker" ? 18 : 4;
+        }
+      }),
+      player_id: playerId,
+      combat_id: combatId,
+      payload: {
+        target_id: "enemy-reactor-001"
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.event_type, "player_grapple_processed");
+    assert.equal(String(out.payload.grapple.applied_condition.condition_type || ""), "grappled");
+
+    const loaded = manager.getCombatById(combatId);
+    const combat = loaded.payload.combat;
+    assert.equal(combat.conditions.some((entry) => {
+      return String(entry && entry.condition_type || "") === "grappled" &&
+        String(entry && entry.source_actor_id || "") === playerId &&
+        String(entry && entry.target_actor_id || "") === "enemy-reactor-001";
+    }), true);
+  }, results);
+
+  runTest("player_escape_grapple_request_removes_grappled_condition_on_success", () => {
+    const playerId = "player-combat-escape-001";
+    const combatId = "combat-escape-request-001";
+    const manager = createCombatReadyForMove(combatId, playerId, {
+      conditions: [
+        {
+          condition_id: "condition-grappled-escape-001",
+          condition_type: "grappled",
+          source_actor_id: "enemy-reactor-001",
+          target_actor_id: playerId,
+          expiration_trigger: "manual"
+        }
+      ]
+    });
+
+    const out = processCombatEscapeGrappleRequest({
+      context: createMoveRequestContext(manager, {
+        grappleContestRollFn(_participant, _ability, _combat, role) {
+          return role === "attacker" ? 19 : 2;
+        }
+      }),
+      player_id: playerId,
+      combat_id: combatId,
+      payload: {}
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.event_type, "player_escape_grapple_processed");
+    assert.equal(out.payload.escape.escaped, true);
+    const loaded = manager.getCombatById(combatId);
+    const combat = loaded.payload.combat;
+    assert.equal(combat.conditions.some((entry) => {
+      return String(entry && entry.condition_type || "") === "grappled" &&
+        String(entry && entry.target_actor_id || "") === playerId;
+    }), false);
+  }, results);
+
+  runTest("player_shove_request_pushes_target_on_success", () => {
+    const playerId = "player-combat-shove-001";
+    const combatId = "combat-shove-request-001";
+    const manager = createCombatReadyForMove(combatId, playerId);
+
+    const out = processCombatShoveRequest({
+      context: createMoveRequestContext(manager, {
+        grappleContestRollFn(_participant, _ability, _combat, role) {
+          return role === "attacker" ? 18 : 3;
+        }
+      }),
+      player_id: playerId,
+      combat_id: combatId,
+      payload: {
+        target_id: "enemy-reactor-001",
+        shove_mode: "push"
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.event_type, "player_shove_processed");
+    assert.equal(out.payload.shove.success, true);
+    assert.deepEqual(out.payload.shove.moved_to, { x: 3, y: 1 });
+  }, results);
+
+  runTest("player_ready_request_stores_ready_action_scaffold", () => {
+    const playerId = "player-combat-ready-001";
+    const combatId = "combat-ready-request-001";
+    const manager = createCombatReadyForMove(combatId, playerId);
+
+    const out = processCombatReadyRequest({
+      context: createMoveRequestContext(manager),
+      player_id: playerId,
+      combat_id: combatId,
+      payload: {
+        trigger_type: "enemy_enters_reach",
+        readied_action_type: "attack",
+        target_id: "enemy-reactor-001"
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.event_type, "player_ready_processed");
+    assert.equal(String(out.payload.ready.ready_action.trigger_type || ""), "enemy_enters_reach");
+    assert.equal(String(out.payload.ready.ready_action.action_type || ""), "attack");
+    assert.equal(String(out.payload.ready.ready_action.target_id || ""), "enemy-reactor-001");
+
+    const combat = manager.getCombatById(combatId).payload.combat;
+    const actor = combat.participants.find((entry) => entry.participant_id === playerId);
+    assert.equal(Boolean(actor.ready_action), false);
+    assert.equal(actor.action_available, true);
+    assert.equal(combat.event_log.some((entry) => String(entry && entry.event_type || "") === "ready_action"), true);
+  }, results);
+
   runTest("invalid_movement_does_not_trigger_opportunity_attack", () => {
     const playerId = "player-combat-move-invalid-001";
     const combatId = "combat-move-invalid-001";
@@ -813,6 +1083,113 @@ function runProcessCombatActionRequestTests() {
 
     assert.equal(out.ok, true);
     assert.equal(out.payload.reactions.opportunity_attacks.length, 0);
+  }, results);
+
+  runTest("movement_entering_readied_enemy_reach_triggers_ready_attack_once", () => {
+    const playerId = "player-combat-move-ready-trigger-001";
+    const combatId = "combat-move-ready-trigger-001";
+    const manager = createCombatReadyForMove(combatId, playerId, {
+      reactor_position: { x: 3, y: 4 }
+    });
+    const loaded = manager.getCombatById(combatId);
+    const combat = loaded.payload.combat;
+    const enemyReady = combat.participants.find((entry) => entry.participant_id === "enemy-other-001");
+    enemyReady.position = { x: 0, y: 2 };
+    enemyReady.ready_action = {
+      trigger_type: "enemy_enters_reach",
+      action_type: "attack",
+      target_id: playerId,
+      set_round: 1
+    };
+    manager.combats.set(combatId, combat);
+
+    const out = processCombatMoveRequest({
+      context: createMoveRequestContext(manager),
+      player_id: playerId,
+      combat_id: combatId,
+      payload: {
+        target_x: 0,
+        target_y: 1
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(Array.isArray(out.payload.reactions.ready_attacks), true);
+    assert.equal(out.payload.reactions.ready_attacks.length, 1);
+    assert.equal(out.payload.reactions.ready_attacks[0].reactor_participant_id, "enemy-other-001");
+    const readyAttackEvents = out.payload.move.combat.event_log.filter((entry) => String(entry && entry.event_type || "") === "ready_attack");
+    assert.equal(readyAttackEvents.length, 1);
+    const readyTriggeredEvents = out.payload.move.combat.event_log.filter((entry) => String(entry && entry.event_type || "") === "ready_action_triggered");
+    assert.equal(readyTriggeredEvents.length, 1);
+    const enemyReadyAfter = out.payload.move.combat.participants.find((entry) => entry.participant_id === "enemy-other-001");
+    assert.equal(Boolean(enemyReadyAfter.ready_action), false);
+  }, results);
+
+  runTest("no_ready_attack_if_reactor_has_no_reaction", () => {
+    const playerId = "player-combat-move-ready-no-reaction-001";
+    const combatId = "combat-move-ready-no-reaction-001";
+    const manager = createCombatReadyForMove(combatId, playerId, {
+      reactor_position: { x: 3, y: 4 }
+    });
+    const loaded = manager.getCombatById(combatId);
+    const combat = loaded.payload.combat;
+    const enemyReady = combat.participants.find((entry) => entry.participant_id === "enemy-other-001");
+    enemyReady.position = { x: 0, y: 2 };
+    enemyReady.reaction_available = false;
+    enemyReady.ready_action = {
+      trigger_type: "enemy_enters_reach",
+      action_type: "attack",
+      target_id: playerId,
+      set_round: 1
+    };
+    manager.combats.set(combatId, combat);
+
+    const out = processCombatMoveRequest({
+      context: createMoveRequestContext(manager),
+      player_id: playerId,
+      combat_id: combatId,
+      payload: {
+        target_x: 0,
+        target_y: 1
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.reactions.ready_attacks.length, 0);
+  }, results);
+
+  runTest("movement_not_entering_reach_does_not_trigger_ready_attack", () => {
+    const playerId = "player-combat-move-ready-no-enter-001";
+    const combatId = "combat-move-ready-no-enter-001";
+    const manager = createCombatReadyForMove(combatId, playerId, {
+      reactor_position: { x: 3, y: 4 }
+    });
+    const loaded = manager.getCombatById(combatId);
+    const combat = loaded.payload.combat;
+    const enemyReady = combat.participants.find((entry) => entry.participant_id === "enemy-other-001");
+    enemyReady.position = { x: 1, y: 2 };
+    enemyReady.ready_action = {
+      trigger_type: "enemy_enters_reach",
+      action_type: "attack",
+      target_id: playerId,
+      set_round: 1
+    };
+    manager.combats.set(combatId, combat);
+
+    const out = processCombatMoveRequest({
+      context: createMoveRequestContext(manager),
+      player_id: playerId,
+      combat_id: combatId,
+      payload: {
+        target_x: 0,
+        target_y: 1
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.reactions.ready_attacks.length, 0);
+    const readyAttackEvents = out.payload.move.combat.event_log.filter((entry) => String(entry && entry.event_type || "") === "ready_attack");
+    assert.equal(readyAttackEvents.length, 0);
   }, results);
 
   runTest("targeted_opportunity_attack_immunity_blocks_only_the_marked_reactor", () => {

@@ -207,7 +207,14 @@ class EventRouter {
       [EVENT_TYPES.PLAYER_MOVE]: "session",
       [EVENT_TYPES.LOOT_GENERATED]: "session",
       [EVENT_TYPES.PLAYER_ATTACK]: "combat",
+      [EVENT_TYPES.PLAYER_HELP_ACTION]: "combat",
+      [EVENT_TYPES.PLAYER_READY_ACTION]: "combat",
       [EVENT_TYPES.PLAYER_DODGE]: "combat",
+      [EVENT_TYPES.PLAYER_DASH]: "combat",
+      [EVENT_TYPES.PLAYER_GRAPPLE]: "combat",
+      [EVENT_TYPES.PLAYER_ESCAPE_GRAPPLE]: "combat",
+      [EVENT_TYPES.PLAYER_SHOVE]: "combat",
+      [EVENT_TYPES.PLAYER_DISENGAGE]: "combat",
       [EVENT_TYPES.PLAYER_CAST_SPELL]: "combat",
       [EVENT_TYPES.COMBAT_STARTED]: "combat"
     };

@@ -6,7 +6,14 @@ const EVENT_TYPES = {
   // Required examples for the shared format scaffold.
   PLAYER_MOVE: "player_move",
   PLAYER_ATTACK: "player_attack",
+  PLAYER_HELP_ACTION: "player_help_action",
+  PLAYER_READY_ACTION: "player_ready_action",
   PLAYER_DODGE: "player_dodge",
+  PLAYER_DASH: "player_dash",
+  PLAYER_GRAPPLE: "player_grapple",
+  PLAYER_ESCAPE_GRAPPLE: "player_escape_grapple",
+  PLAYER_SHOVE: "player_shove",
+  PLAYER_DISENGAGE: "player_disengage",
   COMBAT_STARTED: "combat_started",
   LOOT_GENERATED: "loot_generated",
 

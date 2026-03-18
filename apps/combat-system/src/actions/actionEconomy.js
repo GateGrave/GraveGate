@@ -106,8 +106,15 @@ function consumeParticipantAction(participant, actionType, options) {
   if (
     actionType === ACTION_TYPES.USE_ITEM ||
     actionType === ACTION_TYPES.ATTACK ||
+    actionType === ACTION_TYPES.HELP ||
+    actionType === ACTION_TYPES.READY ||
     actionType === ACTION_TYPES.DODGE ||
-    actionType === ACTION_TYPES.CAST_SPELL
+    actionType === ACTION_TYPES.DASH ||
+    actionType === ACTION_TYPES.DISENGAGE ||
+    actionType === ACTION_TYPES.CAST_SPELL ||
+    actionType === ACTION_TYPES.GRAPPLE ||
+    actionType === ACTION_TYPES.ESCAPE_GRAPPLE ||
+    actionType === ACTION_TYPES.SHOVE
   ) {
     next.action_available = false;
     return success("combat_action_consumed", {

@@ -5,7 +5,8 @@ const {
   getActiveConditionsForParticipant,
   participantHasCondition,
   applyConditionToCombatState,
-  removeConditionFromCombatState
+  removeConditionFromCombatState,
+  normalizeCombatControlConditions
 } = require("../conditions/conditionHelpers");
 const { applyDamageToCombatState } = require("../damage/apply-damage-to-combat-state");
 const { DAMAGE_TYPES, isSupportedDamageType, normalizeDamageType } = require("../damage/damage-types");
@@ -20,6 +21,7 @@ const {
   parseSpellRangeFeet,
   getSpellTargetType,
   resolveSpellActionCost,
+  isCantripSpell,
   validateSpellKnown,
   validateSpellTargeting,
   validateSpellActionAvailability,
@@ -88,6 +90,35 @@ function removeConditionTypeFromParticipant(combat, participantId, conditionType
   };
 }
 
+function removeBreakOnHarmfulActionConditions(combat, participantId) {
+  let nextCombat = clone(combat);
+  const activeConditions = getActiveConditionsForParticipant(nextCombat, participantId);
+  const toRemove = activeConditions.filter((condition) => {
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object"
+      ? condition.metadata
+      : {};
+    return metadata.breaks_on_harmful_action === true;
+  });
+  let removedCount = 0;
+  for (let index = 0; index < toRemove.length; index += 1) {
+    const condition = toRemove[index];
+    if (!condition || !condition.condition_id) {
+      continue;
+    }
+    const removed = removeConditionFromCombatState(nextCombat, condition.condition_id);
+    if (!removed.ok) {
+      return removed;
+    }
+    nextCombat = clone(removed.next_state);
+    removedCount += 1;
+  }
+  return {
+    ok: true,
+    next_state: nextCombat,
+    removed_count: removedCount
+  };
+}
+
 function isHarmfulSpellAgainstTarget(caster, target, spell) {
   if (!caster || !target || !spell || typeof spell !== "object") {
     return false;
@@ -116,7 +147,31 @@ function isHarmfulSpellAgainstTarget(caster, target, spell) {
   return ["outlined_for_advantage", "hold_person", "entangle", "no_reaction_until_next_turn"].includes(statusHint);
 }
 
-function ensureParticipantCanCast(combat, caster, actionCost) {
+function isHarmfulSpellBlockedByCharm(combat, casterId, targetId) {
+  const casterConditions = getActiveConditionsForParticipant(combat, casterId);
+  for (let index = 0; index < casterConditions.length; index += 1) {
+    const condition = casterConditions[index];
+    if (String(condition && condition.condition_type || "") !== "charmed") {
+      continue;
+    }
+    const sourceActorId = String(condition && condition.source_actor_id || "").trim();
+    if (sourceActorId && sourceActorId === String(targetId || "")) {
+      return true;
+    }
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object"
+      ? condition.metadata
+      : {};
+    const blockedTargets = Array.isArray(metadata.cannot_target_actor_ids)
+      ? metadata.cannot_target_actor_ids.map((entry) => String(entry || ""))
+      : [];
+    if (blockedTargets.includes(String(targetId || ""))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function ensureParticipantCanCast(combat, caster, actionCost, spell) {
   const casterHp = Number.isFinite(caster.current_hp) ? caster.current_hp : 0;
   if (casterHp <= 0) {
     return failure("cast_spell_action_failed", "defeated participants cannot act", {
@@ -138,7 +193,7 @@ function ensureParticipantCanCast(combat, caster, actionCost) {
     });
   }
 
-  const availability = validateSpellActionAvailability(caster, actionCost);
+  const availability = validateSpellActionAvailability(caster, actionCost, spell);
   if (!availability.ok) {
     return failure("cast_spell_action_failed", availability.error, {
       combat_id: String(combat.combat_id || ""),
@@ -240,6 +295,8 @@ function resolveSpellAttackRoll(input) {
   const targetIsFaerieLit = targetConditions.some((condition) => String(condition && condition.condition_type || "") === "faerie_fire_lit");
   const targetIsRestrained = targetConditions.some((condition) => String(condition && condition.condition_type || "") === "restrained");
   const targetIsParalyzed = targetConditions.some((condition) => String(condition && condition.condition_type || "") === "paralyzed");
+  const targetIsBlinded = targetConditions.some((condition) => String(condition && condition.condition_type || "") === "blinded");
+  const targetIsInvisible = targetConditions.some((condition) => String(condition && condition.condition_type || "") === "invisible");
   const targetGrantsAttackAdvantage = targetConditions.some((condition) => {
     const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
     return metadata.attackers_have_advantage === true;
@@ -250,12 +307,34 @@ function resolveSpellAttackRoll(input) {
   });
   const attackerIsPoisoned = attackerConditions.some((condition) => String(condition && condition.condition_type || "") === "poisoned");
   const attackerIsRestrained = attackerConditions.some((condition) => String(condition && condition.condition_type || "") === "restrained");
+  const attackerIsBlinded = attackerConditions.some((condition) => String(condition && condition.condition_type || "") === "blinded");
+  const attackerIsInvisible = attackerConditions.some((condition) => String(condition && condition.condition_type || "") === "invisible");
+  const attackerIsFrightened = attackerConditions.some((condition) => String(condition && condition.condition_type || "") === "frightened");
   const attackerHasConditionDisadvantage = attackerConditions.some((condition) => {
     const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
     return metadata.has_attack_disadvantage === true;
   });
-  const hasAdvantage = targetIsMarked || targetIsFaerieLit || targetIsRestrained || targetIsParalyzed || targetGrantsAttackAdvantage;
-  const hasDisadvantage = targetImposesDisadvantage || attackerIsPoisoned || attackerIsRestrained || attackerHasConditionDisadvantage;
+  const attackerHasConditionAdvantage = attackerConditions.some((condition) => {
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
+    return metadata.has_attack_advantage === true;
+  });
+  const hasAdvantage =
+    targetIsMarked ||
+    targetIsFaerieLit ||
+    targetIsRestrained ||
+    targetIsParalyzed ||
+    targetIsBlinded ||
+    targetGrantsAttackAdvantage ||
+    attackerIsInvisible ||
+    attackerHasConditionAdvantage;
+  const hasDisadvantage =
+    targetIsInvisible ||
+    targetImposesDisadvantage ||
+    attackerIsPoisoned ||
+    attackerIsRestrained ||
+    attackerIsBlinded ||
+    attackerIsFrightened ||
+    attackerHasConditionDisadvantage;
   if (attackRollFn) {
     const out = attackRollFn({
       caster: clone(input.caster),
@@ -549,6 +628,40 @@ function resolveAppliedConditions(combat, spell, casterId, targetId, conditionGa
         blocks_harmful_spell_targeting: true,
         targeting_save_ability: "wisdom",
         targeting_save_dc: computeSpellSaveDc(sanctuaryCaster, spell),
+        breaks_on_harmful_action: true,
+        source_spell_id: spell.spell_id || spell.id || null
+      }
+    });
+  } else if (statusHint === "charm_person") {
+    implicitConditions.push({
+      condition_type: "charmed",
+      expiration_trigger: "manual",
+      metadata: {
+        source: "spell_status_hint",
+        status_hint: statusHint,
+        cannot_target_actor_ids: [String(casterId || "")],
+        source_spell_id: spell.spell_id || spell.id || null
+      }
+    });
+  } else if (statusHint === "fear") {
+    implicitConditions.push({
+      condition_type: "frightened",
+      expiration_trigger: "manual",
+      metadata: {
+        source: "spell_status_hint",
+        status_hint: statusHint,
+        source_spell_id: spell.spell_id || spell.id || null
+      }
+    });
+  } else if (statusHint === "invisibility") {
+    implicitConditions.push({
+      condition_type: "invisible",
+      expiration_trigger: "manual",
+      metadata: {
+        source: "spell_status_hint",
+        status_hint: statusHint,
+        attackers_have_disadvantage: true,
+        has_attack_advantage: true,
         breaks_on_harmful_action: true,
         source_spell_id: spell.spell_id || spell.id || null
       }
@@ -1122,7 +1235,7 @@ function performCastSpellAction(input) {
     });
   }
 
-  const actorValidation = ensureParticipantCanCast(combat, caster, actionCost);
+  const actorValidation = ensureParticipantCanCast(combat, caster, actionCost, spell);
   if (!actorValidation.ok) {
     return actorValidation;
   }
@@ -1160,6 +1273,17 @@ function performCastSpellAction(input) {
     if (!rangeValidation.ok) {
       return rangeValidation;
     }
+    if (
+      isHarmfulSpellAgainstTarget(caster, targets[index], spell) &&
+      isHarmfulSpellBlockedByCharm(combat, casterId, targetIds[index])
+    ) {
+      return failure("cast_spell_action_failed", "charmed participants cannot target the charmer with harmful spells", {
+        combat_id: String(combatId),
+        caster_id: String(casterId),
+        target_id: String(targetIds[index]),
+        spell_id: String(spellId)
+      });
+    }
   }
 
   const harmfulSpell = targets.some((target) => isHarmfulSpellAgainstTarget(caster, target, spell));
@@ -1169,6 +1293,11 @@ function performCastSpellAction(input) {
       return failure("cast_spell_action_failed", selfWardRemoved.error || "failed to clear caster ward");
     }
     combat = clone(selfWardRemoved.next_state);
+    const removedBreakingConditions = removeBreakOnHarmfulActionConditions(combat, casterId);
+    if (!removedBreakingConditions.ok) {
+      return failure("cast_spell_action_failed", removedBreakingConditions.error || "failed to clear harmful-action conditions");
+    }
+    combat = clone(removedBreakingConditions.next_state);
   }
 
   if (harmfulSpell && targets.length > 0) {
@@ -1203,7 +1332,7 @@ function performCastSpellAction(input) {
   if (casterIndex === -1) {
     return failure("cast_spell_action_failed", "caster not found in combat");
   }
-  combat.participants[casterIndex] = consumeSpellAction(combat.participants[casterIndex], actionCost);
+  combat.participants[casterIndex] = consumeSpellAction(combat.participants[casterIndex], actionCost, spell);
 
   const attackOrSave = spell.attack_or_save && typeof spell.attack_or_save === "object"
     ? spell.attack_or_save
@@ -1542,6 +1671,12 @@ function performCastSpellAction(input) {
     resolutionPayload.concentration_replaced = clone(concentrationStart.replaced_concentration);
   }
 
+  const normalizedConditions = normalizeCombatControlConditions(combat);
+  if (!normalizedConditions.ok) {
+    return failure("cast_spell_action_failed", normalizedConditions.error || "failed to normalize combat conditions");
+  }
+  combat = clone(normalizedConditions.next_state);
+
   combat.event_log = Array.isArray(combat.event_log) ? combat.event_log : [];
   combat.event_log.push({
     event_type: "cast_spell_action",
@@ -1552,6 +1687,8 @@ function performCastSpellAction(input) {
     spell_id: String(spellId),
     spell_name: spell.name || null,
     action_cost: actionCost,
+    spell_level: spell && spell.level !== undefined ? Number(spell.level) : null,
+    is_cantrip: isCantripSpell(spell),
     reaction_mode: reactionMode,
     war_caster_reaction: warCasterReaction,
     resolution_type: resolutionType,
@@ -1588,6 +1725,8 @@ function performCastSpellAction(input) {
     spell_id: String(spellId),
     spell_name: spell.name || null,
     action_cost: actionCost,
+    spell_level: spell && spell.level !== undefined ? Number(spell.level) : null,
+    is_cantrip: isCantripSpell(spell),
     reaction_mode: reactionMode,
     war_caster_reaction: warCasterReaction,
     resolution_type: resolutionType,

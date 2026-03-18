@@ -249,6 +249,56 @@ function resolveSpellActionCost(spell) {
   return "action";
 }
 
+function normalizeSpellLevel(spell) {
+  const direct = Number(spell && spell.level);
+  if (Number.isFinite(direct)) {
+    return Math.max(0, Math.floor(direct));
+  }
+  const alt = Number(spell && spell.spell_level);
+  if (Number.isFinite(alt)) {
+    return Math.max(0, Math.floor(alt));
+  }
+  const metadataLevel = Number(spell && spell.metadata && spell.metadata.level);
+  if (Number.isFinite(metadataLevel)) {
+    return Math.max(0, Math.floor(metadataLevel));
+  }
+  return 1;
+}
+
+function isCantripSpell(spell) {
+  if (!spell || typeof spell !== "object") {
+    return false;
+  }
+  if (spell.is_cantrip === true) {
+    return true;
+  }
+  if (spell.metadata && typeof spell.metadata === "object" && spell.metadata.is_cantrip === true) {
+    return true;
+  }
+  return normalizeSpellLevel(spell) === 0;
+}
+
+function getParticipantSpellcastingTurnState(participant) {
+  const state = participant && participant.spellcasting_turn_state && typeof participant.spellcasting_turn_state === "object"
+    ? participant.spellcasting_turn_state
+    : {};
+  return {
+    bonus_action_spell_cast: state.bonus_action_spell_cast === true,
+    action_spell_cast: state.action_spell_cast === true,
+    action_spell_was_cantrip: state.action_spell_was_cantrip === true
+  };
+}
+
+function initializeParticipantSpellcastingTurnState(participant) {
+  return Object.assign({}, participant, {
+    spellcasting_turn_state: {
+      bonus_action_spell_cast: false,
+      action_spell_cast: false,
+      action_spell_was_cantrip: false
+    }
+  });
+}
+
 function validateSpellKnown(participant, spellId) {
   const wanted = String(spellId || "").trim().toLowerCase();
   if (!wanted) {
@@ -335,12 +385,32 @@ function validateSpellTargeting(spell, caster, target) {
   };
 }
 
-function validateSpellActionAvailability(participant, actionCost) {
+function validateSpellActionAvailability(participant, actionCost, spell) {
   if (!participant || typeof participant !== "object") {
     return {
       ok: false,
       error: "participant is required"
     };
+  }
+
+  const spellcastingState = getParticipantSpellcastingTurnState(participant);
+  const cantrip = isCantripSpell(spell);
+
+  if (actionCost === "bonus_action" && spellcastingState.action_spell_cast === true && spellcastingState.action_spell_was_cantrip !== true) {
+    return {
+      ok: false,
+      error: "cannot cast a bonus action spell after casting a leveled spell this turn"
+    };
+  }
+
+  if (spellcastingState.bonus_action_spell_cast === true) {
+    const validFollowupActionCantrip = actionCost === "action" && cantrip === true;
+    if (!validFollowupActionCantrip) {
+      return {
+        ok: false,
+        error: "after casting a bonus action spell, only a cantrip with a 1 action casting time can be cast this turn"
+      };
+    }
   }
 
   if (actionCost === "bonus_action") {
@@ -382,10 +452,12 @@ function validateSpellActionAvailability(participant, actionCost) {
   };
 }
 
-function consumeSpellAction(participant, actionCost) {
+function consumeSpellAction(participant, actionCost, spell) {
   const next = Object.assign({}, participant);
+  next.spellcasting_turn_state = getParticipantSpellcastingTurnState(next);
   if (actionCost === "bonus_action") {
     next.bonus_action_available = false;
+    next.spellcasting_turn_state.bonus_action_spell_cast = true;
     return next;
   }
   if (actionCost === "reaction") {
@@ -393,6 +465,8 @@ function consumeSpellAction(participant, actionCost) {
     return next;
   }
   next.action_available = false;
+  next.spellcasting_turn_state.action_spell_cast = true;
+  next.spellcasting_turn_state.action_spell_was_cantrip = isCantripSpell(spell);
   return next;
 }
 
@@ -494,7 +568,10 @@ function resolveSavingThrowOutcome(input) {
   const activeConditions = getActiveConditionsForParticipant(input && input.combat_state, participant && participant.participant_id);
   const participantIsRestrained = activeConditions.some((condition) => String(condition && condition.condition_type || "") === "restrained");
   const participantIsParalyzed = activeConditions.some((condition) => String(condition && condition.condition_type || "") === "paralyzed");
+  const participantIsDodging = participant && participant.is_dodging === true ||
+    activeConditions.some((condition) => String(condition && condition.condition_type || "") === "dodging");
   const saveDisadvantage = participantIsRestrained && saveAbility === "dexterity";
+  const saveAdvantage = participantIsDodging && saveAbility === "dexterity";
   if (participantIsParalyzed && (saveAbility === "strength" || saveAbility === "dexterity")) {
     return {
       ok: true,
@@ -503,6 +580,7 @@ function resolveSavingThrowOutcome(input) {
         modifier: computeSavingThrowModifier(participant, saveAbility),
         bonus_modifier: 0,
         flat_condition_bonus: 0,
+        advantage: false,
         disadvantage: false,
         dc,
         roll: { final_total: 0, rolled_value: 0 },
@@ -552,11 +630,12 @@ function resolveSavingThrowOutcome(input) {
         modifier,
         dc,
         bonus_modifier: conditionBonus.total + flatConditionBonus,
-        advantage: false,
+        advantage: saveAdvantage,
         disadvantage: saveDisadvantage
       })
     : rollSavingThrow({
         modifier,
+        advantage: saveAdvantage,
         disadvantage: saveDisadvantage
       });
 
@@ -575,6 +654,7 @@ function resolveSavingThrowOutcome(input) {
       modifier,
       bonus_modifier: conditionBonus.total + flatConditionBonus,
       flat_condition_bonus: flatConditionBonus,
+      advantage: saveAdvantage,
       disadvantage: saveDisadvantage,
       dc,
       roll,
@@ -690,6 +770,10 @@ module.exports = {
   getSpellTargetType,
   getSpellAreaTemplate,
   resolveSpellActionCost,
+  normalizeSpellLevel,
+  isCantripSpell,
+  getParticipantSpellcastingTurnState,
+  initializeParticipantSpellcastingTurnState,
   validateSpellKnown,
   validateSpellTargeting,
   validateSpellActionAvailability,

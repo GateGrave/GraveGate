@@ -42,6 +42,13 @@ const { grantLootToInventory } = require("../../world-system/src/loot/flow/grant
 const {
   processCombatAttackRequest,
   processCombatCastSpellRequest,
+  processCombatHelpRequest,
+  processCombatReadyRequest,
+  processCombatDashRequest,
+  processCombatGrappleRequest,
+  processCombatEscapeGrappleRequest,
+  processCombatShoveRequest,
+  processCombatDisengageRequest,
   processCombatDodgeRequest,
   processCombatMoveRequest,
   processCombatUseItemRequest
@@ -872,6 +879,10 @@ function summarizeCombatProgression(outPayload) {
     : (outPayload && outPayload.attack && outPayload.attack.combat) ||
       (outPayload && outPayload.cast_spell && outPayload.cast_spell.combat) ||
       (outPayload && outPayload.move && outPayload.move.combat) ||
+      (outPayload && outPayload.help && outPayload.help.combat) ||
+      (outPayload && outPayload.ready && outPayload.ready.combat) ||
+      (outPayload && outPayload.dodge && outPayload.dodge.combat) ||
+      (outPayload && outPayload.disengage && outPayload.disengage.combat) ||
       (outPayload && outPayload.use_item && outPayload.use_item.combat) ||
       null;
   const aiTurns = Array.isArray(progression.ai_turns) ? progression.ai_turns : [];
@@ -908,12 +919,22 @@ function summarizeCombatStateForGateway(combat, activeParticipantId) {
   }
   const participants = Array.isArray(safeCombat.participants) ? safeCombat.participants : [];
   const conditions = Array.isArray(safeCombat.conditions) ? safeCombat.conditions : [];
+  const recentEvents = Array.isArray(safeCombat.event_log)
+    ? safeCombat.event_log.slice(-3).map((entry) => ({
+        event_type: entry && entry.event_type ? String(entry.event_type) : null,
+        attacker_id: entry && entry.attacker_id ? String(entry.attacker_id) : null,
+        target_id: entry && entry.target_id ? String(entry.target_id) : null,
+        participant_id: entry && entry.participant_id ? String(entry.participant_id) : null,
+        details: entry && entry.details && typeof entry.details === "object" ? clone(entry.details) : null
+      }))
+    : [];
   return {
     combat_id: safeCombat.combat_id || null,
     status: safeCombat.status || null,
     round: Number.isFinite(Number(safeCombat.round)) ? Number(safeCombat.round) : 1,
     active_participant_id: activeParticipantId || null,
     condition_count: conditions.length,
+    recent_events: recentEvents,
     participants: participants.slice(0, 8).map((entry) => ({
       participant_id: entry && entry.participant_id ? String(entry.participant_id) : null,
       player_id: entry && entry.player_id ? String(entry.player_id) : null,
@@ -931,6 +952,10 @@ function summarizeCombatStateForGateway(combat, activeParticipantId) {
       action_available: entry && entry.action_available === true,
       bonus_action_available: entry && entry.bonus_action_available === true,
       reaction_available: entry && entry.reaction_available === true,
+      spellcasting_turn_state:
+        entry && entry.spellcasting_turn_state && typeof entry.spellcasting_turn_state === "object"
+          ? clone(entry.spellcasting_turn_state)
+          : null,
       movement_remaining: Number.isFinite(Number(entry && entry.movement_remaining))
         ? Number(entry.movement_remaining)
         : null,
@@ -1780,6 +1805,242 @@ function handleCombatCommandDispatch(event, context) {
     }, true, null, "combat_system")];
   }
 
+  if (requestEvent.event_type === EVENT_TYPES.PLAYER_DASH) {
+    const replayState = rejectDuplicateMutationIfNeeded(requestEvent, context, "dash", "combat_system");
+    if (replayState && replayState.event_type) {
+      return [replayState];
+    }
+    const out = processCombatDashRequest({
+      context,
+      player_id: requestEvent.player_id,
+      combat_id: requestEvent.combat_id,
+      payload: requestEvent.payload || {}
+    });
+    if (!out.ok) {
+      return [createGatewayResponseEvent(requestEvent, "dash", {}, false, out.error || "dash request failed", "combat_system")];
+    }
+    markMutationReplaySuccess(context, replayState, true);
+
+    const dash = out.payload.dash || {};
+    const progress = summarizeCombatProgression(out.payload);
+    return [createGatewayResponseEvent(requestEvent, "dash", {
+      dash_status: "resolved",
+      combat_id: dash.combat_id || requestEvent.combat_id,
+      participant_id: dash.participant_id || requestEvent.player_id || null,
+      movement_before: dash.movement_before,
+      movement_added: dash.movement_added,
+      movement_after: dash.movement_after,
+      active_participant_id: progress.active_participant_id,
+      combat_completed: progress.combat_completed,
+      winner_team: progress.winner_team,
+      combat_summary: summarizeCombatStateForGateway(progress.combat, progress.active_participant_id),
+      ai_turn_count: progress.ai_turn_count,
+      ai_turns: clone(progress.ai_turns)
+    }, true, null, "combat_system")];
+  }
+
+  if (requestEvent.event_type === EVENT_TYPES.PLAYER_GRAPPLE) {
+    const replayState = rejectDuplicateMutationIfNeeded(requestEvent, context, "grapple", "combat_system");
+    if (replayState && replayState.event_type) {
+      return [replayState];
+    }
+    const out = processCombatGrappleRequest({
+      context,
+      player_id: requestEvent.player_id,
+      combat_id: requestEvent.combat_id,
+      payload: requestEvent.payload || {}
+    });
+    if (!out.ok) {
+      return [createGatewayResponseEvent(requestEvent, "grapple", {}, false, out.error || "grapple request failed", "combat_system")];
+    }
+    markMutationReplaySuccess(context, replayState, true);
+
+    const grapple = out.payload.grapple || {};
+    const progress = summarizeCombatProgression(out.payload);
+    return [createGatewayResponseEvent(requestEvent, "grapple", {
+      grapple_status: "resolved",
+      combat_id: grapple.combat_id || requestEvent.combat_id,
+      attacker_id: grapple.attacker_id || requestEvent.player_id || null,
+      target_id: grapple.target_id || null,
+      applied_condition: grapple.applied_condition || null,
+      active_participant_id: progress.active_participant_id,
+      combat_completed: progress.combat_completed,
+      winner_team: progress.winner_team,
+      combat_summary: summarizeCombatStateForGateway(progress.combat, progress.active_participant_id),
+      ai_turn_count: progress.ai_turn_count,
+      ai_turns: clone(progress.ai_turns)
+    }, true, null, "combat_system")];
+  }
+
+  if (requestEvent.event_type === EVENT_TYPES.PLAYER_ESCAPE_GRAPPLE) {
+    const replayState = rejectDuplicateMutationIfNeeded(requestEvent, context, "escape", "combat_system");
+    if (replayState && replayState.event_type) {
+      return [replayState];
+    }
+    const out = processCombatEscapeGrappleRequest({
+      context,
+      player_id: requestEvent.player_id,
+      combat_id: requestEvent.combat_id,
+      payload: requestEvent.payload || {}
+    });
+    if (!out.ok) {
+      return [createGatewayResponseEvent(requestEvent, "escape", {}, false, out.error || "escape request failed", "combat_system")];
+    }
+    markMutationReplaySuccess(context, replayState, true);
+
+    const escape = out.payload.escape || {};
+    const progress = summarizeCombatProgression(out.payload);
+    return [createGatewayResponseEvent(requestEvent, "escape", {
+      escape_status: "resolved",
+      combat_id: escape.combat_id || requestEvent.combat_id,
+      participant_id: escape.participant_id || requestEvent.player_id || null,
+      source_actor_id: escape.source_actor_id || null,
+      escaped: escape.escaped === true,
+      removed_condition: escape.removed_condition || null,
+      contested_check: escape.contested_check || null,
+      active_participant_id: progress.active_participant_id,
+      combat_completed: progress.combat_completed,
+      winner_team: progress.winner_team,
+      combat_summary: summarizeCombatStateForGateway(progress.combat, progress.active_participant_id),
+      ai_turn_count: progress.ai_turn_count,
+      ai_turns: clone(progress.ai_turns)
+    }, true, null, "combat_system")];
+  }
+
+  if (requestEvent.event_type === EVENT_TYPES.PLAYER_SHOVE) {
+    const replayState = rejectDuplicateMutationIfNeeded(requestEvent, context, "shove", "combat_system");
+    if (replayState && replayState.event_type) {
+      return [replayState];
+    }
+    const out = processCombatShoveRequest({
+      context,
+      player_id: requestEvent.player_id,
+      combat_id: requestEvent.combat_id,
+      payload: requestEvent.payload || {}
+    });
+    if (!out.ok) {
+      return [createGatewayResponseEvent(requestEvent, "shove", {}, false, out.error || "shove request failed", "combat_system")];
+    }
+    markMutationReplaySuccess(context, replayState, true);
+
+    const shove = out.payload.shove || {};
+    const progress = summarizeCombatProgression(out.payload);
+    return [createGatewayResponseEvent(requestEvent, "shove", {
+      shove_status: "resolved",
+      combat_id: shove.combat_id || requestEvent.combat_id,
+      attacker_id: shove.attacker_id || requestEvent.player_id || null,
+      target_id: shove.target_id || null,
+      mode: shove.mode || "push",
+      success: shove.success === true,
+      moved_to: shove.moved_to || null,
+      applied_condition: shove.applied_condition || null,
+      contested_check: shove.contested_check || null,
+      active_participant_id: progress.active_participant_id,
+      combat_completed: progress.combat_completed,
+      winner_team: progress.winner_team,
+      combat_summary: summarizeCombatStateForGateway(progress.combat, progress.active_participant_id),
+      ai_turn_count: progress.ai_turn_count,
+      ai_turns: clone(progress.ai_turns)
+    }, true, null, "combat_system")];
+  }
+
+  if (requestEvent.event_type === EVENT_TYPES.PLAYER_HELP_ACTION) {
+    const replayState = rejectDuplicateMutationIfNeeded(requestEvent, context, "assist", "combat_system");
+    if (replayState && replayState.event_type) {
+      return [replayState];
+    }
+    const out = processCombatHelpRequest({
+      context,
+      player_id: requestEvent.player_id,
+      combat_id: requestEvent.combat_id,
+      payload: requestEvent.payload || {}
+    });
+    if (!out.ok) {
+      return [createGatewayResponseEvent(requestEvent, "assist", {}, false, out.error || "assist request failed", "combat_system")];
+    }
+    markMutationReplaySuccess(context, replayState, true);
+
+    const help = out.payload.help || {};
+    const progress = summarizeCombatProgression(out.payload);
+    return [createGatewayResponseEvent(requestEvent, "assist", {
+      assist_status: "resolved",
+      combat_id: help.combat_id || requestEvent.combat_id,
+      helper_id: help.helper_id || requestEvent.player_id || null,
+      target_id: help.target_id || null,
+      applied_condition: help.applied_condition || null,
+      active_participant_id: progress.active_participant_id,
+      combat_completed: progress.combat_completed,
+      winner_team: progress.winner_team,
+      combat_summary: summarizeCombatStateForGateway(progress.combat, progress.active_participant_id),
+      ai_turn_count: progress.ai_turn_count,
+      ai_turns: clone(progress.ai_turns)
+    }, true, null, "combat_system")];
+  }
+
+  if (requestEvent.event_type === EVENT_TYPES.PLAYER_READY_ACTION) {
+    const replayState = rejectDuplicateMutationIfNeeded(requestEvent, context, "ready", "combat_system");
+    if (replayState && replayState.event_type) {
+      return [replayState];
+    }
+    const out = processCombatReadyRequest({
+      context,
+      player_id: requestEvent.player_id,
+      combat_id: requestEvent.combat_id,
+      payload: requestEvent.payload || {}
+    });
+    if (!out.ok) {
+      return [createGatewayResponseEvent(requestEvent, "ready", {}, false, out.error || "ready request failed", "combat_system")];
+    }
+    markMutationReplaySuccess(context, replayState, true);
+
+    const ready = out.payload.ready || {};
+    const progress = summarizeCombatProgression(out.payload);
+    return [createGatewayResponseEvent(requestEvent, "ready", {
+      ready_status: "resolved",
+      combat_id: ready.combat_id || requestEvent.combat_id,
+      participant_id: ready.participant_id || requestEvent.player_id || null,
+      ready_action: ready.ready_action || null,
+      active_participant_id: progress.active_participant_id,
+      combat_completed: progress.combat_completed,
+      winner_team: progress.winner_team,
+      combat_summary: summarizeCombatStateForGateway(progress.combat, progress.active_participant_id),
+      ai_turn_count: progress.ai_turn_count,
+      ai_turns: clone(progress.ai_turns)
+    }, true, null, "combat_system")];
+  }
+
+  if (requestEvent.event_type === EVENT_TYPES.PLAYER_DISENGAGE) {
+    const replayState = rejectDuplicateMutationIfNeeded(requestEvent, context, "disengage", "combat_system");
+    if (replayState && replayState.event_type) {
+      return [replayState];
+    }
+    const out = processCombatDisengageRequest({
+      context,
+      player_id: requestEvent.player_id,
+      combat_id: requestEvent.combat_id,
+      payload: requestEvent.payload || {}
+    });
+    if (!out.ok) {
+      return [createGatewayResponseEvent(requestEvent, "disengage", {}, false, out.error || "disengage request failed", "combat_system")];
+    }
+    markMutationReplaySuccess(context, replayState, true);
+
+    const disengage = out.payload.disengage || {};
+    const progress = summarizeCombatProgression(out.payload);
+    return [createGatewayResponseEvent(requestEvent, "disengage", {
+      disengage_status: "resolved",
+      combat_id: disengage.combat_id || requestEvent.combat_id,
+      participant_id: disengage.participant_id || requestEvent.player_id || null,
+      immunity_condition: disengage.immunity_condition || null,
+      active_participant_id: progress.active_participant_id,
+      combat_completed: progress.combat_completed,
+      winner_team: progress.winner_team,
+      combat_summary: summarizeCombatStateForGateway(progress.combat, progress.active_participant_id),
+      ai_turn_count: progress.ai_turn_count,
+      ai_turns: clone(progress.ai_turns)
+    }, true, null, "combat_system")];
+  }
+
   if (requestEvent.event_type === EVENT_TYPES.PLAYER_CAST_SPELL) {
     const replayState = rejectDuplicateMutationIfNeeded(requestEvent, context, "cast", "combat_system");
     if (replayState && replayState.event_type) {
@@ -1807,6 +2068,8 @@ function handleCombatCommandDispatch(event, context) {
       target_ids: Array.isArray(castSpell.target_ids) ? clone(castSpell.target_ids) : [],
       spell_id: castSpell.spell_id || null,
       spell_name: castSpell.spell_name || null,
+      spell_level: Number.isFinite(Number(castSpell.spell_level)) ? Number(castSpell.spell_level) : null,
+      is_cantrip: castSpell.is_cantrip === true,
       resolution_type: castSpell.resolution_type || null,
       damage_type: castSpell.damage_type || null,
       hit: castSpell.hit === null ? null : Boolean(castSpell.hit),
@@ -1851,6 +2114,7 @@ function handleCombatCommandDispatch(event, context) {
     const move = out.payload.move || {};
     const reactions = out.payload.reactions && typeof out.payload.reactions === "object" ? out.payload.reactions : {};
     const opportunityAttacks = Array.isArray(reactions.opportunity_attacks) ? reactions.opportunity_attacks : [];
+    const readyAttacks = Array.isArray(reactions.ready_attacks) ? reactions.ready_attacks : [];
     const progress = summarizeCombatProgression(out.payload);
     const actorSpells = summarizeCombatSpellsForGateway(context, progress.combat, requestEvent.player_id);
     return [createGatewayResponseEvent(requestEvent, "move", {
@@ -1860,6 +2124,7 @@ function handleCombatCommandDispatch(event, context) {
       from_position: move.from_position || null,
       to_position: move.to_position || null,
       opportunity_attack_count: opportunityAttacks.length,
+      ready_attack_count: readyAttacks.length,
       active_participant_id: progress.active_participant_id,
       combat_completed: progress.combat_completed,
       winner_team: progress.winner_team,

@@ -505,8 +505,130 @@ const commandDefinitions = [
     )
     .toJSON(),
   new SlashCommandBuilder()
+    .setName("assist")
+    .setDescription("Use Help in combat to grant an ally advantage on their next attack.")
+    .addStringOption((option) =>
+      option
+        .setName("target_id")
+        .setDescription("Ally participant identifier")
+        .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("combat_id")
+        .setDescription("Combat identifier")
+        .setRequired(true)
+    )
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName("ready")
+    .setDescription("Ready an action trigger in combat.")
+    .addStringOption((option) =>
+      option
+        .setName("combat_id")
+        .setDescription("Combat identifier")
+        .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("trigger_type")
+        .setDescription("Ready trigger type")
+        .setRequired(false)
+        .addChoices(
+          { name: "enemy_enters_reach", value: "enemy_enters_reach" }
+        )
+    )
+    .addStringOption((option) =>
+      option
+        .setName("readied_action_type")
+        .setDescription("Readied action type")
+        .setRequired(false)
+        .addChoices(
+          { name: "attack", value: "attack" }
+        )
+    )
+    .addStringOption((option) =>
+      option
+        .setName("target_id")
+        .setDescription("Optional readied target participant id")
+        .setRequired(false)
+    )
+    .toJSON(),
+  new SlashCommandBuilder()
     .setName("dodge")
     .setDescription("Take the Dodge action in combat.")
+    .addStringOption((option) =>
+      option
+        .setName("combat_id")
+        .setDescription("Combat identifier")
+        .setRequired(true)
+    )
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName("dash")
+    .setDescription("Take the Dash action in combat.")
+    .addStringOption((option) =>
+      option
+        .setName("combat_id")
+        .setDescription("Combat identifier")
+        .setRequired(true)
+    )
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName("grapple")
+    .setDescription("Attempt to grapple a nearby enemy in combat.")
+    .addStringOption((option) =>
+      option
+        .setName("target_id")
+        .setDescription("Target participant identifier")
+        .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("combat_id")
+        .setDescription("Combat identifier")
+        .setRequired(true)
+    )
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName("escape")
+    .setDescription("Attempt to escape a grapple in combat.")
+    .addStringOption((option) =>
+      option
+        .setName("combat_id")
+        .setDescription("Combat identifier")
+        .setRequired(true)
+    )
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName("shove")
+    .setDescription("Attempt to shove a nearby enemy in combat.")
+    .addStringOption((option) =>
+      option
+        .setName("target_id")
+        .setDescription("Target participant identifier")
+        .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("shove_mode")
+        .setDescription("Shove mode")
+        .setRequired(false)
+        .addChoices(
+          { name: "push", value: "push" },
+          { name: "prone", value: "prone" }
+        )
+    )
+    .addStringOption((option) =>
+      option
+        .setName("combat_id")
+        .setDescription("Combat identifier")
+        .setRequired(true)
+    )
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName("disengage")
+    .setDescription("Take the Disengage action in combat.")
     .addStringOption((option) =>
       option
         .setName("combat_id")

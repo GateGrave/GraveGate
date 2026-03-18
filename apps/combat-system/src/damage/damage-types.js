@@ -10,6 +10,7 @@ const DAMAGE_TYPES = {
   NECROTIC: "necrotic",
   PIERCING: "piercing",
   POISON: "poison",
+  PSYCHIC: "psychic",
   RADIANT: "radiant",
   SLASHING: "slashing",
   THUNDER: "thunder"

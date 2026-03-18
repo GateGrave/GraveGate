@@ -281,6 +281,141 @@ function normalizeDodgePayload(commandOptions) {
   };
 }
 
+function normalizeDashPayload(commandOptions) {
+  const actorId = normalizeIdentifier(getOptionValue(commandOptions, "actor_id"));
+  return {
+    ok: true,
+    payload: {
+      actor_id: actorId || null
+    },
+    error: null
+  };
+}
+
+function normalizeGrapplePayload(commandOptions) {
+  const targetId = normalizeIdentifier(getOptionValue(commandOptions, "target_id"));
+  const actorId = normalizeIdentifier(getOptionValue(commandOptions, "actor_id"));
+  if (!targetId) {
+    return {
+      ok: false,
+      payload: {},
+      error: "grapple command requires target_id"
+    };
+  }
+  return {
+    ok: true,
+    payload: {
+      target_id: targetId,
+      actor_id: actorId || null
+    },
+    error: null
+  };
+}
+
+function normalizeEscapePayload(commandOptions) {
+  const actorId = normalizeIdentifier(getOptionValue(commandOptions, "actor_id"));
+  return {
+    ok: true,
+    payload: {
+      actor_id: actorId || null
+    },
+    error: null
+  };
+}
+
+function normalizeShovePayload(commandOptions) {
+  const targetId = normalizeIdentifier(getOptionValue(commandOptions, "target_id"));
+  const actorId = normalizeIdentifier(getOptionValue(commandOptions, "actor_id"));
+  const shoveMode = normalizeIdentifier(getOptionValue(commandOptions, "shove_mode"));
+  if (!targetId) {
+    return {
+      ok: false,
+      payload: {},
+      error: "shove command requires target_id"
+    };
+  }
+  if (shoveMode && shoveMode !== "push" && shoveMode !== "prone") {
+    return {
+      ok: false,
+      payload: {},
+      error: "shove command shove_mode must be push or prone"
+    };
+  }
+  return {
+    ok: true,
+    payload: {
+      target_id: targetId,
+      actor_id: actorId || null,
+      shove_mode: shoveMode || "push"
+    },
+    error: null
+  };
+}
+
+function normalizeAssistPayload(commandOptions) {
+  const targetId = normalizeIdentifier(getOptionValue(commandOptions, "target_id"));
+  const actorId = normalizeIdentifier(getOptionValue(commandOptions, "actor_id"));
+  if (!targetId) {
+    return {
+      ok: false,
+      payload: {},
+      error: "assist command requires target_id"
+    };
+  }
+  return {
+    ok: true,
+    payload: {
+      target_id: targetId,
+      actor_id: actorId || null
+    },
+    error: null
+  };
+}
+
+function normalizeReadyPayload(commandOptions) {
+  const actorId = normalizeIdentifier(getOptionValue(commandOptions, "actor_id"));
+  const triggerType = normalizeIdentifier(getOptionValue(commandOptions, "trigger_type"));
+  const readiedActionType = normalizeIdentifier(getOptionValue(commandOptions, "readied_action_type"));
+  const targetId = normalizeIdentifier(getOptionValue(commandOptions, "target_id"));
+  const supportedTriggerTypes = new Set(["enemy_enters_reach"]);
+  const supportedReadiedActionTypes = new Set(["attack"]);
+  if (triggerType && !supportedTriggerTypes.has(triggerType)) {
+    return {
+      ok: false,
+      payload: {},
+      error: "ready command trigger_type is not supported"
+    };
+  }
+  if (readiedActionType && !supportedReadiedActionTypes.has(readiedActionType)) {
+    return {
+      ok: false,
+      payload: {},
+      error: "ready command readied_action_type is not supported"
+    };
+  }
+  return {
+    ok: true,
+    payload: {
+      actor_id: actorId || null,
+      trigger_type: triggerType || null,
+      readied_action_type: readiedActionType || null,
+      target_id: targetId || null
+    },
+    error: null
+  };
+}
+
+function normalizeDisengagePayload(commandOptions) {
+  const actorId = normalizeIdentifier(getOptionValue(commandOptions, "actor_id"));
+  return {
+    ok: true,
+    payload: {
+      actor_id: actorId || null
+    },
+    error: null
+  };
+}
+
 function normalizeCastPayload(commandOptions) {
   const spellId = normalizeIdentifier(getOptionValue(commandOptions, "spell_id"));
   const targetId = normalizeIdentifier(getOptionValue(commandOptions, "target_id"));
@@ -856,9 +991,58 @@ function resolveCommandMapping(commandName) {
     };
   }
 
+  if (name === "assist") {
+    return {
+      eventType: EVENT_TYPES.PLAYER_HELP_ACTION,
+      targetSystem: "combat_system"
+    };
+  }
+
+  if (name === "ready") {
+    return {
+      eventType: EVENT_TYPES.PLAYER_READY_ACTION,
+      targetSystem: "combat_system"
+    };
+  }
+
   if (name === "dodge") {
     return {
       eventType: EVENT_TYPES.PLAYER_DODGE,
+      targetSystem: "combat_system"
+    };
+  }
+
+  if (name === "dash") {
+    return {
+      eventType: EVENT_TYPES.PLAYER_DASH,
+      targetSystem: "combat_system"
+    };
+  }
+
+  if (name === "grapple") {
+    return {
+      eventType: EVENT_TYPES.PLAYER_GRAPPLE,
+      targetSystem: "combat_system"
+    };
+  }
+
+  if (name === "escape") {
+    return {
+      eventType: EVENT_TYPES.PLAYER_ESCAPE_GRAPPLE,
+      targetSystem: "combat_system"
+    };
+  }
+
+  if (name === "shove") {
+    return {
+      eventType: EVENT_TYPES.PLAYER_SHOVE,
+      targetSystem: "combat_system"
+    };
+  }
+
+  if (name === "disengage") {
+    return {
+      eventType: EVENT_TYPES.PLAYER_DISENGAGE,
       targetSystem: "combat_system"
     };
   }
@@ -925,7 +1109,14 @@ function mapSlashCommandToGatewayEvent(interaction) {
   const adminPayload = commandName === "admin" ? normalizeAdminPayload(normalizedOptions) : null;
   const movePayload = commandName === "move" ? normalizeMovePayload(normalizedOptions) : null;
   const attackPayload = commandName === "attack" ? normalizeAttackPayload(normalizedOptions) : null;
+  const assistPayload = commandName === "assist" ? normalizeAssistPayload(normalizedOptions) : null;
+  const readyPayload = commandName === "ready" ? normalizeReadyPayload(normalizedOptions) : null;
   const dodgePayload = commandName === "dodge" ? normalizeDodgePayload(normalizedOptions) : null;
+  const dashPayload = commandName === "dash" ? normalizeDashPayload(normalizedOptions) : null;
+  const grapplePayload = commandName === "grapple" ? normalizeGrapplePayload(normalizedOptions) : null;
+  const escapePayload = commandName === "escape" ? normalizeEscapePayload(normalizedOptions) : null;
+  const shovePayload = commandName === "shove" ? normalizeShovePayload(normalizedOptions) : null;
+  const disengagePayload = commandName === "disengage" ? normalizeDisengagePayload(normalizedOptions) : null;
   const castPayload = commandName === "cast" ? normalizeCastPayload(normalizedOptions) : null;
   const usePayload = commandName === "use" ? normalizeUsePayload(normalizedOptions) : null;
   const combatReadPayload = commandName === "combat" ? normalizeCombatReadPayload(normalizedOptions) : null;
@@ -1023,6 +1214,55 @@ function mapSlashCommandToGatewayEvent(interaction) {
     });
   }
 
+  if (dashPayload && !dashPayload.ok) {
+    return failure("gateway_command_map_failed", dashPayload.error, {
+      command_name: commandName,
+      command_options: normalizedOptions
+    });
+  }
+
+  if (grapplePayload && !grapplePayload.ok) {
+    return failure("gateway_command_map_failed", grapplePayload.error, {
+      command_name: commandName,
+      command_options: normalizedOptions
+    });
+  }
+
+  if (escapePayload && !escapePayload.ok) {
+    return failure("gateway_command_map_failed", escapePayload.error, {
+      command_name: commandName,
+      command_options: normalizedOptions
+    });
+  }
+
+  if (shovePayload && !shovePayload.ok) {
+    return failure("gateway_command_map_failed", shovePayload.error, {
+      command_name: commandName,
+      command_options: normalizedOptions
+    });
+  }
+
+  if (assistPayload && !assistPayload.ok) {
+    return failure("gateway_command_map_failed", assistPayload.error, {
+      command_name: commandName,
+      command_options: normalizedOptions
+    });
+  }
+
+  if (readyPayload && !readyPayload.ok) {
+    return failure("gateway_command_map_failed", readyPayload.error, {
+      command_name: commandName,
+      command_options: normalizedOptions
+    });
+  }
+
+  if (disengagePayload && !disengagePayload.ok) {
+    return failure("gateway_command_map_failed", disengagePayload.error, {
+      command_name: commandName,
+      command_options: normalizedOptions
+    });
+  }
+
   if (castPayload && !castPayload.ok) {
     return failure("gateway_command_map_failed", castPayload.error, {
       command_name: commandName,
@@ -1096,7 +1336,14 @@ function mapSlashCommandToGatewayEvent(interaction) {
     ...(adminPayload ? adminPayload.payload : {}),
     ...(movePayload ? movePayload.payload : {}),
     ...(attackPayload ? attackPayload.payload : {}),
+    ...(assistPayload ? assistPayload.payload : {}),
+    ...(readyPayload ? readyPayload.payload : {}),
     ...(dodgePayload ? dodgePayload.payload : {}),
+    ...(dashPayload ? dashPayload.payload : {}),
+    ...(grapplePayload ? grapplePayload.payload : {}),
+    ...(escapePayload ? escapePayload.payload : {}),
+    ...(shovePayload ? shovePayload.payload : {}),
+    ...(disengagePayload ? disengagePayload.payload : {}),
     ...(castPayload ? castPayload.payload : {}),
     ...(usePayload ? usePayload.payload : {}),
     ...(combatReadPayload ? combatReadPayload.payload : {}),
@@ -1138,7 +1385,14 @@ module.exports = {
   normalizeAdminPayload,
   normalizeMovePayload,
   normalizeAttackPayload,
+  normalizeAssistPayload,
+  normalizeReadyPayload,
   normalizeDodgePayload,
+  normalizeDashPayload,
+  normalizeGrapplePayload,
+  normalizeEscapePayload,
+  normalizeShovePayload,
+  normalizeDisengagePayload,
   normalizeCastPayload,
   normalizeUsePayload,
   normalizeShopPayload,

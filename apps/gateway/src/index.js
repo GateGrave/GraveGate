@@ -91,6 +91,10 @@ const CUSTOM_IDS = {
   tradeProposalSubmit: "trade:proposal:submit",
   tradeProposalCancel: "trade:proposal:cancel",
   combatRefresh: "combat:view:refresh",
+  combatReady: "combat:view:ready",
+  combatDodge: "combat:view:dodge",
+  combatDash: "combat:view:dash",
+  combatDisengage: "combat:view:disengage",
   economyNavShop: "economy:view:shop",
   economyNavCraft: "economy:view:craft",
   economyNavTrade: "economy:view:trade"
@@ -1303,6 +1307,33 @@ function summarizeCombatParticipantLine(summary, entry) {
   ].join(" | ");
 }
 
+function summarizeRecentCombatEvent(entry) {
+  const safe = entry && typeof entry === "object" ? entry : {};
+  const type = cleanText(safe.event_type, "event");
+  if (type === "attack_action" || type === "opportunity_attack" || type === "ready_attack") {
+    const hit = safe.details && safe.details.hit === true;
+    const damage = safe.details && Number.isFinite(Number(safe.details.damage_dealt)) ? Number(safe.details.damage_dealt) : 0;
+    return `${humanizeIdentifier(safe.attacker_id, "actor")} -> ${humanizeIdentifier(safe.target_id, "target")} ${hit ? `hit ${damage}` : "miss"}`;
+  }
+  if (type === "cast_spell_action") {
+    const spellId = safe.details && safe.details.spell_id ? safe.details.spell_id : null;
+    return `${humanizeIdentifier(safe.attacker_id || safe.participant_id || safe.caster_id, "caster")} cast ${humanizeIdentifier(spellId, "spell")}`;
+  }
+  if (type === "move_action") {
+    const from = safe.from_position ? `${safe.from_position.x},${safe.from_position.y}` : "?";
+    const to = safe.to_position ? `${safe.to_position.x},${safe.to_position.y}` : "?";
+    return `${humanizeIdentifier(safe.participant_id, "actor")} moved ${from} -> ${to}`;
+  }
+  if (type === "grapple_action" || type === "escape_grapple_action" || type === "shove_action") {
+    return `${humanizeIdentifier(safe.attacker_id || safe.participant_id, "actor")} ${type.replace(/_action$/, "").replace(/_/g, " ")}`;
+  }
+  if (type === "turn_advanced") {
+    const active = safe.details && safe.details.active_participant_id ? safe.details.active_participant_id : null;
+    return `Turn advanced to ${humanizeIdentifier(active, "next actor")}`;
+  }
+  return humanizeIdentifier(type, type);
+}
+
 function buildCombatStateEmbed(summary) {
   const safe = summary && typeof summary === "object" ? summary : {};
   const orderedParticipants = getOrderedCombatParticipants(safe);
@@ -1318,6 +1349,10 @@ function buildCombatStateEmbed(summary) {
         `Move ${Number.isFinite(Number(activeParticipant.movement_remaining)) ? Number(activeParticipant.movement_remaining) : "?"}`
       ].join(" | ")
     : "(unavailable)";
+  const spellState = activeParticipant && activeParticipant.spellcasting_turn_state && typeof activeParticipant.spellcasting_turn_state === "object"
+    ? activeParticipant.spellcasting_turn_state
+    : null;
+  const recentEvents = Array.isArray(safe.recent_events) ? safe.recent_events : [];
   return new EmbedBuilder()
     .setColor(0x4f545c)
     .setTitle("Combat State")
@@ -1335,6 +1370,14 @@ function buildCombatStateEmbed(summary) {
           ? [
               `Actor: ${cleanText(activeParticipant.participant_id, "unknown")}`,
               `Resources: ${activeResources}${activeParticipant.action_available === true ? " • ready to act" : " • pressure already spent"}`,
+              `Spell Tempo: ${spellState
+                ? [
+                    spellState.bonus_action_spell_cast === true ? "bonus spell used" : "bonus spell open",
+                    spellState.action_spell_cast === true
+                      ? (spellState.action_spell_was_cantrip === true ? "action cantrip cast" : "leveled action spell cast")
+                      : "action spell open"
+                  ].join(" | ")
+                : "untracked"}`,
               `Conditions: ${activeConditions || "none"}`,
               `Tempo: ${activeParticipant.reaction_available === true ? "watching for openings" : "reaction already committed"}`
             ].join("\n")
@@ -1346,6 +1389,13 @@ function buildCombatStateEmbed(summary) {
         value: orderedParticipants.length > 0
           ? orderedParticipants.map((entry) => summarizeCombatParticipantLine(safe, entry)).join("\n")
           : "(unavailable)",
+        inline: false
+      },
+      {
+        name: "Recent Flow",
+        value: recentEvents.length > 0
+          ? recentEvents.map((entry) => `- ${summarizeRecentCombatEvent(entry)}`).join("\n")
+          : "(no recent actions)",
         inline: false
       }
     )
@@ -1362,6 +1412,24 @@ function buildCombatStatusComponents(data) {
       new ButtonBuilder()
         .setCustomId(`${CUSTOM_IDS.combatRefresh}:${combatId}`)
         .setLabel("Refresh Combat")
+        .setStyle(ButtonStyle.Secondary)
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`${CUSTOM_IDS.combatReady}:${combatId}`)
+        .setLabel("Ready")
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`${CUSTOM_IDS.combatDodge}:${combatId}`)
+        .setLabel("Dodge")
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`${CUSTOM_IDS.combatDash}:${combatId}`)
+        .setLabel("Dash")
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`${CUSTOM_IDS.combatDisengage}:${combatId}`)
+        .setLabel("Disengage")
         .setStyle(ButtonStyle.Secondary)
     )
   ];
@@ -2770,6 +2838,164 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
     };
   }
 
+  if (responseType === "assist") {
+    const combatSummary = data.combat_summary && typeof data.combat_summary === "object" ? data.combat_summary : null;
+    const conditionType = data.applied_condition && data.applied_condition.condition_type
+      ? String(data.applied_condition.condition_type)
+      : "helped_attack";
+    return {
+      ok: true,
+      embeds: [
+        buildCombatActionEmbed("Assist Used", 0x3498db, [
+          `Helper: ${cleanText(data.helper_id, "unknown")}`,
+          `Target: ${cleanText(data.target_id, "unknown")}`,
+          `Effect: ${conditionType} applied`,
+          combatSummary ? `Round: ${Number.isFinite(Number(combatSummary.round)) ? Number(combatSummary.round) : 1}` : null,
+          combatSummary ? `Participants: ${summarizeCombatParticipantsForReply(combatSummary)}` : null,
+          `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
+          `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
+          `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
+        ], "Combat Assist Feed"),
+        ...(combatSummary ? [buildCombatStateEmbed(combatSummary)] : [])
+      ],
+      components: buildCombatStatusComponents({ combat_id: data.combat_id || (combatSummary && combatSummary.combat_id) || null }),
+      content: [
+        `Helper: ${cleanText(data.helper_id, "unknown")}`,
+        `Target: ${cleanText(data.target_id, "unknown")}`,
+        `Effect: ${conditionType} applied`,
+        `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
+        `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
+        `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
+      ].join("\n"),
+      data
+    };
+  }
+
+  if (responseType === "grapple") {
+    return {
+      ok: true,
+      embeds: [
+        buildCombatActionEmbed("Grapple Attempt", 0xf39c12, [
+          `Attacker: ${cleanText(data.attacker_id, "unknown")}`,
+          `Target: ${cleanText(data.target_id, "unknown")}`,
+          `Result: ${data.applied_condition ? "Grappled" : "No effect"}`,
+          data.combat_summary ? `Round: ${Number.isFinite(Number(data.combat_summary.round)) ? Number(data.combat_summary.round) : 1}` : null,
+          data.combat_summary ? `Participants: ${summarizeCombatParticipantsForReply(data.combat_summary)}` : null,
+          `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
+          `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
+          `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
+        ], "Combat Grapple Feed"),
+        ...(data.combat_summary ? [buildCombatStateEmbed(data.combat_summary)] : [])
+      ],
+      components: buildCombatStatusComponents({ combat_id: data.combat_id || (data.combat_summary && data.combat_summary.combat_id) || null }),
+      content: [
+        `Attacker: ${cleanText(data.attacker_id, "unknown")}`,
+        `Target: ${cleanText(data.target_id, "unknown")}`,
+        `Result: ${data.applied_condition ? "Grappled" : "No effect"}`,
+        `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
+        `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
+        `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
+      ].join("\n"),
+      data
+    };
+  }
+
+  if (responseType === "escape") {
+    return {
+      ok: true,
+      embeds: [
+        buildCombatActionEmbed("Escape Grapple", 0x2ecc71, [
+          `Actor: ${cleanText(data.participant_id, "unknown")}`,
+          `From Grappler: ${cleanText(data.source_actor_id, "unknown")}`,
+          `Result: ${data.escaped === true ? "Escaped" : "Failed to escape"}`,
+          data.combat_summary ? `Round: ${Number.isFinite(Number(data.combat_summary.round)) ? Number(data.combat_summary.round) : 1}` : null,
+          data.combat_summary ? `Participants: ${summarizeCombatParticipantsForReply(data.combat_summary)}` : null,
+          `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
+          `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
+          `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
+        ], "Combat Escape Feed"),
+        ...(data.combat_summary ? [buildCombatStateEmbed(data.combat_summary)] : [])
+      ],
+      components: buildCombatStatusComponents({ combat_id: data.combat_id || (data.combat_summary && data.combat_summary.combat_id) || null }),
+      content: [
+        `Actor: ${cleanText(data.participant_id, "unknown")}`,
+        `From Grappler: ${cleanText(data.source_actor_id, "unknown")}`,
+        `Result: ${data.escaped === true ? "Escaped" : "Failed to escape"}`,
+        `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
+        `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
+        `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
+      ].join("\n"),
+      data
+    };
+  }
+
+  if (responseType === "shove") {
+    return {
+      ok: true,
+      embeds: [
+        buildCombatActionEmbed("Shove Attempt", 0xe67e22, [
+          `Attacker: ${cleanText(data.attacker_id, "unknown")}`,
+          `Target: ${cleanText(data.target_id, "unknown")}`,
+          `Mode: ${cleanText(data.mode, "push")}`,
+          `Result: ${data.success === true ? "Success" : "Failed"}`,
+          data.moved_to ? `Moved To: ${formatPosition(data.moved_to)}` : null,
+          data.applied_condition ? `Applied: ${cleanText(data.applied_condition.condition_type, "condition")}` : null,
+          data.combat_summary ? `Round: ${Number.isFinite(Number(data.combat_summary.round)) ? Number(data.combat_summary.round) : 1}` : null,
+          data.combat_summary ? `Participants: ${summarizeCombatParticipantsForReply(data.combat_summary)}` : null,
+          `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
+          `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
+          `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
+        ], "Combat Shove Feed"),
+        ...(data.combat_summary ? [buildCombatStateEmbed(data.combat_summary)] : [])
+      ],
+      components: buildCombatStatusComponents({ combat_id: data.combat_id || (data.combat_summary && data.combat_summary.combat_id) || null }),
+      content: [
+        `Attacker: ${cleanText(data.attacker_id, "unknown")}`,
+        `Target: ${cleanText(data.target_id, "unknown")}`,
+        `Mode: ${cleanText(data.mode, "push")}`,
+        `Result: ${data.success === true ? "Success" : "Failed"}`,
+        data.moved_to ? `Moved To: ${formatPosition(data.moved_to)}` : null,
+        data.applied_condition ? `Applied: ${cleanText(data.applied_condition.condition_type, "condition")}` : null,
+        `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
+        `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
+        `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
+      ].filter(Boolean).join("\n"),
+      data
+    };
+  }
+
+  if (responseType === "ready") {
+    const combatSummary = data.combat_summary && typeof data.combat_summary === "object" ? data.combat_summary : null;
+    const triggerType = cleanText(data.ready_action && data.ready_action.trigger_type, "enemy_enters_reach");
+    const actionType = cleanText(data.ready_action && data.ready_action.action_type, "attack");
+    return {
+      ok: true,
+      embeds: [
+        buildCombatActionEmbed("Ready Set", 0x95a5a6, [
+          `Actor: ${cleanText(data.participant_id, "unknown")}`,
+          `Trigger: ${triggerType}`,
+          `Readied Action: ${actionType}`,
+          combatSummary ? `Round: ${Number.isFinite(Number(combatSummary.round)) ? Number(combatSummary.round) : 1}` : null,
+          combatSummary ? `Participants: ${summarizeCombatParticipantsForReply(combatSummary)}` : null,
+          `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
+          `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
+          `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
+        ], "Combat Ready Feed"),
+        ...(combatSummary ? [buildCombatStateEmbed(combatSummary)] : [])
+      ],
+      components: buildCombatStatusComponents({ combat_id: data.combat_id || (combatSummary && combatSummary.combat_id) || null }),
+      content: [
+        `Actor: ${cleanText(data.participant_id, "unknown")}`,
+        `Trigger: ${triggerType}`,
+        `Readied Action: ${actionType}`,
+        `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
+        `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
+        `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
+      ].join("\n"),
+      data
+    };
+  }
+
   if (responseType === "dodge") {
     const combatSummary = data.combat_summary && typeof data.combat_summary === "object" ? data.combat_summary : null;
     return {
@@ -2790,6 +3016,63 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
       content: [
         `Actor: ${cleanText(data.participant_id, "unknown")}`,
         `Status: ${data.is_dodging === true ? "Dodging" : "Not dodging"}`,
+        `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
+        `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
+        `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
+      ].join("\n"),
+      data
+    };
+  }
+
+  if (responseType === "dash") {
+    return {
+      ok: true,
+      embeds: [
+        buildCombatActionEmbed("Dash Taken", 0x3498db, [
+          `Actor: ${cleanText(data.participant_id, "unknown")}`,
+          `Movement: ${Number.isFinite(Number(data.movement_before)) ? Number(data.movement_before) : 0} -> ${Number.isFinite(Number(data.movement_after)) ? Number(data.movement_after) : 0}`,
+          `Added: +${Number.isFinite(Number(data.movement_added)) ? Number(data.movement_added) : 0} feet`,
+          data.combat_summary ? `Round: ${Number.isFinite(Number(data.combat_summary.round)) ? Number(data.combat_summary.round) : 1}` : null,
+          data.combat_summary ? `Participants: ${summarizeCombatParticipantsForReply(data.combat_summary)}` : null,
+          `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
+          `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
+          `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
+        ], "Combat Dash Feed"),
+        ...(data.combat_summary ? [buildCombatStateEmbed(data.combat_summary)] : [])
+      ],
+      components: buildCombatStatusComponents({ combat_id: data.combat_id || (data.combat_summary && data.combat_summary.combat_id) || null }),
+      content: [
+        `Actor: ${cleanText(data.participant_id, "unknown")}`,
+        `Movement: ${Number.isFinite(Number(data.movement_before)) ? Number(data.movement_before) : 0} -> ${Number.isFinite(Number(data.movement_after)) ? Number(data.movement_after) : 0}`,
+        `Added: +${Number.isFinite(Number(data.movement_added)) ? Number(data.movement_added) : 0} feet`,
+        `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
+        `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
+        `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
+      ].join("\n"),
+      data
+    };
+  }
+
+  if (responseType === "disengage") {
+    const combatSummary = data.combat_summary && typeof data.combat_summary === "object" ? data.combat_summary : null;
+    return {
+      ok: true,
+      embeds: [
+        buildCombatActionEmbed("Disengage Taken", 0x57f287, [
+          `Actor: ${cleanText(data.participant_id, "unknown")}`,
+          "Status: Guard dropped to slip free of opportunity attacks",
+          combatSummary ? `Round: ${Number.isFinite(Number(combatSummary.round)) ? Number(combatSummary.round) : 1}` : null,
+          combatSummary ? `Participants: ${summarizeCombatParticipantsForReply(combatSummary)}` : null,
+          `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
+          `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
+          `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
+        ], "Combat Disengage Feed"),
+        ...(combatSummary ? [buildCombatStateEmbed(combatSummary)] : [])
+      ],
+      components: buildCombatStatusComponents({ combat_id: data.combat_id || (combatSummary && combatSummary.combat_id) || null }),
+      content: [
+        `Actor: ${cleanText(data.participant_id, "unknown")}`,
+        "Status: Disengaged",
         `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
         `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
         `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
@@ -2822,6 +3105,7 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
           `From: ${formatPosition(data.from_position)}`,
           `To: ${formatPosition(data.to_position)}`,
           `Opportunity Attacks: ${Number.isFinite(Number(data.opportunity_attack_count)) ? Number(data.opportunity_attack_count) : 0}`,
+          `Readied Attacks: ${Number.isFinite(Number(data.ready_attack_count)) ? Number(data.ready_attack_count) : 0}`,
           data.combat_summary ? `Round: ${Number.isFinite(Number(data.combat_summary.round)) ? Number(data.combat_summary.round) : 1}` : null,
           data.combat_summary ? `Participants: ${summarizeCombatParticipantsForReply(data.combat_summary)}` : null,
           `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
@@ -2836,6 +3120,7 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
         `From: ${formatPosition(data.from_position)}`,
         `To: ${formatPosition(data.to_position)}`,
         `Opportunity Attacks: ${Number.isFinite(Number(data.opportunity_attack_count)) ? Number(data.opportunity_attack_count) : 0}`,
+        `Readied Attacks: ${Number.isFinite(Number(data.ready_attack_count)) ? Number(data.ready_attack_count) : 0}`,
         `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
         `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
         `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
@@ -3442,7 +3727,7 @@ function isCombatViewComponentInteraction(interaction) {
   if (!interaction || !interaction.customId) {
     return false;
   }
-  return interaction.customId.startsWith(CUSTOM_IDS.combatRefresh + ":");
+  return interaction.customId.startsWith("combat:view:");
 }
 
 function isCombatMapComponentInteraction(interaction) {
@@ -4208,6 +4493,7 @@ async function handleDungeonMapComponent(interaction, runtime) {
 async function handleCombatViewComponent(interaction, runtime) {
   const userId = extractInteractionUser(interaction);
   const parts = String(interaction.customId || "").split(":");
+  const action = parts[2] || "";
   const combatId = parts[3] || null;
 
   if (!userId || !combatId) {
@@ -4215,20 +4501,60 @@ async function handleCombatViewComponent(interaction, runtime) {
     return;
   }
 
-  const event = createEvent(EVENT_TYPES.PLAYER_COMBAT_REQUESTED, {
-    command_name: "combat",
-    combat_id: combatId
-  }, {
-    source: "gateway.discord",
-    target_system: "combat_system",
-    player_id: userId,
-    combat_id: combatId
-  });
+  const event = action === "dodge"
+    ? createEvent(EVENT_TYPES.PLAYER_DODGE, {
+      command_name: "dodge",
+      combat_id: combatId
+    }, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: userId,
+      combat_id: combatId
+    })
+    : action === "ready"
+      ? createEvent(EVENT_TYPES.PLAYER_READY_ACTION, {
+        command_name: "ready",
+        combat_id: combatId
+      }, {
+        source: "gateway.discord",
+        target_system: "combat_system",
+        player_id: userId,
+        combat_id: combatId
+      })
+      : action === "dash"
+        ? createEvent(EVENT_TYPES.PLAYER_DASH, {
+          command_name: "dash",
+          combat_id: combatId
+        }, {
+          source: "gateway.discord",
+          target_system: "combat_system",
+          player_id: userId,
+          combat_id: combatId
+        })
+    : action === "disengage"
+      ? createEvent(EVENT_TYPES.PLAYER_DISENGAGE, {
+        command_name: "disengage",
+        combat_id: combatId
+      }, {
+        source: "gateway.discord",
+        target_system: "combat_system",
+        player_id: userId,
+        combat_id: combatId
+      })
+      : createEvent(EVENT_TYPES.PLAYER_COMBAT_REQUESTED, {
+        command_name: "combat",
+        combat_id: combatId
+      }, {
+        source: "gateway.discord",
+        target_system: "combat_system",
+        player_id: userId,
+        combat_id: combatId
+      });
 
   const runtimeResult = await runtime.processGatewayReadCommandEvent(event);
   const reply = formatGatewayReplyFromRuntime(runtimeResult);
   const nextReply = await attachCombatMapToReply(reply, userId, getCombatMapView(userId, combatId), {
-    suffix: "combat-refresh"
+    suffix: action ? `combat-${action}` : "combat-refresh"
   });
   await refreshInteractionMessage(interaction, {
     content: nextReply.content,

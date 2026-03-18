@@ -618,6 +618,136 @@ function runCastSpellActionTests() {
     assert.equal(out.payload.cast_spell.healing_result.hp_after, 8);
   }, results);
 
+  runTest("bonus_action_spell_allows_action_cantrip_but_blocks_leveled_action_spell", () => {
+    const casterId = "caster-spell-bonus-rule-001";
+    const combatId = "combat-spell-bonus-rule-001";
+    const manager = createCombatReadyForSpell(combatId, casterId, {
+      known_spell_ids: ["healing_word", "fire_bolt", "magic_missile"]
+    });
+    const healingWord = {
+      spell_id: "healing_word",
+      name: "Healing Word",
+      level: 1,
+      casting_time: "1 bonus action",
+      targeting: { type: "single_target" },
+      range: "60 feet",
+      attack_or_save: { type: "none" },
+      healing: {
+        dice: "1d4",
+        bonus: "spellcasting_ability_modifier"
+      }
+    };
+    const fireBolt = {
+      spell_id: "fire_bolt",
+      name: "Fire Bolt",
+      level: 0,
+      casting_time: "1 action",
+      targeting: { type: "single_target" },
+      range: "120 feet",
+      attack_or_save: { type: "spell_attack" },
+      damage: { dice: "1d10", damage_type: "fire" }
+    };
+    const magicMissile = {
+      spell_id: "magic_missile",
+      name: "Magic Missile",
+      level: 1,
+      casting_time: "1 action",
+      targeting: { type: "single_target" },
+      range: "120 feet",
+      attack_or_save: { type: "auto_hit" },
+      damage: { dice: "3d4+3", damage_type: "force" }
+    };
+    const first = performCastSpellAction({
+      combatManager: manager,
+      combat_id: combatId,
+      caster_id: casterId,
+      target_id: "ally-unrelated-001",
+      spell: healingWord,
+      healing_rng: () => 0
+    });
+    assert.equal(first.ok, true);
+
+    const second = performCastSpellAction({
+      combatManager: manager,
+      combat_id: combatId,
+      caster_id: casterId,
+      target_id: "enemy-spell-001",
+      spell: fireBolt,
+      attack_roll_fn: () => ({ final_total: 20 }),
+      damage_rng: () => 0
+    });
+    assert.equal(second.ok, true);
+
+    const third = performCastSpellAction({
+      combatManager: manager,
+      combat_id: combatId,
+      caster_id: casterId,
+      target_id: "enemy-spell-001",
+      spell: magicMissile,
+      damage_rng: () => 0
+    });
+    assert.equal(third.ok, false);
+    assert.equal(third.error, "after casting a bonus action spell, only a cantrip with a 1 action casting time can be cast this turn");
+  }, results);
+
+  runTest("leveled_action_spell_blocks_bonus_action_spell_same_turn", () => {
+    const casterId = "caster-spell-bonus-rule-002";
+    const combatId = "combat-spell-bonus-rule-002";
+    const manager = createCombatReadyForSpell(combatId, casterId, {
+      known_spell_ids: ["magic_missile", "healing_word"]
+    });
+    const magicMissile = {
+      spell_id: "magic_missile",
+      name: "Magic Missile",
+      level: 1,
+      casting_time: "1 action",
+      targeting: { type: "single_target" },
+      range: "120 feet",
+      attack_or_save: { type: "auto_hit" },
+      damage: { dice: "3d4+3", damage_type: "force" }
+    };
+    const healingWord = {
+      spell_id: "healing_word",
+      name: "Healing Word",
+      level: 1,
+      casting_time: "1 bonus action",
+      targeting: { type: "single_target" },
+      range: "60 feet",
+      attack_or_save: { type: "none" },
+      healing: {
+        dice: "1d4",
+        bonus: "spellcasting_ability_modifier"
+      }
+    };
+    const context = createCombatContext(manager, [magicMissile, healingWord], {
+      spellDamageRng: () => 0,
+      spellHealingRng: () => 0
+    });
+
+    const first = processCombatCastSpellRequest({
+      context,
+      player_id: casterId,
+      combat_id: combatId,
+      payload: {
+        spell_id: "magic_missile",
+        target_id: "enemy-spell-001"
+      }
+    });
+    assert.equal(first.ok, true);
+
+    const second = processCombatCastSpellRequest({
+      context,
+      player_id: casterId,
+      combat_id: combatId,
+      payload: {
+        spell_id: "healing_word",
+        target_id: "ally-unrelated-001"
+      }
+    });
+    assert.equal(second.ok, false);
+    assert.equal(second.error, "cannot cast a bonus action spell after casting a leveled spell this turn");
+  }, results);
+
   runTest("barkskin_raises_low_armor_class_to_minimum_and_starts_concentration", () => {
     const casterId = "caster-spell-barkskin-001";
     const combatId = "combat-spell-barkskin-001";
@@ -853,6 +983,11 @@ function runCastSpellActionTests() {
     const caster = combat.participants.find((entry) => entry.participant_id === casterId);
     caster.action_available = true;
     caster.bonus_action_available = true;
+    caster.spellcasting_turn_state = {
+      bonus_action_spell_cast: false,
+      action_spell_cast: false,
+      action_spell_was_cantrip: false
+    };
     combat.turn_index = combat.initiative_order.indexOf(casterId);
     manager.combats.set(combatId, combat);
 
@@ -1350,6 +1485,63 @@ function runCastSpellActionTests() {
     assert.equal(combat.conditions.some((entry) => entry.condition_type === "paralyzed" && entry.target_actor_id === "enemy-spell-001"), true);
   }, results);
 
+  runTest("spell_that_paralyzes_grappler_clears_existing_grappled_condition", () => {
+    const casterId = "caster-spell-hold-grapple-001";
+    const combatId = "combat-spell-hold-grapple-001";
+    const manager = createCombatReadyForSpell(combatId, casterId, {
+      known_spell_ids: ["hold_person"]
+    });
+    const combat = manager.getCombatById(combatId).payload.combat;
+    combat.conditions = [{
+      condition_id: "condition-grapple-spell-cleanup-001",
+      condition_type: "grappled",
+      source_actor_id: "enemy-spell-001",
+      target_actor_id: "ally-unrelated-001",
+      expiration_trigger: "manual"
+    }];
+    manager.combats.set(combatId, combat);
+
+    const holdPerson = {
+      spell_id: "hold_person",
+      name: "Hold Person",
+      casting_time: "1 action",
+      concentration: true,
+      targeting: { type: "single_target" },
+      range: "60 feet",
+      attack_or_save: { type: "save", save_ability: "wisdom" },
+      applied_conditions: [
+        {
+          condition_type: "paralyzed",
+          expiration_trigger: "manual",
+          metadata: {
+            source: "hold_person"
+          }
+        }
+      ]
+    };
+
+    const out = processCombatCastSpellRequest({
+      context: createCombatContext(manager, [holdPerson], {
+        spellSavingThrowFn: () => ({ final_total: 5 })
+      }),
+      player_id: casterId,
+      combat_id: combatId,
+      payload: {
+        spell_id: "hold_person",
+        target_id: "enemy-spell-001"
+      }
+    });
+
+    assert.equal(out.ok, true);
+    const updatedCombat = manager.getCombatById(combatId).payload.combat;
+    assert.equal(updatedCombat.conditions.some((entry) => {
+      return entry.condition_type === "paralyzed" && entry.target_actor_id === "enemy-spell-001";
+    }), true);
+    assert.equal(updatedCombat.conditions.some((entry) => {
+      return entry.condition_type === "grappled" && entry.source_actor_id === "enemy-spell-001";
+    }), false);
+  }, results);
+
   runTest("lesser_restoration_removes_supported_condition_from_target", () => {
     const casterId = "caster-spell-restoration-001";
     const combatId = "combat-spell-restoration-001";
@@ -1735,6 +1927,131 @@ function runCastSpellActionTests() {
     assert.equal(out.payload.cast_spell.save_result.disadvantage, true);
   }, results);
 
+  runTest("dodging_target_has_advantage_on_dexterity_saves", () => {
+    const casterId = "caster-spell-dodge-save-001";
+    const combatId = "combat-spell-dodge-save-001";
+    const manager = createCombatReadyForSpell(combatId, casterId, {
+      known_spell_ids: ["sacred_flame"]
+    });
+    const combat = manager.getCombatById(combatId).payload.combat;
+    combat.conditions = [{
+      condition_id: "condition-dodging-save-001",
+      condition_type: "dodging",
+      target_actor_id: "enemy-spell-001",
+      expiration_trigger: "start_of_turn"
+    }];
+    manager.combats.set(combatId, combat);
+
+    let seenAdvantage = null;
+    const sacredFlame = {
+      spell_id: "sacred_flame",
+      name: "Sacred Flame",
+      casting_time: "1 action",
+      targeting: { type: "single_target" },
+      range: "60 feet",
+      attack_or_save: { type: "save", save_ability: "dexterity" },
+      damage: { dice: "1d8", damage_type: "radiant" }
+    };
+
+    const out = processCombatCastSpellRequest({
+      context: createCombatContext(manager, [sacredFlame], {
+        spellSavingThrowFn: (input) => {
+          seenAdvantage = input && input.advantage;
+          return { final_total: 20 };
+        }
+      }),
+      player_id: casterId,
+      combat_id: combatId,
+      payload: {
+        spell_id: "sacred_flame",
+        target_id: "enemy-spell-001"
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(seenAdvantage, true);
+    assert.equal(out.payload.cast_spell.save_result.advantage, true);
+  }, results);
+
+  runTest("participant_dodge_state_also_grants_advantage_on_dexterity_saves", () => {
+    const casterId = "caster-spell-dodge-flag-001";
+    const combatId = "combat-spell-dodge-flag-001";
+    const manager = createCombatReadyForSpell(combatId, casterId, {
+      known_spell_ids: ["sacred_flame"]
+    });
+    const combat = manager.getCombatById(combatId).payload.combat;
+    const target = combat.participants.find((entry) => entry.participant_id === "enemy-spell-001");
+    target.is_dodging = true;
+    manager.combats.set(combatId, combat);
+
+    let seenAdvantage = null;
+    const sacredFlame = {
+      spell_id: "sacred_flame",
+      name: "Sacred Flame",
+      casting_time: "1 action",
+      targeting: { type: "single_target" },
+      range: "60 feet",
+      attack_or_save: { type: "save", save_ability: "dexterity" },
+      damage: { dice: "1d8", damage_type: "radiant" }
+    };
+
+    const out = processCombatCastSpellRequest({
+      context: createCombatContext(manager, [sacredFlame], {
+        spellSavingThrowFn: (input) => {
+          seenAdvantage = input && input.advantage;
+          return { final_total: 20 };
+        }
+      }),
+      player_id: casterId,
+      combat_id: combatId,
+      payload: {
+        spell_id: "sacred_flame",
+        target_id: "enemy-spell-001"
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(seenAdvantage, true);
+    assert.equal(out.payload.cast_spell.save_result.advantage, true);
+  }, results);
+
+  runTest("psychic_damage_spell_is_supported_and_persisted", () => {
+    const casterId = "caster-spell-psychic-001";
+    const combatId = "combat-spell-psychic-001";
+    const manager = createCombatReadyForSpell(combatId, casterId, {
+      known_spell_ids: ["vicious_mockery"]
+    });
+    const viciousMockery = {
+      spell_id: "vicious_mockery",
+      name: "Vicious Mockery",
+      casting_time: "1 action",
+      targeting: { type: "single_target" },
+      range: "60 feet",
+      attack_or_save: { type: "save", save_ability: "wisdom" },
+      damage: { dice: "1d4", damage_type: "psychic" }
+    };
+
+    const out = processCombatCastSpellRequest({
+      context: createCombatContext(manager, [viciousMockery], {
+        spellSavingThrowFn: () => ({ final_total: 4 }),
+        spellDamageRng: () => 0
+      }),
+      player_id: casterId,
+      combat_id: combatId,
+      payload: {
+        spell_id: "vicious_mockery",
+        target_id: "enemy-spell-001"
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.cast_spell.damage_type, "psychic");
+    assert.equal(out.payload.cast_spell.damage_result.damage_type, "psychic");
+    const updatedCombat = manager.getCombatById(combatId).payload.combat;
+    const logEntry = updatedCombat.event_log.find((entry) => entry.event_type === "cast_spell_action");
+    assert.equal(logEntry.damage_type, "psychic");
+  }, results);
+
   runTest("entangle_applies_restrained_on_failed_save", () => {
     const casterId = "caster-spell-entangle-001";
     const combatId = "combat-spell-entangle-001";
@@ -1977,6 +2294,203 @@ function runCastSpellActionTests() {
     assert.equal(findParticipant(updatedCombat, "enemy-spell-001").current_hp, 10);
     assert.equal(findParticipant(updatedCombat, "enemy-spell-002").current_hp, 10);
     assert.equal(findParticipant(updatedCombat, "enemy-spell-003").current_hp, 10);
+  }, results);
+
+  runTest("invisibility_applies_and_breaks_on_harmful_spell_cast", () => {
+    const casterId = "caster-spell-invisibility-001";
+    const combatId = "combat-spell-invisibility-001";
+    const manager = createCombatReadyForSpell(combatId, casterId, {
+      known_spell_ids: ["invisibility", "fire_bolt"]
+    });
+    const invisibility = {
+      spell_id: "invisibility",
+      name: "Invisibility",
+      casting_time: "1 action",
+      targeting: { type: "single_target" },
+      range: "touch",
+      concentration: true,
+      attack_or_save: { type: "none" },
+      effect: {
+        status_hint: "invisibility"
+      }
+    };
+    const fireBolt = {
+      spell_id: "fire_bolt",
+      name: "Fire Bolt",
+      casting_time: "1 action",
+      targeting: { type: "single_target" },
+      range: "120 feet",
+      attack_or_save: { type: "spell_attack" },
+      damage: { dice: "1d10", damage_type: "fire" }
+    };
+
+    const invisibilityOut = processCombatCastSpellRequest({
+      context: createCombatContext(manager, [invisibility, fireBolt], {
+        spellAttackRollFn: () => ({ final_total: 20 }),
+        spellDamageRng: () => 0
+      }),
+      player_id: casterId,
+      combat_id: combatId,
+      payload: {
+        spell_id: "invisibility",
+        target_id: casterId
+      }
+    });
+
+    assert.equal(invisibilityOut.ok, true);
+    assert.equal(invisibilityOut.payload.cast_spell.applied_conditions.some((entry) => entry.condition_type === "invisible"), true);
+
+    const combatAfterInvisibility = manager.getCombatById(combatId).payload.combat;
+    const caster = findParticipant(combatAfterInvisibility, casterId);
+    caster.action_available = true;
+    combatAfterInvisibility.turn_index = combatAfterInvisibility.initiative_order.indexOf(casterId);
+    manager.combats.set(combatId, combatAfterInvisibility);
+
+    const harmfulOut = processCombatCastSpellRequest({
+      context: createCombatContext(manager, [invisibility, fireBolt], {
+        spellAttackRollFn: () => ({ final_total: 20 }),
+        spellDamageRng: () => 0
+      }),
+      player_id: casterId,
+      combat_id: combatId,
+      payload: {
+        spell_id: "fire_bolt",
+        target_id: "enemy-spell-001"
+      }
+    });
+
+    assert.equal(harmfulOut.ok, true);
+    const updatedCombat = manager.getCombatById(combatId).payload.combat;
+    const invisibilityCondition = (updatedCombat.conditions || []).find((entry) => {
+      return String(entry && entry.condition_type || "") === "invisible" &&
+        String(entry && entry.target_actor_id || "") === String(casterId);
+    });
+    assert.equal(Boolean(invisibilityCondition), false);
+  }, results);
+
+  runTest("charm_person_applies_charmed_on_failed_save", () => {
+    const casterId = "caster-spell-charm-001";
+    const combatId = "combat-spell-charm-001";
+    const manager = createCombatReadyForSpell(combatId, casterId, {
+      known_spell_ids: ["charm_person"]
+    });
+    const charmPerson = {
+      spell_id: "charm_person",
+      name: "Charm Person",
+      casting_time: "1 action",
+      targeting: { type: "single_target" },
+      range: "30 feet",
+      attack_or_save: { type: "save", save_ability: "wisdom" },
+      effect: { status_hint: "charm_person" }
+    };
+
+    const out = processCombatCastSpellRequest({
+      context: createCombatContext(manager, [charmPerson], {
+        spellSavingThrowFn: () => ({ final_total: 4 })
+      }),
+      player_id: casterId,
+      combat_id: combatId,
+      payload: {
+        spell_id: "charm_person",
+        target_id: "enemy-spell-001"
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.cast_spell.saved, false);
+    assert.equal(out.payload.cast_spell.applied_conditions.some((entry) => entry.condition_type === "charmed"), true);
+  }, results);
+
+  runTest("fear_applies_frightened_and_starts_concentration_on_failed_save", () => {
+    const casterId = "caster-spell-fear-001";
+    const combatId = "combat-spell-fear-001";
+    const manager = createCombatReadyForSpell(combatId, casterId, {
+      known_spell_ids: ["fear"]
+    });
+    const fear = {
+      spell_id: "fear",
+      name: "Fear",
+      casting_time: "1 action",
+      targeting: { type: "single_target" },
+      range: "30 feet",
+      concentration: true,
+      attack_or_save: { type: "save", save_ability: "wisdom" },
+      effect: { status_hint: "fear" }
+    };
+
+    const out = processCombatCastSpellRequest({
+      context: createCombatContext(manager, [fear], {
+        spellSavingThrowFn: () => ({ final_total: 4 })
+      }),
+      player_id: casterId,
+      combat_id: combatId,
+      payload: {
+        spell_id: "fear",
+        target_id: "enemy-spell-001"
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.cast_spell.saved, false);
+    assert.equal(out.payload.cast_spell.applied_conditions.some((entry) => entry.condition_type === "frightened"), true);
+    assert.equal(Boolean(out.payload.cast_spell.concentration_started), true);
+  }, results);
+
+  runTest("charmed_caster_cannot_target_charmer_with_harmful_spell", () => {
+    const casterId = "caster-spell-charmed-block-001";
+    const combatId = "combat-spell-charmed-block-001";
+    const manager = createCombatReadyForSpell(combatId, casterId, {
+      known_spell_ids: ["fire_bolt"],
+      extraParticipants: [
+        {
+          participant_id: "charmer-001",
+          team: "monsters",
+          current_hp: 12,
+          max_hp: 12,
+          armor_class: 12,
+          position: { x: 2, y: 0 }
+        }
+      ]
+    });
+    const combat = manager.getCombatById(combatId).payload.combat;
+    combat.conditions = [
+      {
+        condition_id: "condition-charmed-caster-001",
+        condition_type: "charmed",
+        source_actor_id: "charmer-001",
+        target_actor_id: casterId,
+        expiration_trigger: "manual",
+        metadata: {
+          cannot_target_actor_ids: ["charmer-001"]
+        }
+      }
+    ];
+    manager.combats.set(combatId, combat);
+    const fireBolt = {
+      spell_id: "fire_bolt",
+      name: "Fire Bolt",
+      casting_time: "1 action",
+      targeting: { type: "single_target" },
+      range: "120 feet",
+      attack_or_save: { type: "spell_attack" },
+      damage: { dice: "1d10", damage_type: "fire" }
+    };
+
+    const out = processCombatCastSpellRequest({
+      context: createCombatContext(manager, [fireBolt], {
+        spellAttackRollFn: () => ({ final_total: 20 }),
+        spellDamageRng: () => 0
+      }),
+      player_id: casterId,
+      combat_id: combatId,
+      payload: {
+        spell_id: "fire_bolt",
+        target_id: "charmer-001"
+      }
+    });
+
+    assert.equal(out.ok, false);
+    assert.equal(out.error, "charmed participants cannot target the charmer with harmful spells");
   }, results);
 
   const passed = results.filter((entry) => entry.ok).length;

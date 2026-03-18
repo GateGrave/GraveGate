@@ -4,6 +4,7 @@ const { performAttackAction } = require("../actions/attackAction");
 const { performMoveAction } = require("../actions/moveAction");
 const { participantHasCondition } = require("../conditions/conditionHelpers");
 const { resolveOpportunityAttacksForMove } = require("../flow/opportunityAttackFlow");
+const { resolveReadiedAttacksForMove } = require("../flow/readyActionFlow");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -306,7 +307,22 @@ function resolveMonsterAiTurn(input) {
         opportunityAttacks.payload
       );
     }
-    combatManager.combats.set(String(combatId), clone(opportunityAttacks.payload.combat));
+    const readyReactions = resolveReadiedAttacksForMove({
+      combat: opportunityAttacks.payload.combat,
+      mover_id: actor.participant_id,
+      from_position: attempted.payload.from_position,
+      to_position: attempted.payload.to_position,
+      attack_roll_fn: data.opportunity_attack_roll_fn,
+      damage_roll_fn: data.opportunity_damage_roll_fn
+    });
+    if (!readyReactions.ok) {
+      return failure(
+        "monster_ai_turn_failed",
+        readyReactions.error || "failed to resolve readied reactions after AI move",
+        readyReactions.payload
+      );
+    }
+    combatManager.combats.set(String(combatId), clone(readyReactions.payload.combat));
 
     return success("monster_ai_turn_resolved", {
       combat_id: String(combatId),
@@ -314,10 +330,11 @@ function resolveMonsterAiTurn(input) {
       target_id: String(target.participant_id || ""),
       action_type: "move",
       move: Object.assign({}, clone(attempted.payload), {
-        combat: clone(opportunityAttacks.payload.combat)
+        combat: clone(readyReactions.payload.combat)
       }),
       reactions: {
-        opportunity_attacks: clone(opportunityAttacks.payload.triggered_attacks)
+        opportunity_attacks: clone(opportunityAttacks.payload.triggered_attacks),
+        ready_attacks: clone(readyReactions.payload.triggered_ready_attacks)
       }
     });
   }

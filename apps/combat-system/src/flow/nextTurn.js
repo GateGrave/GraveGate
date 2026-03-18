@@ -3,10 +3,12 @@
 const {
   expireConditionsForTrigger,
   getActiveConditionsForParticipant,
-  removeConditionFromCombatState
+  removeConditionFromCombatState,
+  normalizeCombatControlConditions
 } = require("../conditions/conditionHelpers");
 const { resetReactionForParticipant } = require("../reactions/reactionState");
 const { resolveSavingThrowOutcome } = require("../spells/spellcastingHelpers");
+const { initializeParticipantSpellcastingTurnState } = require("../spells/spellcastingHelpers");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -275,9 +277,12 @@ function nextTurn(input) {
   combatState.round = nextRound;
   // Dodge lasts until the start of this participant's next turn.
   const dodgeCleared = selectedParticipant.is_dodging === true;
+  const readyCleared = Boolean(selectedParticipant.ready_action);
   selectedParticipant.is_dodging = false;
+  selectedParticipant.ready_action = null;
   selectedParticipant.action_available = true;
   selectedParticipant.bonus_action_available = true;
+  Object.assign(selectedParticipant, initializeParticipantSpellcastingTurnState(selectedParticipant));
   const movementSpeed = Number(selectedParticipant.movement_speed);
   if (Number.isFinite(movementSpeed)) {
     selectedParticipant.movement_remaining = movementSpeed;
@@ -307,6 +312,10 @@ function nextTurn(input) {
   if (expiredSourceTurn.ok) {
     combatState.conditions = expiredSourceTurn.next_state.conditions;
   }
+  const normalizedConditions = normalizeCombatControlConditions(combatState);
+  if (normalizedConditions.ok) {
+    combatState.conditions = normalizedConditions.next_state.conditions;
+  }
   combatState.event_log = Array.isArray(combatState.event_log) ? combatState.event_log : [];
   combatState.event_log.push({
     event_type: "turn_advanced",
@@ -318,6 +327,7 @@ function nextTurn(input) {
       active_participant_id: selectedParticipant.participant_id,
       previous_actor_id: previousActorId,
       dodge_cleared: dodgeCleared,
+      ready_cleared: readyCleared,
       reaction_reset: true,
       movement_bonus_applied: movementAdjustments ? movementAdjustments.speed_bonus : 0,
       movement_penalty_applied: movementAdjustments ? movementAdjustments.speed_penalty : 0,
@@ -342,6 +352,7 @@ function nextTurn(input) {
     turn_index: combatState.turn_index,
     active_participant_id: selectedParticipant.participant_id,
     dodge_cleared: dodgeCleared,
+    ready_cleared: readyCleared,
     combat: clone(combatState)
   });
 }

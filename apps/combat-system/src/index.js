@@ -12,6 +12,13 @@ const { nextTurn } = require("./flow/nextTurn");
 const { checkCombatEnd } = require("./flow/checkCombatEnd");
 const {
   processCombatAttackRequest,
+  processCombatHelpRequest,
+  processCombatReadyRequest,
+  processCombatDashRequest,
+  processCombatGrappleRequest,
+  processCombatEscapeGrappleRequest,
+  processCombatShoveRequest,
+  processCombatDisengageRequest,
   processCombatMoveRequest,
   processCombatUseItemRequest
 } = require("./flow/processCombatActionRequest");
@@ -19,7 +26,14 @@ const { renderCombatById } = require("./flow/renderCombatState");
 const { renderCombatMapFromState, LAYER_ORDER } = require("./render/combatMapRenderer");
 const { performAttackAction } = require("./actions/attackAction");
 const { performMoveAction } = require("./actions/moveAction");
+const { performHelpAction } = require("./actions/helpAction");
+const { performReadyAction } = require("./actions/readyAction");
+const { performDisengageAction } = require("./actions/disengageAction");
 const { performDodgeAction } = require("./actions/dodgeAction");
+const { performDashAction } = require("./actions/dashAction");
+const { performGrappleAction } = require("./actions/grappleAction");
+const { performEscapeGrappleAction } = require("./actions/escapeGrappleAction");
+const { performShoveAction } = require("./actions/shoveAction");
 const { useItemAction } = require("./actions/useItemAction");
 const {
   createCombatId,
@@ -167,6 +181,13 @@ module.exports = {
   nextTurn,
   checkCombatEnd,
   processCombatAttackRequest,
+  processCombatHelpRequest,
+  processCombatReadyRequest,
+  processCombatDashRequest,
+  processCombatGrappleRequest,
+  processCombatEscapeGrappleRequest,
+  processCombatShoveRequest,
+  processCombatDisengageRequest,
   processCombatMoveRequest,
   processCombatUseItemRequest,
   renderCombatById,
@@ -174,7 +195,14 @@ module.exports = {
   LAYER_ORDER,
   performAttackAction,
   performMoveAction,
+  performHelpAction,
+  performReadyAction,
+  performDisengageAction,
   performDodgeAction,
+  performDashAction,
+  performGrappleAction,
+  performEscapeGrappleAction,
+  performShoveAction,
   useItemAction,
   createCombatId,
   createCombatInstance,
