@@ -1081,7 +1081,7 @@ function summarizeCombatStateForGateway(combat, activeParticipantId) {
     ? safeCombat.initiative_order.map((entry) => String(entry || "").trim()).filter(Boolean)
     : [];
   const activeEffects = Array.isArray(safeCombat.active_effects)
-    ? safeCombat.active_effects.slice(0, 12).map((entry) => summarizeCombatActiveEffectForGateway(entry))
+    ? safeCombat.active_effects.map((entry) => summarizeCombatActiveEffectForGateway(entry))
     : [];
   return {
     combat_id: safeCombat.combat_id || null,

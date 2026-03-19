@@ -534,9 +534,11 @@ function cropBlueprint(blueprint, padding) {
   };
 }
 
-function buildBlueprint(options) {
-  const normalized = normalizeGeneratorOptions(options);
-  const random = createSeededRandom(normalized.seed);
+function buildBlueprintAttempt(normalized, attemptIndex) {
+  const attemptSeed = attemptIndex > 0
+    ? `${normalized.seed}::attempt:${attemptIndex}`
+    : normalized.seed;
+  const random = createSeededRandom(attemptSeed);
   const roomPlans = buildRoomPlan(normalized.room_count, random);
   const placedRooms = [];
   const floorTiles = [];
@@ -613,7 +615,7 @@ function buildBlueprint(options) {
     }
 
     if (!selected) {
-      return;
+      throw new Error(`failed to place planned room ${plan.room_id} (${plan.kind})`);
     }
 
     const fromBoundary = selectBoundaryTile(
@@ -716,6 +718,26 @@ function buildBlueprint(options) {
   };
 
   return cropBlueprint(blueprint, 1);
+}
+
+function buildBlueprint(options) {
+  const normalized = normalizeGeneratorOptions(options);
+  const maxAttempts = Math.max(8, normalized.room_count * 3);
+  let lastError = null;
+
+  for (let attemptIndex = 0; attemptIndex < maxAttempts; attemptIndex += 1) {
+    try {
+      return buildBlueprintAttempt(normalized, attemptIndex);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw new Error(
+    `failed to generate dungeon blueprint after ${maxAttempts} attempts: ${
+      lastError && lastError.message ? lastError.message : "unknown generation error"
+    }`
+  );
 }
 
 function createImage(width, height, rgba) {

@@ -2846,6 +2846,23 @@ async function runReadCommandRuntimeTests() {
         }
       }
     ];
+    for (let index = 0; index < 11; index += 1) {
+      seededCombat.active_effects.push({
+        effect_id: `effect-runtime-read-extra-${index + 1}`,
+        type: "spell_active_fog_cloud",
+        source: {
+          participant_id: playerId
+        },
+        modifiers: {
+          spell_id: "fog_cloud",
+          spell_name: `Fog Cloud ${index + 1}`,
+          area_tiles: [{ x: index % 4, y: 4 + Math.floor(index / 4) }],
+          zone_behavior: {
+            visibility_kind: "heavily_obscured"
+          }
+        }
+      });
+    }
     combatManager.combats.set(combatId, seededCombat);
     combatPersistence.saveCombatSnapshot({
       combat_state: combatManager.getCombatById(combatId).payload.combat
@@ -2893,10 +2910,12 @@ async function runReadCommandRuntimeTests() {
     assert.equal(response.payload.data.combat_summary.recent_events[0].damage_dealt, 4);
     assert.deepEqual(response.payload.data.combat_summary.recent_events[1].to_position, { x: 3, y: 1 });
     assert.equal(Array.isArray(response.payload.data.combat_summary.active_effects), true);
-    assert.equal(response.payload.data.combat_summary.active_effects.length, 2);
+    assert.equal(response.payload.data.combat_summary.active_effects.length, 13);
     assert.equal(response.payload.data.combat_summary.active_effects[0].visibility_kind, "heavily_obscured");
     assert.equal(response.payload.data.combat_summary.active_effects[1].terrain_kind, "difficult");
     assert.equal(response.payload.data.combat_summary.active_effects[1].on_enter_condition_type, "restrained");
+    assert.equal(response.payload.data.combat_summary.active_effects[12].source_spell_id, "fog_cloud");
+    assert.equal(response.payload.data.combat_summary.active_effects[12].spell_name, "Fog Cloud 11");
   }, results);
 
   await runTest("duplicate_replay_cast_request_is_rejected_cleanly", async () => {

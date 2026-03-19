@@ -3632,6 +3632,19 @@ function runMapSystemTests() {
     assert.equal(left.rooms.some((room) => room.shape !== "rectangle"), true);
   }, results);
 
+  runTest("procedural_dungeon_blueprint_fails_fast_when_layout_is_too_tight", () => {
+    assert.throws(() => {
+      generateDungeonBlueprint({
+        map_id: "generator-tight-check",
+        seed: "tight-proof",
+        width: 18,
+        height: 18,
+        room_count: 14,
+        tile_size: 56
+      });
+    }, /failed to generate dungeon blueprint after \d+ attempts/);
+  }, results);
+
   runTest("procedural_dungeon_cli_writes_complete_map_package", () => {
     const outputRoot = path.resolve(process.cwd(), "apps/map-system/output/generated-dungeons-test");
     const mapId = "cli-generated-smoke";
