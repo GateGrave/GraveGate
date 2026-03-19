@@ -2502,7 +2502,10 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(interaction._replyCalls.length, 1);
     assert.equal(interaction._replyCalls[0].embeds[0].data.title, "Dash Taken");
     assert.equal(interaction._replyCalls[0].embeds[1].data.title, "Battle Window");
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields[0].name, "Action");
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields[1].name, "State Changes");
     assert.equal(String(interaction._replyCalls[0].content).includes("Movement: 5 -> 35"), true);
+    assert.equal(String(interaction._replyCalls[0].content).includes("Turn:"), true);
   }, results);
 
   await runTest("gateway_formats_assist_response_with_combat_state", async () => {
@@ -2559,7 +2562,187 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(interaction._replyCalls.length, 1);
     assert.equal(interaction._replyCalls[0].embeds[0].data.title, "Assist Used");
     assert.equal(interaction._replyCalls[0].embeds[1].data.title, "Battle Window");
-    assert.equal(String(interaction._replyCalls[0].content).includes("Effect: helped_attack applied"), true);
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields[0].name, "Action");
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields[1].name, "State Changes");
+    assert.equal(String(interaction._replyCalls[0].content).includes("Effect: Helped Attack applied"), true);
+    assert.equal(String(interaction._replyCalls[0].content).includes("Turn:"), true);
+  }, results);
+
+  await runTest("gateway_formats_grapple_response_with_structured_combat_feed", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "grapple",
+                  ok: true,
+                  data: {
+                    attacker_id: "hero-001",
+                    target_id: "monster-001",
+                    applied_condition: {
+                      condition_type: "grappled"
+                    },
+                    active_participant_id: "monster-001",
+                    combat_completed: false,
+                    ai_turns: [],
+                    combat_summary: {
+                      combat_id: "combat-gateway-grapple-001",
+                      round: 2,
+                      active_participant_id: "monster-001",
+                      participants: [
+                        { participant_id: "hero-001", current_hp: 9, max_hp: 12 },
+                        { participant_id: "monster-001", current_hp: 7, max_hp: 7, conditions: ["grappled"] }
+                      ]
+                    }
+                  },
+                  error: null
+                }
+              }
+            ],
+            events_processed: [event],
+            final_state: {}
+          },
+          error: null
+        };
+      }
+    };
+
+    const interaction = createInteraction("grapple", [
+      { name: "combat_id", value: "combat-gateway-grapple-001" },
+      { name: "target_id", value: "monster-001" }
+    ], "player-gateway-grapple-001");
+    const out = await handleGatewayInteraction(interaction, runtime);
+
+    assert.equal(out.ok, true);
+    assert.equal(interaction._replyCalls.length, 1);
+    assert.equal(interaction._replyCalls[0].embeds[0].data.title, "Grapple Attempt");
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields[0].name, "Action");
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields[1].name, "State Changes");
+    assert.equal(String(interaction._replyCalls[0].content).includes("Result: Grappled"), true);
+    assert.equal(String(interaction._replyCalls[0].content).includes("Turn:"), true);
+  }, results);
+
+  await runTest("gateway_formats_escape_response_with_structured_combat_feed", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "escape",
+                  ok: true,
+                  data: {
+                    participant_id: "hero-001",
+                    source_actor_id: "monster-001",
+                    escaped: true,
+                    removed_condition: {
+                      condition_type: "grappled"
+                    },
+                    active_participant_id: "monster-001",
+                    combat_completed: false,
+                    ai_turns: [],
+                    combat_summary: {
+                      combat_id: "combat-gateway-escape-001",
+                      round: 2,
+                      active_participant_id: "monster-001",
+                      participants: [
+                        { participant_id: "hero-001", current_hp: 9, max_hp: 12 },
+                        { participant_id: "monster-001", current_hp: 7, max_hp: 7 }
+                      ]
+                    }
+                  },
+                  error: null
+                }
+              }
+            ],
+            events_processed: [event],
+            final_state: {}
+          },
+          error: null
+        };
+      }
+    };
+
+    const interaction = createInteraction("escape", [
+      { name: "combat_id", value: "combat-gateway-escape-001" }
+    ], "player-gateway-escape-001");
+    const out = await handleGatewayInteraction(interaction, runtime);
+
+    assert.equal(out.ok, true);
+    assert.equal(interaction._replyCalls.length, 1);
+    assert.equal(interaction._replyCalls[0].embeds[0].data.title, "Escape Grapple");
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields[0].name, "Action");
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields[1].name, "State Changes");
+    assert.equal(String(interaction._replyCalls[0].content).includes("Conditions Lost: Grappled"), true);
+    assert.equal(String(interaction._replyCalls[0].content).includes("Turn:"), true);
+  }, results);
+
+  await runTest("gateway_formats_shove_response_with_structured_combat_feed", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "shove",
+                  ok: true,
+                  data: {
+                    attacker_id: "hero-001",
+                    target_id: "monster-001",
+                    mode: "push",
+                    success: true,
+                    moved_to: { x: 3, y: 1 },
+                    active_participant_id: "monster-001",
+                    combat_completed: false,
+                    ai_turns: [],
+                    combat_summary: {
+                      combat_id: "combat-gateway-shove-001",
+                      round: 2,
+                      active_participant_id: "monster-001",
+                      participants: [
+                        { participant_id: "hero-001", current_hp: 9, max_hp: 12 },
+                        { participant_id: "monster-001", current_hp: 7, max_hp: 7, position: { x: 3, y: 1 } }
+                      ]
+                    }
+                  },
+                  error: null
+                }
+              }
+            ],
+            events_processed: [event],
+            final_state: {}
+          },
+          error: null
+        };
+      }
+    };
+
+    const interaction = createInteraction("shove", [
+      { name: "combat_id", value: "combat-gateway-shove-001" },
+      { name: "target_id", value: "monster-001" }
+    ], "player-gateway-shove-001");
+    const out = await handleGatewayInteraction(interaction, runtime);
+
+    assert.equal(out.ok, true);
+    assert.equal(interaction._replyCalls.length, 1);
+    assert.equal(interaction._replyCalls[0].embeds[0].data.title, "Shove Attempt");
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields[0].name, "Action");
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields[1].name, "State Changes");
+    assert.equal(String(interaction._replyCalls[0].content).includes("Moved To: (3, 1)"), true);
+    assert.equal(String(interaction._replyCalls[0].content).includes("Turn:"), true);
   }, results);
 
   await runTest("gateway_formats_ready_response_with_combat_state", async () => {
@@ -2617,7 +2800,10 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(interaction._replyCalls.length, 1);
     assert.equal(interaction._replyCalls[0].embeds[0].data.title, "Ready Set");
     assert.equal(interaction._replyCalls[0].embeds[1].data.title, "Battle Window");
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields[0].name, "Action");
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields[1].name, "State Changes");
     assert.equal(String(interaction._replyCalls[0].content).includes("Readied Action: attack"), true);
+    assert.equal(String(interaction._replyCalls[0].content).includes("Turn:"), true);
   }, results);
 
   await runTest("gateway_formats_disengage_response_with_combat_state", async () => {
@@ -2669,7 +2855,10 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(interaction._replyCalls.length, 1);
     assert.equal(interaction._replyCalls[0].embeds[0].data.title, "Disengage Taken");
     assert.equal(interaction._replyCalls[0].embeds[1].data.title, "Battle Window");
-    assert.equal(String(interaction._replyCalls[0].content).includes("Status: Disengaged"), true);
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields[0].name, "Action");
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields[1].name, "State Changes");
+    assert.equal(String(interaction._replyCalls[0].content).includes("Result: Disengage active"), true);
+    assert.equal(String(interaction._replyCalls[0].content).includes("Turn:"), true);
   }, results);
 
   await runTest("gateway_formats_spell_effect_details_in_cast_response", async () => {

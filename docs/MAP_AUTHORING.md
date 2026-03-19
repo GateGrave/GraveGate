@@ -104,6 +104,25 @@ This keeps the architecture safe:
 6. Produce structured map/profile data.
 7. Use that compiled data for rendering and authoritative session/combat-driven display.
 
+## Validation Control Workflow
+
+Before debugging prettier authored maps, validate behavior on clean control maps first.
+
+Recommended control-profile pattern:
+- keep one clean combat validation profile and one clean dungeon validation profile for the shared 12x10 test maps
+- use them for terrain semantics sanity checks
+- use them for hazard/difficult-terrain and edge-wall regression checks
+- use them for dungeon marker, overlay, and debug-label validation
+
+Current status:
+- this workflow is the recommended direction for map validation
+- the clean control-profile artifacts still need to be restored onto `main` before the file paths can be treated as canonical references
+
+Practical use:
+- layer the validation profile on top of the compiled base profile for the same map
+- confirm the semantics/debug output there first
+- only then move on to prettier authored maps when something looks wrong
+
 ## Current Dungeon Marker Semantics
 
 These are the current supported dungeon marker meanings:

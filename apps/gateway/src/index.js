@@ -3252,157 +3252,188 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
     const conditionType = data.applied_condition && data.applied_condition.condition_type
       ? String(data.applied_condition.condition_type)
       : "helped_attack";
-    return {
-      ok: true,
-      embeds: [
-        buildCombatActionEmbed("Assist Used", 0x3498db, [
-          `Helper: ${cleanText(data.helper_id, "unknown")}`,
-          `Target: ${cleanText(data.target_id, "unknown")}`,
-          `Effect: ${conditionType} applied`,
-          combatSummary ? `Round: ${Number.isFinite(Number(combatSummary.round)) ? Number(combatSummary.round) : 1}` : null,
-          combatSummary ? `Participants: ${summarizeCombatParticipantsForReply(combatSummary)}` : null,
-          `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
-          `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
-          `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
-        ], "Combat Assist Feed"),
-        ...(combatSummary ? [buildCombatStateEmbed(combatSummary)] : [])
-      ],
-      components: buildCombatStatusComponents({ combat_id: data.combat_id || (combatSummary && combatSummary.combat_id) || null }),
-      content: [
-        `Helper: ${cleanText(data.helper_id, "unknown")}`,
-        `Target: ${cleanText(data.target_id, "unknown")}`,
-        `Effect: ${conditionType} applied`,
-        `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
-        `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
-        `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
-      ].join("\n"),
-      data
-    };
+    const actionLines = [
+      buildCombatParticipantStateLine(combatSummary, data.helper_id, "Helper", {
+        include_hp: false,
+        include_grid: false,
+        include_conditions: false
+      }) || `Helper: ${cleanText(data.helper_id, "unknown")}`,
+      buildCombatParticipantStateLine(combatSummary, data.target_id, "Target", {
+        include_hp: false,
+        include_grid: false,
+        include_conditions: false
+      }) || `Target: ${cleanText(data.target_id, "unknown")}`,
+      `Effect: ${formatConditionLabel(conditionType)} applied`
+    ];
+    const stateLines = [
+      buildCombatParticipantStateLine(combatSummary, data.target_id, "Target State")
+    ];
+    if (!stateLines[0]) {
+      stateLines.push(`Conditions Gained: ${formatConditionLabel(conditionType)}`);
+    }
+    return buildCombatFeedReply({
+      title: "Assist Used",
+      color: 0x3498db,
+      footer: "Combat Assist Feed",
+      data,
+      sections: [
+        { name: "Action", lines: actionLines },
+        { name: "State Changes", lines: stateLines.filter(Boolean) },
+        { name: "Turn", lines: buildCombatTurnLines(data, combatSummary) }
+      ]
+    });
   }
 
   if (responseType === "grapple") {
-    return {
-      ok: true,
-      embeds: [
-        buildCombatActionEmbed("Grapple Attempt", 0xf39c12, [
-          `Attacker: ${cleanText(data.attacker_id, "unknown")}`,
-          `Target: ${cleanText(data.target_id, "unknown")}`,
-          `Result: ${data.applied_condition ? "Grappled" : "No effect"}`,
-          data.combat_summary ? `Round: ${Number.isFinite(Number(data.combat_summary.round)) ? Number(data.combat_summary.round) : 1}` : null,
-          data.combat_summary ? `Participants: ${summarizeCombatParticipantsForReply(data.combat_summary)}` : null,
-          `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
-          `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
-          `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
-        ], "Combat Grapple Feed"),
-        ...(data.combat_summary ? [buildCombatStateEmbed(data.combat_summary)] : [])
-      ],
-      components: buildCombatStatusComponents({ combat_id: data.combat_id || (data.combat_summary && data.combat_summary.combat_id) || null }),
-      content: [
-        `Attacker: ${cleanText(data.attacker_id, "unknown")}`,
-        `Target: ${cleanText(data.target_id, "unknown")}`,
-        `Result: ${data.applied_condition ? "Grappled" : "No effect"}`,
-        `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
-        `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
-        `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
-      ].join("\n"),
-      data
-    };
+    const combatSummary = data.combat_summary && typeof data.combat_summary === "object" ? data.combat_summary : null;
+    const actionLines = [
+      buildCombatParticipantStateLine(combatSummary, data.attacker_id, "Attacker", {
+        include_hp: false,
+        include_grid: false,
+        include_conditions: false
+      }) || `Attacker: ${cleanText(data.attacker_id, "unknown")}`,
+      buildCombatParticipantStateLine(combatSummary, data.target_id, "Target", {
+        include_hp: false,
+        include_grid: false,
+        include_conditions: false
+      }) || `Target: ${cleanText(data.target_id, "unknown")}`,
+      `Result: ${data.applied_condition ? "Grappled" : "No effect"}`
+    ];
+    const stateLines = [
+      buildCombatParticipantStateLine(combatSummary, data.target_id, "Target State")
+    ];
+    if (!stateLines[0] && data.applied_condition) {
+      stateLines.push(`Conditions Gained: ${formatCombatConditionEntry(data.applied_condition)}`);
+    }
+    return buildCombatFeedReply({
+      title: "Grapple Attempt",
+      color: 0xf39c12,
+      footer: "Combat Grapple Feed",
+      data,
+      sections: [
+        { name: "Action", lines: actionLines },
+        { name: "State Changes", lines: stateLines.filter(Boolean) },
+        { name: "Turn", lines: buildCombatTurnLines(data, combatSummary) }
+      ]
+    });
   }
 
   if (responseType === "escape") {
-    return {
-      ok: true,
-      embeds: [
-        buildCombatActionEmbed("Escape Grapple", 0x2ecc71, [
-          `Actor: ${cleanText(data.participant_id, "unknown")}`,
-          `From Grappler: ${cleanText(data.source_actor_id, "unknown")}`,
-          `Result: ${data.escaped === true ? "Escaped" : "Failed to escape"}`,
-          data.combat_summary ? `Round: ${Number.isFinite(Number(data.combat_summary.round)) ? Number(data.combat_summary.round) : 1}` : null,
-          data.combat_summary ? `Participants: ${summarizeCombatParticipantsForReply(data.combat_summary)}` : null,
-          `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
-          `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
-          `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
-        ], "Combat Escape Feed"),
-        ...(data.combat_summary ? [buildCombatStateEmbed(data.combat_summary)] : [])
-      ],
-      components: buildCombatStatusComponents({ combat_id: data.combat_id || (data.combat_summary && data.combat_summary.combat_id) || null }),
-      content: [
-        `Actor: ${cleanText(data.participant_id, "unknown")}`,
-        `From Grappler: ${cleanText(data.source_actor_id, "unknown")}`,
-        `Result: ${data.escaped === true ? "Escaped" : "Failed to escape"}`,
-        `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
-        `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
-        `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
-      ].join("\n"),
-      data
-    };
+    const combatSummary = data.combat_summary && typeof data.combat_summary === "object" ? data.combat_summary : null;
+    const removedCondition = formatCombatConditionEntry(data.removed_condition);
+    return buildCombatFeedReply({
+      title: "Escape Grapple",
+      color: 0x2ecc71,
+      footer: "Combat Escape Feed",
+      data,
+      sections: [
+        {
+          name: "Action",
+          lines: [
+            buildCombatParticipantStateLine(combatSummary, data.participant_id, "Actor", {
+              include_hp: false,
+              include_grid: false,
+              include_conditions: false
+            }) || `Actor: ${cleanText(data.participant_id, "unknown")}`,
+            buildCombatParticipantStateLine(combatSummary, data.source_actor_id, "From Grappler", {
+              include_hp: false,
+              include_grid: false,
+              include_conditions: false
+            }) || `From Grappler: ${cleanText(data.source_actor_id, "unknown")}`,
+            `Result: ${data.escaped === true ? "Escaped" : "Failed to escape"}`
+          ]
+        },
+        {
+          name: "State Changes",
+          lines: [
+            buildCombatParticipantStateLine(combatSummary, data.participant_id, "Actor State"),
+            removedCondition ? `Conditions Lost: ${removedCondition}` : ""
+          ].filter(Boolean)
+        },
+        {
+          name: "Turn",
+          lines: buildCombatTurnLines(data, combatSummary)
+        }
+      ]
+    });
   }
 
   if (responseType === "shove") {
-    return {
-      ok: true,
-      embeds: [
-        buildCombatActionEmbed("Shove Attempt", 0xe67e22, [
-          `Attacker: ${cleanText(data.attacker_id, "unknown")}`,
-          `Target: ${cleanText(data.target_id, "unknown")}`,
-          `Mode: ${cleanText(data.mode, "push")}`,
-          `Result: ${data.success === true ? "Success" : "Failed"}`,
-          data.moved_to ? `Moved To: ${formatPosition(data.moved_to)}` : null,
-          data.applied_condition ? `Applied: ${cleanText(data.applied_condition.condition_type, "condition")}` : null,
-          data.combat_summary ? `Round: ${Number.isFinite(Number(data.combat_summary.round)) ? Number(data.combat_summary.round) : 1}` : null,
-          data.combat_summary ? `Participants: ${summarizeCombatParticipantsForReply(data.combat_summary)}` : null,
-          `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
-          `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
-          `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
-        ], "Combat Shove Feed"),
-        ...(data.combat_summary ? [buildCombatStateEmbed(data.combat_summary)] : [])
-      ],
-      components: buildCombatStatusComponents({ combat_id: data.combat_id || (data.combat_summary && data.combat_summary.combat_id) || null }),
-      content: [
-        `Attacker: ${cleanText(data.attacker_id, "unknown")}`,
-        `Target: ${cleanText(data.target_id, "unknown")}`,
-        `Mode: ${cleanText(data.mode, "push")}`,
-        `Result: ${data.success === true ? "Success" : "Failed"}`,
-        data.moved_to ? `Moved To: ${formatPosition(data.moved_to)}` : null,
-        data.applied_condition ? `Applied: ${cleanText(data.applied_condition.condition_type, "condition")}` : null,
-        `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
-        `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
-        `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
-      ].filter(Boolean).join("\n"),
-      data
-    };
+    const combatSummary = data.combat_summary && typeof data.combat_summary === "object" ? data.combat_summary : null;
+    const appliedCondition = formatCombatConditionEntry(data.applied_condition);
+    return buildCombatFeedReply({
+      title: "Shove Attempt",
+      color: 0xe67e22,
+      footer: "Combat Shove Feed",
+      data,
+      sections: [
+        {
+          name: "Action",
+          lines: [
+            buildCombatParticipantStateLine(combatSummary, data.attacker_id, "Attacker", {
+              include_hp: false,
+              include_grid: false,
+              include_conditions: false
+            }) || `Attacker: ${cleanText(data.attacker_id, "unknown")}`,
+            buildCombatParticipantStateLine(combatSummary, data.target_id, "Target", {
+              include_hp: false,
+              include_grid: false,
+              include_conditions: false
+            }) || `Target: ${cleanText(data.target_id, "unknown")}`,
+            `Mode: ${cleanText(data.mode, "push")}`,
+            `Result: ${data.success === true ? "Success" : "Failed"}`
+          ]
+        },
+        {
+          name: "State Changes",
+          lines: [
+            data.moved_to ? `Moved To: ${formatPosition(data.moved_to)}` : "",
+            appliedCondition ? `Conditions Gained: ${appliedCondition}` : "",
+            buildCombatParticipantStateLine(combatSummary, data.target_id, "Target State")
+          ].filter(Boolean)
+        },
+        {
+          name: "Turn",
+          lines: buildCombatTurnLines(data, combatSummary)
+        }
+      ]
+    });
   }
 
   if (responseType === "ready") {
     const combatSummary = data.combat_summary && typeof data.combat_summary === "object" ? data.combat_summary : null;
     const triggerType = cleanText(data.ready_action && data.ready_action.trigger_type, "enemy_enters_reach");
     const actionType = cleanText(data.ready_action && data.ready_action.action_type, "attack");
-    return {
-      ok: true,
-      embeds: [
-        buildCombatActionEmbed("Ready Set", 0x95a5a6, [
-          `Actor: ${cleanText(data.participant_id, "unknown")}`,
-          `Trigger: ${triggerType}`,
-          `Readied Action: ${actionType}`,
-          combatSummary ? `Round: ${Number.isFinite(Number(combatSummary.round)) ? Number(combatSummary.round) : 1}` : null,
-          combatSummary ? `Participants: ${summarizeCombatParticipantsForReply(combatSummary)}` : null,
-          `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
-          `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
-          `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
-        ], "Combat Ready Feed"),
-        ...(combatSummary ? [buildCombatStateEmbed(combatSummary)] : [])
-      ],
-      components: buildCombatStatusComponents({ combat_id: data.combat_id || (combatSummary && combatSummary.combat_id) || null }),
-      content: [
-        `Actor: ${cleanText(data.participant_id, "unknown")}`,
-        `Trigger: ${triggerType}`,
-        `Readied Action: ${actionType}`,
-        `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
-        `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
-        `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
-      ].join("\n"),
-      data
-    };
+    return buildCombatFeedReply({
+      title: "Ready Set",
+      color: 0x95a5a6,
+      footer: "Combat Ready Feed",
+      data,
+      sections: [
+        {
+          name: "Action",
+          lines: [
+            buildCombatParticipantStateLine(combatSummary, data.participant_id, "Actor", {
+              include_hp: false,
+              include_grid: false,
+              include_conditions: false
+            }) || `Actor: ${cleanText(data.participant_id, "unknown")}`,
+            `Trigger: ${triggerType}`,
+            `Readied Action: ${actionType}`
+          ]
+        },
+        {
+          name: "State Changes",
+          lines: [
+            buildCombatParticipantStateLine(combatSummary, data.participant_id, "Actor State")
+          ].filter(Boolean)
+        },
+        {
+          name: "Turn",
+          lines: buildCombatTurnLines(data, combatSummary)
+        }
+      ]
+    });
   }
 
   if (responseType === "dodge") {
@@ -3440,60 +3471,71 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
   }
 
   if (responseType === "dash") {
-    return {
-      ok: true,
-      embeds: [
-        buildCombatActionEmbed("Dash Taken", 0x3498db, [
-          `Actor: ${cleanText(data.participant_id, "unknown")}`,
-          `Movement: ${Number.isFinite(Number(data.movement_before)) ? Number(data.movement_before) : 0} -> ${Number.isFinite(Number(data.movement_after)) ? Number(data.movement_after) : 0}`,
-          `Added: +${Number.isFinite(Number(data.movement_added)) ? Number(data.movement_added) : 0} feet`,
-          data.combat_summary ? `Round: ${Number.isFinite(Number(data.combat_summary.round)) ? Number(data.combat_summary.round) : 1}` : null,
-          data.combat_summary ? `Participants: ${summarizeCombatParticipantsForReply(data.combat_summary)}` : null,
-          `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
-          `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
-          `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
-        ], "Combat Dash Feed"),
-        ...(data.combat_summary ? [buildCombatStateEmbed(data.combat_summary)] : [])
-      ],
-      components: buildCombatStatusComponents({ combat_id: data.combat_id || (data.combat_summary && data.combat_summary.combat_id) || null }),
-      content: [
-        `Actor: ${cleanText(data.participant_id, "unknown")}`,
-        `Movement: ${Number.isFinite(Number(data.movement_before)) ? Number(data.movement_before) : 0} -> ${Number.isFinite(Number(data.movement_after)) ? Number(data.movement_after) : 0}`,
-        `Added: +${Number.isFinite(Number(data.movement_added)) ? Number(data.movement_added) : 0} feet`,
-        `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
-        `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
-        `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
-      ].join("\n"),
-      data
-    };
+    const combatSummary = data.combat_summary && typeof data.combat_summary === "object" ? data.combat_summary : null;
+    return buildCombatFeedReply({
+      title: "Dash Taken",
+      color: 0x3498db,
+      footer: "Combat Dash Feed",
+      data,
+      sections: [
+        {
+          name: "Action",
+          lines: [
+            buildCombatParticipantStateLine(combatSummary, data.participant_id, "Actor", {
+              include_hp: false,
+              include_grid: false,
+              include_conditions: false
+            }) || `Actor: ${cleanText(data.participant_id, "unknown")}`,
+            `Movement: ${Number.isFinite(Number(data.movement_before)) ? Number(data.movement_before) : 0} -> ${Number.isFinite(Number(data.movement_after)) ? Number(data.movement_after) : 0}`,
+            `Added: +${Number.isFinite(Number(data.movement_added)) ? Number(data.movement_added) : 0} feet`
+          ]
+        },
+        {
+          name: "State Changes",
+          lines: [
+            buildCombatParticipantStateLine(combatSummary, data.participant_id, "Actor State")
+          ].filter(Boolean)
+        },
+        {
+          name: "Turn",
+          lines: buildCombatTurnLines(data, combatSummary)
+        }
+      ]
+    });
   }
 
   if (responseType === "disengage") {
     const combatSummary = data.combat_summary && typeof data.combat_summary === "object" ? data.combat_summary : null;
-    return {
-      ok: true,
-      embeds: [
-        buildCombatActionEmbed("Disengage Taken", 0x57f287, [
-          `Actor: ${cleanText(data.participant_id, "unknown")}`,
-          "Status: Guard dropped to slip free of opportunity attacks",
-          combatSummary ? `Round: ${Number.isFinite(Number(combatSummary.round)) ? Number(combatSummary.round) : 1}` : null,
-          combatSummary ? `Participants: ${summarizeCombatParticipantsForReply(combatSummary)}` : null,
-          `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
-          `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
-          `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
-        ], "Combat Disengage Feed"),
-        ...(combatSummary ? [buildCombatStateEmbed(combatSummary)] : [])
-      ],
-      components: buildCombatStatusComponents({ combat_id: data.combat_id || (combatSummary && combatSummary.combat_id) || null }),
-      content: [
-        `Actor: ${cleanText(data.participant_id, "unknown")}`,
-        "Status: Disengaged",
-        `Next Turn: ${cleanText(data.active_participant_id, "(none)")}`,
-        `AI Actions: ${summarizeAiTurns(data.ai_turns)}`,
-        `Combat Ended: ${String(Boolean(data.combat_completed))}${data.winner_team ? " | Winner: " + data.winner_team : ""}`
-      ].join("\n"),
-      data
-    };
+    return buildCombatFeedReply({
+      title: "Disengage Taken",
+      color: 0x57f287,
+      footer: "Combat Disengage Feed",
+      data,
+      sections: [
+        {
+          name: "Action",
+          lines: [
+            buildCombatParticipantStateLine(combatSummary, data.participant_id, "Actor", {
+              include_hp: false,
+              include_grid: false,
+              include_conditions: false
+            }) || `Actor: ${cleanText(data.participant_id, "unknown")}`,
+            "Action: Disengage",
+            "Result: Disengage active"
+          ]
+        },
+        {
+          name: "State Changes",
+          lines: [
+            buildCombatParticipantStateLine(combatSummary, data.participant_id, "Actor State")
+          ].filter(Boolean)
+        },
+        {
+          name: "Turn",
+          lines: buildCombatTurnLines(data, combatSummary)
+        }
+      ]
+    });
   }
 
   if (responseType === "move") {

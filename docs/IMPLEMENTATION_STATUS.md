@@ -266,8 +266,11 @@ Next recommended resume point:
 - [x] Canonical `/combat` battle-state read path
 - [~] Cleaner combat screen UX in Discord
   - live map attachments, preview flows, and PNG output exist
+  - action-result replies now use one structured `Action / State Changes / Turn` feed across current combat mutation types
   - selected-state readability and richer summary polish are still pending
-- [ ] Better spell/action result summaries
+- [~] Better spell/action result summaries
+  - combat mutation replies now route through one structured feed path instead of mixed embed styles
+  - more tactical wording polish and higher-density readability are still pending
 
 ## Dungeon and Exploration
 
@@ -382,6 +385,7 @@ Next recommended resume point:
   - Common objects can now expose multiple valid action buttons in the same room view
 - [~] Cleaner combat screen UX
   - Attack, cast, move, and combat-item responses now render with combat embeds
+  - Assist, grapple, escape, shove, ready, dash, and disengage now use the same structured `Action / State Changes / Turn` reply shape
   - Turn ownership and AI aftermath are now easier to read at a glance
   - Combat state now surfaces the active combatant's resources and conditions directly in the status view
   - Attack and spell results now read as outcomes instead of only raw booleans/flags
@@ -405,7 +409,9 @@ Next recommended resume point:
   - Rolled dungeon checks are in
   - Hidden doors and trapped-object patterns are in
   - Broader content coverage is still pending
-- [ ] Build cleaner combat screen UX
+- [~] Build cleaner combat screen UX
+  - action-result feed unification is in
+  - selected-state readability and further polish are still pending
 - [~] Deepen trade UX beyond the current wizard/detail flow
 
 ### Next
