@@ -1022,6 +1022,46 @@ function runMapSystemTests() {
     assert.equal(reachable.some((tile) => tile.x === 3 && tile.y === 6), false);
   }, results);
 
+  runTest("combat_validation_control_profile_layers_semantic_terrain_on_clean_map", () => {
+    const loaded = loadMapWithProfile({
+      map_path: path.resolve(process.cwd(), "apps/map-system/data/maps/combat/map-12x10.base-map.json"),
+      profile_path: [
+        path.resolve(process.cwd(), "apps/map-system/data/profiles/combat/map-12x10.combat-profile.json"),
+        path.resolve(process.cwd(), "apps/map-system/data/profiles/combat/map-12x10.validation-control.json")
+      ]
+    });
+
+    assert.equal(validateMapStateShape(loaded).ok, true);
+    assert.equal(getTileProperties(loaded, { x: 1, y: 7 }).movement_cost, 2);
+    assert.equal(getTileProperties(loaded, { x: 7, y: 4 }).blocks_movement, true);
+    assert.equal(getTileProperties(loaded, { x: 8, y: 1 }).is_hazard, true);
+    assert.equal(getTileProperties(loaded, { x: 8, y: 1 }).hazard_kind, "fire");
+    assert.equal(buildHazardTileList(loaded).some((tile) => tile.x === 8 && tile.y === 1 && tile.hazard_kind === "fire"), true);
+    assert.equal(loaded.tokens.some((token) => token.token_id === "validation-hero"), true);
+    assert.equal(hasLineOfSight(loaded, { x: 5, y: 1 }, { x: 6, y: 1 }), false);
+  }, results);
+
+  runTest("dungeon_validation_control_profile_surfaces_marker_debug_labels_on_clean_map", () => {
+    const loaded = loadMapWithProfile({
+      map_path: path.resolve(process.cwd(), "apps/map-system/data/maps/dungeon/map-12x10.base-map.json"),
+      profile_path: [
+        path.resolve(process.cwd(), "apps/map-system/data/profiles/dungeon/map-12x10.dungeon-profile.json"),
+        path.resolve(process.cwd(), "apps/map-system/data/profiles/dungeon/map-12x10.validation-control.json")
+      ]
+    });
+
+    assert.equal(validateMapStateShape(loaded).ok, true);
+    assert.equal(loaded.overlays.some((overlay) => overlay.overlay_id === "validation-exit-north"), true);
+    assert.equal(loaded.overlays.some((overlay) => overlay.overlay_id === "validation-door-lock"), true);
+    loaded.render_debug = { markers: true };
+
+    const svg = renderMapSvg(loaded, {});
+    assert.equal(svg.includes(">EXT NTH</text>"), true);
+    assert.equal(svg.includes(">DOR LCK</text>"), true);
+    assert.equal(svg.includes(">TRP ARM</text>"), true);
+    assert.equal(svg.includes(">ENC G1</text>"), true);
+  }, results);
+
   runTest("terrain_zones_infer_default_flags_from_semantic_type", () => {
     const map = createTestMap();
     map.terrain_zones = [

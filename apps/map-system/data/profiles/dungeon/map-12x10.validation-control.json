@@ -1,0 +1,83 @@
+{
+  "name": "Map 12x10 Dungeon Validation Control",
+  "terrain": [],
+  "terrain_zones": [
+    {
+      "zone_id": "validation-slick-floor",
+      "shape": "rectangle",
+      "x": 6,
+      "y": 7,
+      "width": 2,
+      "height": 1,
+      "terrain_type": "mud"
+    }
+  ],
+  "tokens": [
+    {
+      "token_id": "validation-party",
+      "token_type": "player",
+      "label": "P1",
+      "badge_text": "1",
+      "position": { "x": 1, "y": 5 },
+      "asset_path": "apps/map-system/assets/tokens/players/processed/human-male-01.cleaned.png"
+    },
+    {
+      "token_id": "validation-watcher",
+      "token_type": "enemy",
+      "label": "S1",
+      "badge_text": "1",
+      "position": { "x": 9, "y": 2 },
+      "asset_path": "apps/map-system/assets/tokens/enemies/processed/zombie-01.cleaned.png"
+    }
+  ],
+  "overlays": [
+    {
+      "overlay_id": "validation-exit-north",
+      "kind": "selection",
+      "color": "#5ac8fa",
+      "opacity": 0.18,
+      "tiles": [
+        { "x": 10, "y": 1, "label": "NTH", "marker_style": "exit" }
+      ],
+      "metadata": {
+        "marker_style": "exit"
+      }
+    },
+    {
+      "overlay_id": "validation-door-lock",
+      "kind": "selection",
+      "color": "#5ac8fa",
+      "opacity": 0.18,
+      "tiles": [
+        { "x": 8, "y": 4, "label": "LCK", "marker_style": "door" }
+      ],
+      "metadata": {
+        "marker_style": "door"
+      }
+    },
+    {
+      "overlay_id": "validation-trap-arm",
+      "kind": "selection",
+      "color": "#ff9f0a",
+      "opacity": 0.18,
+      "tiles": [
+        { "x": 5, "y": 2, "label": "ARM", "marker_style": "trap" }
+      ],
+      "metadata": {
+        "marker_style": "trap"
+      }
+    },
+    {
+      "overlay_id": "validation-encounter-goblin",
+      "kind": "selection",
+      "color": "#ff453a",
+      "opacity": 0.18,
+      "tiles": [
+        { "x": 9, "y": 2, "label": "G1", "marker_style": "encounter" }
+      ],
+      "metadata": {
+        "marker_style": "encounter"
+      }
+    }
+  ]
+}

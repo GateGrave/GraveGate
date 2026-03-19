@@ -1,0 +1,49 @@
+{
+  "name": "Map 12x10 Combat Validation Control",
+  "terrain": [
+    {
+      "x": 8,
+      "y": 1,
+      "terrain_type": "fire"
+    }
+  ],
+  "terrain_zones": [
+    {
+      "zone_id": "validation-mud-lane",
+      "shape": "rectangle",
+      "x": 1,
+      "y": 7,
+      "width": 2,
+      "height": 1,
+      "terrain_type": "mud"
+    },
+    {
+      "zone_id": "validation-river-cut",
+      "shape": "rectangle",
+      "x": 7,
+      "y": 4,
+      "width": 2,
+      "height": 1,
+      "terrain_type": "river"
+    }
+  ],
+  "tokens": [
+    {
+      "token_id": "validation-hero",
+      "token_type": "player",
+      "label": "H1",
+      "badge_text": "1",
+      "position": { "x": 1, "y": 8 },
+      "asset_path": "apps/map-system/assets/tokens/players/processed/human-female-01.cleaned.png"
+    },
+    {
+      "token_id": "validation-foe",
+      "token_type": "enemy",
+      "label": "G1",
+      "badge_text": "1",
+      "position": { "x": 9, "y": 2 },
+      "asset_path": "apps/map-system/assets/tokens/enemies/processed/goblin-01.cleaned.png"
+    }
+  ],
+  "overlays": []
+}

@@ -104,6 +104,24 @@ This keeps the architecture safe:
 6. Produce structured map/profile data.
 7. Use that compiled data for rendering and authoritative session/combat-driven display.
 
+## Validation Control Profiles
+
+Before debugging prettier authored maps, validate behavior on clean control maps first.
+
+Current control-profile starting points:
+- `apps/map-system/data/profiles/combat/map-12x10.validation-control.json`
+  - terrain semantics sanity checks
+  - hazard/difficult-terrain validation
+  - edge-wall regression checks on a clean combat map
+- `apps/map-system/data/profiles/dungeon/map-12x10.validation-control.json`
+  - exit/object/trap/encounter marker-style validation
+  - dungeon overlay/debug-label validation on a clean dungeon map
+
+Practical use:
+- layer the validation profile on top of the compiled base profile for the same map
+- confirm the semantics/debug output there first
+- only then move on to prettier authored maps when something looks wrong
+
 ## Current Dungeon Marker Semantics
 
 These are the current supported dungeon marker meanings:
