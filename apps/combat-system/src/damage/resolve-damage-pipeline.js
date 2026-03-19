@@ -52,7 +52,9 @@ function applyDamageReduction(amount, reduction) {
 function resolveDamagePipeline(input) {
   const target = input.target;
   const damageType = input.damage_type;
-  const damageFormula = input.damage_formula || "1d4";
+  const damageFormula = typeof input.damage_formula === "string" && input.damage_formula.trim()
+    ? input.damage_formula.trim()
+    : null;
   const flatModifier = Number(input.flat_modifier || 0);
 
   if (!target || typeof target !== "object") {
@@ -73,12 +75,20 @@ function resolveDamagePipeline(input) {
   );
 
   // 1) roll damage
-  const rollResult = resolveDiceRoll({
-    roll_type: ROLL_TYPES.DAMAGE_ROLL,
-    formula: damageFormula,
-    modifier: flatModifier,
-    rng: input.rng
-  });
+  const rollResult = damageFormula
+    ? resolveDiceRoll({
+        roll_type: ROLL_TYPES.DAMAGE_ROLL,
+        formula: damageFormula,
+        modifier: flatModifier,
+        rng: input.rng
+      })
+    : {
+        roll_type: ROLL_TYPES.DAMAGE_ROLL,
+        formula: null,
+        modifier: flatModifier,
+        rolls: [],
+        final_total: flatModifier
+      };
   const rolledDamage = Math.max(0, rollResult.final_total);
 
   // 2) apply vulnerability

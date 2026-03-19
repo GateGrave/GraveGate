@@ -23,7 +23,10 @@
         "dice": "1d10",
         "damage_type": "fire"
       },
-      "class_refs": ["wizard", "sorcerer"],
+      "class_refs": [
+        "wizard",
+        "sorcerer"
+      ],
       "effect": {
         "damage_ref": "spell_damage_fire_bolt",
         "targeting": "single"
@@ -31,8 +34,23 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15-starter",
-        "notes": ["Scaffold cantrip damage metadata"],
-        "class_refs": ["wizard", "sorcerer"]
+        "notes": [
+          "Scaffold cantrip damage metadata"
+        ],
+        "class_refs": [
+          "wizard",
+          "sorcerer"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:spell_attack",
+            "target:single_target",
+            "effect:damage",
+            "damage_type:fire"
+          ]
+        }
       }
     },
     {
@@ -56,7 +74,10 @@
         "dice": "1d8",
         "damage_type": "cold"
       },
-      "class_refs": ["wizard", "sorcerer"],
+      "class_refs": [
+        "wizard",
+        "sorcerer"
+      ],
       "effect": {
         "damage_ref": "spell_damage_ray_of_frost",
         "targeting": "single",
@@ -65,8 +86,24 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15-starter",
-        "notes": ["Scaffold slow effect metadata"],
-        "class_refs": ["wizard", "sorcerer"]
+        "notes": [
+          "Scaffold slow effect metadata"
+        ],
+        "class_refs": [
+          "wizard",
+          "sorcerer"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:spell_attack",
+            "target:single_target",
+            "effect:damage",
+            "status:speed_reduced",
+            "damage_type:cold"
+          ]
+        }
       }
     },
     {
@@ -89,7 +126,10 @@
         "dice": "3d4+3",
         "damage_type": "force"
       },
-      "class_refs": ["wizard", "sorcerer"],
+      "class_refs": [
+        "wizard",
+        "sorcerer"
+      ],
       "effect": {
         "damage_ref": "spell_damage_magic_missile",
         "targeting": "single",
@@ -98,8 +138,23 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15-starter",
-        "notes": ["Scaffold auto-hit projectile metadata"],
-        "class_refs": ["wizard", "sorcerer"]
+        "notes": [
+          "Scaffold auto-hit projectile metadata"
+        ],
+        "class_refs": [
+          "wizard",
+          "sorcerer"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:auto_hit",
+            "target:single_or_split_target",
+            "effect:damage",
+            "damage_type:force"
+          ]
+        }
       }
     },
     {
@@ -119,7 +174,10 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["wizard", "sorcerer"],
+      "class_refs": [
+        "wizard",
+        "sorcerer"
+      ],
       "effect": {
         "defense_ref": "spell_shield_ac_bonus",
         "ac_bonus": 5
@@ -127,8 +185,22 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15-starter",
-        "notes": ["Scaffold defensive reaction metadata"],
-        "class_refs": ["wizard", "sorcerer"]
+        "notes": [
+          "Scaffold defensive reaction metadata"
+        ],
+        "class_refs": [
+          "wizard",
+          "sorcerer"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:self",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -152,7 +224,11 @@
         "dice": "1d8",
         "bonus": "spellcasting_ability_modifier"
       },
-      "class_refs": ["cleric", "druid", "bard"],
+      "class_refs": [
+        "cleric",
+        "druid",
+        "bard"
+      ],
       "effect": {
         "healing_ref": "spell_heal_cure_wounds",
         "targeting": "single"
@@ -160,8 +236,23 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15-starter",
-        "notes": ["Scaffold direct healing metadata"],
-        "class_refs": ["cleric", "druid", "bard"]
+        "notes": [
+          "Scaffold direct healing metadata"
+        ],
+        "class_refs": [
+          "cleric",
+          "druid",
+          "bard"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "effect:healing_or_boon"
+          ]
+        }
       }
     },
     {
@@ -185,7 +276,9 @@
         "dice": "1d8",
         "damage_type": "radiant"
       },
-      "class_refs": ["cleric"],
+      "class_refs": [
+        "cleric"
+      ],
       "effect": {
         "damage_ref": "spell_damage_sacred_flame",
         "targeting": "single"
@@ -193,8 +286,22 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15-starter",
-        "notes": ["Scaffold save-based cantrip metadata"],
-        "class_refs": ["cleric"]
+        "notes": [
+          "Scaffold save-based cantrip metadata"
+        ],
+        "class_refs": [
+          "cleric"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:single_target",
+            "effect:damage",
+            "damage_type:radiant"
+          ]
+        }
       }
     },
     {
@@ -218,7 +325,9 @@
         "dice": "4d6",
         "damage_type": "radiant"
       },
-      "class_refs": ["cleric"],
+      "class_refs": [
+        "cleric"
+      ],
       "effect": {
         "damage_ref": "spell_damage_guiding_bolt",
         "targeting": "single",
@@ -227,8 +336,24 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15-starter",
-        "notes": ["Scaffold on-hit rider metadata"],
-        "class_refs": ["cleric"]
+        "notes": [
+          "Scaffold on-hit rider metadata"
+        ],
+        "class_refs": [
+          "cleric"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:spell_attack",
+            "target:single_target",
+            "effect:damage",
+            "status:next_attack_advantage",
+            "damage_type:radiant",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -248,7 +373,10 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["wizard", "sorcerer"],
+      "class_refs": [
+        "wizard",
+        "sorcerer"
+      ],
       "effect": {
         "defense_ref": "spell_mage_armor_base_ac",
         "base_ac_formula": "13 + dex_mod"
@@ -256,8 +384,22 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15-starter",
-        "notes": ["Scaffold long-duration defense buff metadata"],
-        "class_refs": ["wizard", "sorcerer"]
+        "notes": [
+          "Scaffold long-duration defense buff metadata"
+        ],
+        "class_refs": [
+          "wizard",
+          "sorcerer"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -277,7 +419,10 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["wizard", "sorcerer"],
+      "class_refs": [
+        "wizard",
+        "sorcerer"
+      ],
       "effect": {
         "vitality_ref": "spell_false_life_temporary_hitpoints",
         "temporary_hitpoints": 7
@@ -285,7 +430,20 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage17_combat_depth",
-        "class_refs": ["wizard", "sorcerer"]
+        "class_refs": [
+          "wizard",
+          "sorcerer"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:self",
+            "duration:persistent",
+            "effect:healing_or_boon"
+          ]
+        }
       }
     },
     {
@@ -309,7 +467,10 @@
         "dice": "1d6",
         "damage_type": "acid"
       },
-      "class_refs": ["wizard", "sorcerer"],
+      "class_refs": [
+        "wizard",
+        "sorcerer"
+      ],
       "effect": {
         "damage_ref": "spell_damage_acid_splash",
         "targeting": "single_or_adjacent_pair"
@@ -317,11 +478,24 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15_content_pack_1",
-        "class_refs": ["wizard", "sorcerer"],
+        "class_refs": [
+          "wizard",
+          "sorcerer"
+        ],
         "area_template": {
           "shape": "cone",
           "size_feet": 15,
           "origin": "self"
+        },
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:single_or_adjacent_pair",
+            "effect:damage",
+            "damage_type:acid"
+          ]
         }
       }
     },
@@ -346,7 +520,10 @@
         "dice": "1d8",
         "damage_type": "lightning"
       },
-      "class_refs": ["wizard", "sorcerer"],
+      "class_refs": [
+        "wizard",
+        "sorcerer"
+      ],
       "effect": {
         "damage_ref": "spell_damage_shocking_grasp",
         "targeting": "single",
@@ -355,7 +532,21 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15_content_pack_1",
-        "class_refs": ["wizard", "sorcerer"]
+        "class_refs": [
+          "wizard",
+          "sorcerer"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:spell_attack",
+            "target:single_target",
+            "effect:damage",
+            "status:no_reaction_until_next_turn",
+            "damage_type:lightning"
+          ]
+        }
       }
     },
     {
@@ -376,15 +567,32 @@
         "save_ability": "dexterity"
       },
       "damage": null,
-      "class_refs": ["bard", "druid"],
+      "class_refs": [
+        "bard",
+        "druid"
+      ],
       "effect": {
         "status_hint": "outlined_for_advantage"
       },
       "metadata": {
         "starter_spell": true,
         "source": "stage17_combat_depth",
-        "class_refs": ["bard", "druid"],
-        "note": "Current supported slice uses single-target targeting until area templates are implemented."
+        "class_refs": [
+          "bard",
+          "druid"
+        ],
+        "note": "Current supported slice uses single-target targeting until area templates are implemented.",
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:single_target",
+            "status:outlined_for_advantage",
+            "resource:concentration",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -404,7 +612,9 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["warlock"],
+      "class_refs": [
+        "warlock"
+      ],
       "effect": {
         "vitality_ref": "spell_armor_of_agathys_temporary_hitpoints",
         "temporary_hitpoints": 5,
@@ -414,7 +624,19 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage17_combat_depth",
-        "class_refs": ["warlock"]
+        "class_refs": [
+          "warlock"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:self",
+            "status:armor_of_agathys",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -434,7 +656,10 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["druid", "ranger"],
+      "class_refs": [
+        "druid",
+        "ranger"
+      ],
       "effect": {
         "defense_ref": "spell_barkskin_minimum_ac",
         "minimum_ac": 16
@@ -442,92 +667,146 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage17_combat_depth",
-        "class_refs": ["druid", "ranger"]
+        "class_refs": [
+          "druid",
+          "ranger"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "resource:concentration",
+            "duration:persistent"
+          ]
+        }
       }
     },
-      {
-        "id": "hold_person",
-        "spell_id": "hold_person",
-        "name": "Hold Person",
-        "level": 2,
-        "school": "enchantment",
-        "casting_time": "1 action",
-        "range": "60 feet",
-        "targeting": {
-          "type": "single_target"
-        },
-        "duration": "up to 1 minute",
-        "concentration": true,
-        "attack_or_save": {
-          "type": "save",
-          "save_ability": "wisdom"
-        },
-        "damage": null,
-        "class_refs": ["bard", "cleric", "druid", "sorcerer", "warlock", "wizard"],
-        "effect": {
-          "status_hint": "hold_person_disable"
-        },
-        "applied_conditions": [
-          {
-              "condition_type": "paralyzed",
-              "expiration_trigger": "manual",
-              "metadata": {
-                "source": "hold_person",
-                "attackers_have_advantage": true,
-                "has_attack_disadvantage": true,
-                "end_of_turn_save_ability": "wisdom"
-              }
-            }
-        ],
-        "metadata": {
-          "starter_spell": true,
-          "source": "stage17_combat_depth",
-          "class_refs": ["bard", "cleric", "druid", "sorcerer", "warlock", "wizard"],
-          "note": "Current supported slice uses a single-target save-and-disable implementation."
-        }
+    {
+      "id": "hold_person",
+      "spell_id": "hold_person",
+      "name": "Hold Person",
+      "level": 2,
+      "school": "enchantment",
+      "casting_time": "1 action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "single_target"
       },
-      {
-        "id": "entangle",
-        "spell_id": "entangle",
-        "name": "Entangle",
-        "level": 1,
-        "school": "conjuration",
-        "casting_time": "1 action",
-        "range": "90 feet",
-        "targeting": {
-          "type": "single_target"
-        },
-        "duration": "up to 1 minute",
-        "concentration": true,
-        "attack_or_save": {
-          "type": "save",
-          "save_ability": "strength"
-        },
-        "damage": null,
-        "class_refs": ["druid", "ranger"],
-        "effect": {
-          "status_ref": "spell_entangle_restrain"
-        },
-        "applied_conditions": [
-          {
-            "condition_type": "restrained",
-            "expiration_trigger": "manual",
-            "metadata": {
-              "source": "entangle"
-            }
+      "duration": "up to 1 minute",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "wisdom"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "cleric",
+        "druid",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
+      "effect": {
+        "status_hint": "hold_person_disable"
+      },
+      "applied_conditions": [
+        {
+          "condition_type": "paralyzed",
+          "expiration_trigger": "manual",
+          "metadata": {
+            "source": "hold_person",
+            "attackers_have_advantage": true,
+            "has_attack_disadvantage": true,
+            "end_of_turn_save_ability": "wisdom"
           }
-        ],
-        "metadata": {
-          "starter_spell": true,
-          "source": "stage18_combat_depth",
-          "class_refs": ["druid", "ranger"],
-          "note": "Current supported slice uses a single-target restrained implementation."
         }
+      ],
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage17_combat_depth",
+        "class_refs": [
+          "bard",
+          "cleric",
+          "druid",
+          "sorcerer",
+          "warlock",
+          "wizard"
+        ],
+        "note": "Current supported slice uses a single-target save-and-disable implementation.",
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:single_target",
+            "status:hold_person_disable",
+            "resource:concentration",
+            "duration:persistent"
+          ]
+        }
+      }
+    },
+    {
+      "id": "entangle",
+      "spell_id": "entangle",
+      "name": "Entangle",
+      "level": 1,
+      "school": "conjuration",
+      "casting_time": "1 action",
+      "range": "90 feet",
+      "targeting": {
+        "type": "single_target"
       },
-      {
-        "id": "bless",
-        "spell_id": "bless",
-        "name": "Bless",
+      "duration": "up to 1 minute",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "strength"
+      },
+      "damage": null,
+      "class_refs": [
+        "druid",
+        "ranger"
+      ],
+      "effect": {
+        "status_ref": "spell_entangle_restrain"
+      },
+      "applied_conditions": [
+        {
+          "condition_type": "restrained",
+          "expiration_trigger": "manual",
+          "metadata": {
+            "source": "entangle"
+          }
+        }
+      ],
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage18_combat_depth",
+        "class_refs": [
+          "druid",
+          "ranger"
+        ],
+        "note": "Current supported slice uses a single-target restrained implementation.",
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:single_target",
+            "resource:concentration",
+            "duration:persistent"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bless",
+      "spell_id": "bless",
+      "name": "Bless",
       "level": 1,
       "school": "enchantment",
       "casting_time": "1 action",
@@ -541,45 +820,77 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["cleric", "paladin"],
+      "class_refs": [
+        "cleric",
+        "paladin"
+      ],
       "effect": {
         "buff_ref": "spell_bless_attack_and_save_bonus",
         "dice_bonus": "1d4"
       },
-        "metadata": {
-          "starter_spell": true,
-          "source": "stage15_content_pack_1",
-          "class_refs": ["cleric", "paladin"]
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage15_content_pack_1",
+        "class_refs": [
+          "cleric",
+          "paladin"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:up_to_three_allies",
+            "resource:concentration",
+            "duration:persistent"
+          ]
         }
+      }
+    },
+    {
+      "id": "bane",
+      "spell_id": "bane",
+      "name": "Bane",
+      "level": 1,
+      "school": "enchantment",
+      "casting_time": "1 action",
+      "range": "30 feet",
+      "targeting": {
+        "type": "up_to_three_enemies"
       },
-      {
-        "id": "bane",
-        "spell_id": "bane",
-        "name": "Bane",
-        "level": 1,
-        "school": "enchantment",
-        "casting_time": "1 action",
-        "range": "30 feet",
-        "targeting": {
-          "type": "up_to_three_enemies"
-        },
-        "duration": "1 minute",
-        "concentration": true,
-        "attack_or_save": {
-          "type": "none"
-        },
-        "damage": null,
-        "class_refs": ["cleric", "bard"],
-        "effect": {
-          "debuff_ref": "spell_bane_attack_and_save_penalty",
-          "dice_bonus": "1d4"
-        },
-        "metadata": {
-          "starter_spell": true,
-          "source": "stage17_combat_depth",
-          "class_refs": ["cleric", "bard"]
+      "duration": "1 minute",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "cleric",
+        "bard"
+      ],
+      "effect": {
+        "debuff_ref": "spell_bane_attack_and_save_penalty",
+        "dice_bonus": "1d4"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage17_combat_depth",
+        "class_refs": [
+          "cleric",
+          "bard"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:up_to_three_enemies",
+            "resource:concentration",
+            "duration:persistent"
+          ]
         }
-      },
+      }
+    },
     {
       "id": "shield_of_faith",
       "spell_id": "shield_of_faith",
@@ -597,7 +908,10 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["cleric", "paladin"],
+      "class_refs": [
+        "cleric",
+        "paladin"
+      ],
       "effect": {
         "defense_ref": "spell_shield_of_faith_ac_bonus",
         "ac_bonus": 2
@@ -605,7 +919,20 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage16_concentration_slice",
-        "class_refs": ["cleric", "paladin"]
+        "class_refs": [
+          "cleric",
+          "paladin"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "resource:concentration",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -625,7 +952,10 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["bard", "paladin"],
+      "class_refs": [
+        "bard",
+        "paladin"
+      ],
       "effect": {
         "status_hint": "heroism",
         "start_of_turn_temporary_hitpoints": 3
@@ -633,7 +963,22 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage17_combat_depth",
-        "class_refs": ["bard", "paladin"]
+        "class_refs": [
+          "bard",
+          "paladin"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:up_to_three_allies",
+            "status:heroism",
+            "resource:concentration",
+            "duration:persistent",
+            "effect:healing_or_boon"
+          ]
+        }
       }
     },
     {
@@ -653,7 +998,10 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["cleric", "paladin"],
+      "class_refs": [
+        "cleric",
+        "paladin"
+      ],
       "effect": {
         "vitality_ref": "spell_aid_hitpoint_bonus",
         "hitpoint_max_bonus": 5,
@@ -662,7 +1010,21 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage17_combat_depth",
-        "class_refs": ["cleric", "paladin"]
+        "class_refs": [
+          "cleric",
+          "paladin"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:up_to_three_allies",
+            "status:aid",
+            "duration:persistent",
+            "effect:healing_or_boon"
+          ]
+        }
       }
     },
     {
@@ -686,7 +1048,10 @@
         "dice": "3d6",
         "damage_type": "fire"
       },
-      "class_refs": ["wizard", "sorcerer"],
+      "class_refs": [
+        "wizard",
+        "sorcerer"
+      ],
       "effect": {
         "damage_ref": "spell_damage_burning_hands",
         "targeting": "cone"
@@ -694,7 +1059,21 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15_content_pack_1",
-        "class_refs": ["wizard", "sorcerer"]
+        "class_refs": [
+          "wizard",
+          "sorcerer"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:cone_15ft",
+            "effect:damage",
+            "damage_type:fire",
+            "shape:area"
+          ]
+        }
       }
     },
     {
@@ -718,7 +1097,11 @@
         "dice": "2d8",
         "damage_type": "thunder"
       },
-      "class_refs": ["wizard", "sorcerer", "bard"],
+      "class_refs": [
+        "wizard",
+        "sorcerer",
+        "bard"
+      ],
       "effect": {
         "damage_ref": "spell_damage_thunderwave",
         "targeting": "cube",
@@ -727,11 +1110,27 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15_content_pack_1",
-        "class_refs": ["wizard", "sorcerer", "bard"],
+        "class_refs": [
+          "wizard",
+          "sorcerer",
+          "bard"
+        ],
         "area_template": {
           "shape": "cube",
           "size_feet": 15,
           "origin": "self"
+        },
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:cube_15ft",
+            "effect:damage",
+            "status:push_10_feet_on_fail",
+            "damage_type:thunder",
+            "shape:area"
+          ]
         }
       }
     },
@@ -752,7 +1151,13 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["wizard", "cleric", "druid", "bard", "sorcerer"],
+      "class_refs": [
+        "wizard",
+        "cleric",
+        "druid",
+        "bard",
+        "sorcerer"
+      ],
       "effect": {
         "utility_ref": "spell_detect_magic_reveals_aura",
         "targeting": "utility"
@@ -760,7 +1165,24 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage16_dungeon_interaction",
-        "class_refs": ["wizard", "cleric", "druid", "bard", "sorcerer"]
+        "class_refs": [
+          "wizard",
+          "cleric",
+          "druid",
+          "bard",
+          "sorcerer"
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:utility",
+            "utility:spell_detect_magic_reveals_aura",
+            "resource:concentration",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -780,7 +1202,10 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["wizard", "bard"],
+      "class_refs": [
+        "wizard",
+        "bard"
+      ],
       "effect": {
         "utility_ref": "spell_identify_reveals_object_nature",
         "targeting": "object"
@@ -788,7 +1213,19 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage16_dungeon_interaction",
-        "class_refs": ["wizard", "bard"]
+        "class_refs": [
+          "wizard",
+          "bard"
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:object",
+            "utility:spell_identify_reveals_object_nature"
+          ]
+        }
       }
     },
     {
@@ -808,7 +1245,12 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["cleric", "wizard", "bard", "sorcerer"],
+      "class_refs": [
+        "cleric",
+        "wizard",
+        "bard",
+        "sorcerer"
+      ],
       "effect": {
         "utility_ref": "spell_light_emits_bright_light",
         "targeting": "object"
@@ -816,7 +1258,22 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15_content_pack_1",
-        "class_refs": ["cleric", "wizard", "bard", "sorcerer"]
+        "class_refs": [
+          "cleric",
+          "wizard",
+          "bard",
+          "sorcerer"
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:object",
+            "utility:spell_light_emits_bright_light",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -840,7 +1297,11 @@
         "dice": "1d12",
         "damage_type": "poison"
       },
-      "class_refs": ["sorcerer", "wizard", "druid"],
+      "class_refs": [
+        "sorcerer",
+        "wizard",
+        "druid"
+      ],
       "effect": {
         "damage_ref": "spell_damage_poison_spray",
         "targeting": "single"
@@ -848,7 +1309,21 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15_content_pack_1",
-        "class_refs": ["sorcerer", "wizard", "druid"]
+        "class_refs": [
+          "sorcerer",
+          "wizard",
+          "druid"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:single_target",
+            "effect:damage",
+            "damage_type:poison"
+          ]
+        }
       }
     },
     {
@@ -868,7 +1343,11 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["wizard", "bard", "sorcerer"],
+      "class_refs": [
+        "wizard",
+        "bard",
+        "sorcerer"
+      ],
       "effect": {
         "utility_ref": "spell_knock_unlocks_object",
         "targeting": "object"
@@ -876,7 +1355,20 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage16_dungeon_interaction",
-        "class_refs": ["wizard", "bard", "sorcerer"]
+        "class_refs": [
+          "wizard",
+          "bard",
+          "sorcerer"
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:object",
+            "utility:spell_knock_unlocks_object"
+          ]
+        }
       }
     },
     {
@@ -896,7 +1388,9 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["cleric"],
+      "class_refs": [
+        "cleric"
+      ],
       "effect": {
         "utility_ref": "spell_thaumaturgy_minor_wonders",
         "targeting": "utility"
@@ -904,7 +1398,19 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15_content_pack_1",
-        "class_refs": ["cleric"]
+        "class_refs": [
+          "cleric"
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:utility",
+            "utility:spell_thaumaturgy_minor_wonders",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -928,7 +1434,10 @@
         "dice": "3d8",
         "damage_type": "choice_elemental"
       },
-      "class_refs": ["sorcerer", "wizard"],
+      "class_refs": [
+        "sorcerer",
+        "wizard"
+      ],
       "effect": {
         "damage_ref": "spell_damage_chromatic_orb",
         "targeting": "single"
@@ -936,7 +1445,20 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15_content_pack_1",
-        "class_refs": ["sorcerer", "wizard"]
+        "class_refs": [
+          "sorcerer",
+          "wizard"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:spell_attack",
+            "target:single_target",
+            "effect:damage",
+            "damage_type:choice_elemental"
+          ]
+        }
       }
     },
     {
@@ -960,7 +1482,11 @@
         "dice": "1d4",
         "bonus": "spellcasting_ability_modifier"
       },
-      "class_refs": ["bard", "cleric", "druid"],
+      "class_refs": [
+        "bard",
+        "cleric",
+        "druid"
+      ],
       "effect": {
         "healing_ref": "spell_heal_healing_word",
         "targeting": "single"
@@ -968,7 +1494,20 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15_content_pack_1",
-        "class_refs": ["bard", "cleric", "druid"]
+        "class_refs": [
+          "bard",
+          "cleric",
+          "druid"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "effect:healing_or_boon"
+          ]
+        }
       }
     },
     {
@@ -988,15 +1527,39 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["bard", "cleric", "druid", "paladin", "ranger"],
+      "class_refs": [
+        "bard",
+        "cleric",
+        "druid",
+        "paladin",
+        "ranger"
+      ],
       "effect": {
         "status_ref": "spell_lesser_restoration_cleanse",
-          "remove_conditions": ["poisoned", "stunned", "paralyzed"]
-        },
+        "remove_conditions": [
+          "poisoned",
+          "stunned",
+          "paralyzed"
+        ]
+      },
       "metadata": {
         "starter_spell": true,
         "source": "stage15_content_pack_1",
-        "class_refs": ["bard", "cleric", "druid", "paladin", "ranger"]
+        "class_refs": [
+          "bard",
+          "cleric",
+          "druid",
+          "paladin",
+          "ranger"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target"
+          ]
+        }
       }
     },
     {
@@ -1017,14 +1580,34 @@
         "save_ability": "constitution"
       },
       "damage": null,
-      "class_refs": ["bard", "cleric", "sorcerer", "wizard"],
+      "class_refs": [
+        "bard",
+        "cleric",
+        "sorcerer",
+        "wizard"
+      ],
       "effect": {
         "status_hint": "blindness"
       },
       "metadata": {
         "starter_spell": true,
         "source": "stage18_combat_depth",
-        "class_refs": ["bard", "cleric", "sorcerer", "wizard"]
+        "class_refs": [
+          "bard",
+          "cleric",
+          "sorcerer",
+          "wizard"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:single_target",
+            "status:blindness",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -1044,16 +1627,28 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["cleric", "druid", "paladin", "ranger"],
+      "class_refs": [
+        "cleric",
+        "druid",
+        "paladin",
+        "ranger"
+      ],
       "effect": {
         "status_ref": "spell_protection_from_poison",
-        "remove_conditions": ["poisoned"],
+        "remove_conditions": [
+          "poisoned"
+        ],
         "applied_conditions": [
           {
             "condition_type": "protection_from_poison",
             "expiration_trigger": "manual",
             "metadata": {
-              "resistances": ["poison"],
+              "resistances": [
+                "poison"
+              ],
+              "immunity_tags": [
+                "poisoned"
+              ],
               "source_spell_id": "protection_from_poison"
             }
           }
@@ -1062,7 +1657,21 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage17_combat_depth",
-        "class_refs": ["cleric", "druid", "paladin", "ranger"]
+        "class_refs": [
+          "cleric",
+          "druid",
+          "paladin",
+          "ranger"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -1082,14 +1691,31 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["sorcerer", "wizard"],
+      "class_refs": [
+        "sorcerer",
+        "wizard"
+      ],
       "effect": {
         "status_hint": "blur"
       },
       "metadata": {
         "starter_spell": true,
         "source": "stage17_combat_depth",
-        "class_refs": ["sorcerer", "wizard"]
+        "class_refs": [
+          "sorcerer",
+          "wizard"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:self",
+            "status:blur",
+            "resource:concentration",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -1109,14 +1735,35 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["bard", "sorcerer", "warlock", "wizard"],
+      "class_refs": [
+        "bard",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
       "effect": {
         "status_hint": "invisibility"
       },
       "metadata": {
         "starter_spell": true,
         "source": "stage17_combat_depth",
-        "class_refs": ["bard", "sorcerer", "warlock", "wizard"]
+        "class_refs": [
+          "bard",
+          "sorcerer",
+          "warlock",
+          "wizard"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "status:invisibility",
+            "resource:concentration",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -1136,7 +1783,12 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["bard", "druid", "ranger", "wizard"],
+      "class_refs": [
+        "bard",
+        "druid",
+        "ranger",
+        "wizard"
+      ],
       "effect": {
         "status_hint": "longstrider",
         "speed_bonus_feet": 10
@@ -1144,7 +1796,22 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage17_combat_depth",
-        "class_refs": ["bard", "druid", "ranger", "wizard"]
+        "class_refs": [
+          "bard",
+          "druid",
+          "ranger",
+          "wizard"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "status:longstrider",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -1164,7 +1831,10 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["cleric", "druid"],
+      "class_refs": [
+        "cleric",
+        "druid"
+      ],
       "effect": {
         "buff_ref": "spell_resistance_save_bonus",
         "dice_bonus": "1d4"
@@ -1172,7 +1842,20 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage17_combat_depth",
-        "class_refs": ["cleric", "druid"]
+        "class_refs": [
+          "cleric",
+          "druid"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "resource:concentration",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -1192,14 +1875,34 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["bard", "sorcerer", "warlock", "wizard"],
+      "class_refs": [
+        "bard",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
       "effect": {
         "status_hint": "blade_ward"
       },
       "metadata": {
         "starter_spell": true,
         "source": "stage17_combat_depth",
-        "class_refs": ["bard", "sorcerer", "warlock", "wizard"]
+        "class_refs": [
+          "bard",
+          "sorcerer",
+          "warlock",
+          "wizard"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:self",
+            "status:blade_ward",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -1219,14 +1922,28 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["cleric"],
+      "class_refs": [
+        "cleric"
+      ],
       "effect": {
         "status_hint": "sanctuary"
       },
       "metadata": {
         "starter_spell": true,
         "source": "stage17_combat_depth",
-        "class_refs": ["cleric"]
+        "class_refs": [
+          "cleric"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "status:sanctuary",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -1247,14 +1964,36 @@
         "save_ability": "wisdom"
       },
       "damage": null,
-      "class_refs": ["bard", "druid", "sorcerer", "warlock", "wizard"],
+      "class_refs": [
+        "bard",
+        "druid",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
       "effect": {
         "status_hint": "charm_person"
       },
       "metadata": {
         "starter_spell": true,
         "source": "stage17_combat_depth",
-        "class_refs": ["bard", "druid", "sorcerer", "warlock", "wizard"]
+        "class_refs": [
+          "bard",
+          "druid",
+          "sorcerer",
+          "warlock",
+          "wizard"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:single_target",
+            "status:charm_person",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -1275,14 +2014,35 @@
         "save_ability": "wisdom"
       },
       "damage": null,
-      "class_refs": ["bard", "sorcerer", "warlock", "wizard"],
+      "class_refs": [
+        "bard",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
       "effect": {
         "status_hint": "fear"
       },
       "metadata": {
         "starter_spell": true,
         "source": "stage17_combat_depth",
-        "class_refs": ["bard", "sorcerer", "warlock", "wizard"]
+        "class_refs": [
+          "bard",
+          "sorcerer",
+          "warlock",
+          "wizard"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:single_target",
+            "status:fear",
+            "resource:concentration",
+            "duration:persistent"
+          ]
+        }
       }
     },
     {
@@ -1302,7 +2062,12 @@
         "type": "none"
       },
       "damage": null,
-      "class_refs": ["druid", "ranger", "sorcerer", "wizard"],
+      "class_refs": [
+        "druid",
+        "ranger",
+        "sorcerer",
+        "wizard"
+      ],
       "effect": {
         "utility_ref": "spell_fog_cloud_heavily_obscured",
         "targeting": "area"
@@ -1310,11 +2075,237 @@
       "metadata": {
         "starter_spell": true,
         "source": "srd_area_templates",
-        "class_refs": ["druid", "ranger", "sorcerer", "wizard"],
+        "class_refs": [
+          "druid",
+          "ranger",
+          "sorcerer",
+          "wizard"
+        ],
         "area_template": {
           "shape": "sphere",
           "radius_feet": 20,
           "origin": "point_within_range"
+        },
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:sphere_20ft",
+            "utility:spell_fog_cloud_heavily_obscured",
+            "resource:concentration",
+            "duration:persistent",
+            "shape:area"
+          ]
+        }
+      }
+    },
+    {
+      "id": "grease",
+      "spell_id": "grease",
+      "name": "Grease",
+      "level": 1,
+      "school": "conjuration",
+      "casting_time": "1 action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "cube_15ft"
+      },
+      "duration": "1 minute",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "dexterity"
+      },
+      "damage": null,
+      "class_refs": [
+        "sorcerer",
+        "wizard"
+      ],
+      "effect": {
+        "status_ref": "spell_grease_prone",
+        "targeting": "area"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage19_battlefield_effects",
+        "class_refs": [
+          "sorcerer",
+          "wizard"
+        ],
+        "area_template": {
+          "shape": "cube",
+          "size_feet": 15,
+          "origin": "point_within_range"
+        },
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:cube_15ft",
+            "duration:persistent",
+            "shape:area"
+          ]
+        }
+      }
+    },
+    {
+      "id": "web",
+      "spell_id": "web",
+      "name": "Web",
+      "level": 2,
+      "school": "conjuration",
+      "casting_time": "1 action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "cube_15ft"
+      },
+      "duration": "concentration, up to 1 hour",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "dexterity"
+      },
+      "damage": null,
+      "class_refs": [
+        "sorcerer",
+        "wizard"
+      ],
+      "effect": {
+        "status_ref": "spell_web_restrained",
+        "targeting": "area"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage19_battlefield_effects",
+        "class_refs": [
+          "sorcerer",
+          "wizard"
+        ],
+        "area_template": {
+          "shape": "cube",
+          "size_feet": 15,
+          "origin": "point_within_range"
+        },
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:cube_15ft",
+            "resource:concentration",
+            "duration:persistent",
+            "shape:area"
+          ]
+        }
+      }
+    },
+    {
+      "id": "darkness",
+      "spell_id": "darkness",
+      "name": "Darkness",
+      "level": 2,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "sphere_20ft"
+      },
+      "duration": "concentration, up to 10 minutes",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_darkness_heavily_obscured",
+        "targeting": "area"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage19_battlefield_effects",
+        "class_refs": [
+          "sorcerer",
+          "warlock",
+          "wizard"
+        ],
+        "area_template": {
+          "shape": "sphere",
+          "radius_feet": 15,
+          "origin": "point_within_range"
+        },
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:sphere_20ft",
+            "utility:spell_darkness_heavily_obscured",
+            "resource:concentration",
+            "duration:persistent",
+            "shape:area"
+          ]
+        }
+      }
+    },
+    {
+      "id": "moonbeam",
+      "spell_id": "moonbeam",
+      "name": "Moonbeam",
+      "level": 2,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "120 feet",
+      "targeting": {
+        "type": "cylinder_20ft"
+      },
+      "duration": "concentration, up to 1 minute",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "constitution"
+      },
+      "damage": {
+        "dice": "2d10",
+        "damage_type": "radiant"
+      },
+      "class_refs": [
+        "druid"
+      ],
+      "effect": {
+        "damage_ref": "spell_damage_moonbeam",
+        "targeting": "area"
+      },
+      "metadata": {
+        "starter_spell": true,
+        "source": "stage19_battlefield_effects",
+        "class_refs": [
+          "druid"
+        ],
+        "area_template": {
+          "shape": "cylinder",
+          "radius_feet": 5,
+          "height_feet": 40,
+          "origin": "point_within_range"
+        },
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:cylinder_20ft",
+            "effect:damage",
+            "damage_type:radiant",
+            "resource:concentration",
+            "duration:persistent",
+            "shape:area"
+          ]
         }
       }
     },
@@ -1339,7 +2330,12 @@
         "dice": "3d8",
         "damage_type": "thunder"
       },
-      "class_refs": ["bard", "sorcerer", "warlock", "wizard"],
+      "class_refs": [
+        "bard",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
       "effect": {
         "damage_ref": "spell_damage_shatter",
         "targeting": "area"
@@ -1347,11 +2343,27 @@
       "metadata": {
         "starter_spell": true,
         "source": "srd_area_templates",
-        "class_refs": ["bard", "sorcerer", "warlock", "wizard"],
+        "class_refs": [
+          "bard",
+          "sorcerer",
+          "warlock",
+          "wizard"
+        ],
         "area_template": {
           "shape": "sphere",
           "radius_feet": 10,
           "origin": "point_within_range"
+        },
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:sphere_10ft",
+            "effect:damage",
+            "damage_type:thunder",
+            "shape:area"
+          ]
         }
       }
     },
@@ -1376,7 +2388,10 @@
         "dice": "8d6",
         "damage_type": "fire"
       },
-      "class_refs": ["sorcerer", "wizard"],
+      "class_refs": [
+        "sorcerer",
+        "wizard"
+      ],
       "effect": {
         "damage_ref": "spell_damage_fireball",
         "targeting": "area"
@@ -1384,11 +2399,25 @@
       "metadata": {
         "starter_spell": true,
         "source": "srd_area_templates",
-        "class_refs": ["sorcerer", "wizard"],
+        "class_refs": [
+          "sorcerer",
+          "wizard"
+        ],
         "area_template": {
           "shape": "sphere",
           "radius_feet": 20,
           "origin": "point_within_range"
+        },
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:sphere_20ft",
+            "effect:damage",
+            "damage_type:fire",
+            "shape:area"
+          ]
         }
       }
     },
@@ -1413,7 +2442,10 @@
         "dice": "8d6",
         "damage_type": "lightning"
       },
-      "class_refs": ["sorcerer", "wizard"],
+      "class_refs": [
+        "sorcerer",
+        "wizard"
+      ],
       "effect": {
         "damage_ref": "spell_damage_lightning_bolt",
         "targeting": "line"
@@ -1421,12 +2453,26 @@
       "metadata": {
         "starter_spell": true,
         "source": "srd_area_templates",
-        "class_refs": ["sorcerer", "wizard"],
+        "class_refs": [
+          "sorcerer",
+          "wizard"
+        ],
         "area_template": {
           "shape": "line",
           "length_feet": 100,
           "width_feet": 5,
           "origin": "self"
+        },
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:line_100ft_5ft",
+            "effect:damage",
+            "damage_type:lightning",
+            "shape:area"
+          ]
         }
       }
     },
@@ -1451,7 +2497,9 @@
         "dice": "3d8",
         "damage_type": "radiant"
       },
-      "class_refs": ["cleric"],
+      "class_refs": [
+        "cleric"
+      ],
       "effect": {
         "damage_ref": "spell_damage_spirit_guardians",
         "targeting": "aura"
@@ -1459,11 +2507,26 @@
       "metadata": {
         "starter_spell": true,
         "source": "srd_area_templates",
-        "class_refs": ["cleric"],
+        "class_refs": [
+          "cleric"
+        ],
         "area_template": {
           "shape": "aura",
           "radius_feet": 15,
           "origin": "self"
+        },
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:aura_15ft",
+            "effect:damage",
+            "damage_type:radiant",
+            "resource:concentration",
+            "duration:persistent",
+            "shape:area"
+          ]
         }
       }
     },
@@ -1488,7 +2551,10 @@
         "dice": "3x2d6",
         "damage_type": "fire"
       },
-      "class_refs": ["sorcerer", "wizard"],
+      "class_refs": [
+        "sorcerer",
+        "wizard"
+      ],
       "effect": {
         "damage_ref": "spell_damage_scorching_ray",
         "targeting": "single_or_split_target",
@@ -1497,7 +2563,20 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage15_content_pack_1",
-        "class_refs": ["sorcerer", "wizard"]
+        "class_refs": [
+          "sorcerer",
+          "wizard"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:spell_attack",
+            "target:single_or_split_target",
+            "effect:damage",
+            "damage_type:fire"
+          ]
+        }
       }
     },
     {
@@ -1521,7 +2600,9 @@
         "dice": "3d10",
         "damage_type": "necrotic"
       },
-      "class_refs": ["cleric"],
+      "class_refs": [
+        "cleric"
+      ],
       "effect": {
         "damage_ref": "spell_damage_inflict_wounds",
         "targeting": "single"
@@ -1529,7 +2610,19 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage16_combat_depth",
-        "class_refs": ["cleric"]
+        "class_refs": [
+          "cleric"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:spell_attack",
+            "target:single_target",
+            "effect:damage",
+            "damage_type:necrotic"
+          ]
+        }
       }
     },
     {
@@ -1553,7 +2646,9 @@
         "dice": "4d4",
         "damage_type": "acid"
       },
-      "class_refs": ["wizard"],
+      "class_refs": [
+        "wizard"
+      ],
       "effect": {
         "damage_ref": "spell_damage_acid_arrow",
         "targeting": "single"
@@ -1561,7 +2656,19 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage16_combat_depth",
-        "class_refs": ["wizard"]
+        "class_refs": [
+          "wizard"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:spell_attack",
+            "target:single_target",
+            "effect:damage",
+            "damage_type:acid"
+          ]
+        }
       }
     },
     {
@@ -1585,7 +2692,9 @@
         "dice": "2d10",
         "damage_type": "fire"
       },
-      "class_refs": ["warlock"],
+      "class_refs": [
+        "warlock"
+      ],
       "effect": {
         "damage_ref": "spell_damage_hellish_rebuke",
         "targeting": "single"
@@ -1593,7 +2702,19 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage16_combat_depth",
-        "class_refs": ["warlock"]
+        "class_refs": [
+          "warlock"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:single_target",
+            "effect:damage",
+            "damage_type:fire"
+          ]
+        }
       }
     },
     {
@@ -1617,15 +2738,31 @@
         "dice": "3d6",
         "damage_type": "psychic"
       },
-      "class_refs": ["bard"],
+      "class_refs": [
+        "bard"
+      ],
       "effect": {
         "damage_ref": "spell_damage_dissonant_whispers",
-        "targeting": "single"
+        "targeting": "single",
+        "status_hint": "flee_on_fail_using_reaction"
       },
       "metadata": {
         "starter_spell": true,
         "source": "stage16_combat_depth",
-        "class_refs": ["bard"]
+        "class_refs": [
+          "bard"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:single_target",
+            "effect:damage",
+            "status:flee_on_fail_using_reaction",
+            "damage_type:psychic"
+          ]
+        }
       }
     },
     {
@@ -1649,7 +2786,9 @@
         "dice": "1d10",
         "damage_type": "force"
       },
-      "class_refs": ["warlock"],
+      "class_refs": [
+        "warlock"
+      ],
       "effect": {
         "damage_ref": "spell_damage_eldritch_blast",
         "targeting": "single"
@@ -1657,7 +2796,19 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage18_combat_depth",
-        "class_refs": ["warlock"]
+        "class_refs": [
+          "warlock"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:spell_attack",
+            "target:single_target",
+            "effect:damage",
+            "damage_type:force"
+          ]
+        }
       }
     },
     {
@@ -1681,15 +2832,34 @@
         "dice": "1d8",
         "damage_type": "necrotic"
       },
-      "class_refs": ["cleric", "warlock", "wizard"],
+      "class_refs": [
+        "cleric",
+        "warlock",
+        "wizard"
+      ],
       "effect": {
         "damage_ref": "spell_damage_toll_the_dead",
-        "targeting": "single"
+        "targeting": "single",
+        "damage_formula_when_target_wounded": "1d12"
       },
       "metadata": {
         "starter_spell": true,
         "source": "stage18_combat_depth",
-        "class_refs": ["cleric", "warlock", "wizard"]
+        "class_refs": [
+          "cleric",
+          "warlock",
+          "wizard"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:single_target",
+            "effect:damage",
+            "damage_type:necrotic"
+          ]
+        }
       }
     },
     {
@@ -1713,7 +2883,9 @@
         "dice": "1d4",
         "damage_type": "psychic"
       },
-      "class_refs": ["bard"],
+      "class_refs": [
+        "bard"
+      ],
       "effect": {
         "damage_ref": "spell_damage_vicious_mockery",
         "targeting": "single"
@@ -1721,7 +2893,2379 @@
       "metadata": {
         "starter_spell": true,
         "source": "stage18_combat_depth",
-        "class_refs": ["bard"]
+        "class_refs": [
+          "bard"
+        ],
+        "runtime_support": {
+          "combat_resolution": "supported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:single_target",
+            "effect:damage",
+            "damage_type:psychic"
+          ]
+        }
+      }
+    },
+    {
+      "id": "chill_touch",
+      "spell_id": "chill_touch",
+      "name": "Chill Touch",
+      "level": 0,
+      "school": "necromancy",
+      "casting_time": "1 action",
+      "range": "120 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "1 round",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "spell_attack",
+        "ability": "spellcasting_ability"
+      },
+      "damage": {
+        "dice": "1d8",
+        "damage_type": "necrotic"
+      },
+      "class_refs": [
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
+      "effect": {
+        "damage_ref": "spell_damage_chill_touch",
+        "targeting": "single",
+        "status_hint": "chill_touch_no_healing"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "sorcerer",
+          "warlock",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "unsupported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:spell_attack",
+            "target:single_target",
+            "status:chill_touch_no_healing",
+            "effect:damage",
+            "damage_type:necrotic",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "dancing_lights",
+      "spell_id": "dancing_lights",
+      "name": "Dancing Lights",
+      "level": 0,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "120 feet",
+      "targeting": {
+        "type": "point_within_range"
+      },
+      "duration": "concentration, up to 1 minute",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "sorcerer",
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_dancing_lights_illumination",
+        "targeting": "area"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "sorcerer",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:point_within_range",
+            "utility:spell_dancing_lights_illumination",
+            "resource:concentration",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "druidcraft",
+      "spell_id": "druidcraft",
+      "name": "Druidcraft",
+      "level": 0,
+      "school": "transmutation",
+      "casting_time": "1 action",
+      "range": "30 feet",
+      "targeting": {
+        "type": "point_within_range"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "druid"
+      ],
+      "effect": {
+        "utility_ref": "spell_druidcraft_minor_nature",
+        "targeting": "utility"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "druid"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:point_within_range",
+            "utility:spell_druidcraft_minor_nature",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "guidance",
+      "spell_id": "guidance",
+      "name": "Guidance",
+      "level": 0,
+      "school": "divination",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "concentration, up to 1 minute",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "cleric",
+        "druid"
+      ],
+      "effect": {
+        "utility_ref": "spell_guidance_ability_bonus",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "cleric",
+          "druid"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "utility:spell_guidance_ability_bonus",
+            "resource:concentration",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "mage_hand",
+      "spell_id": "mage_hand",
+      "name": "Mage Hand",
+      "level": 0,
+      "school": "conjuration",
+      "casting_time": "1 action",
+      "range": "30 feet",
+      "targeting": {
+        "type": "point_within_range"
+      },
+      "duration": "1 minute",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_mage_hand_spectral_hand",
+        "targeting": "utility"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "sorcerer",
+          "warlock",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:point_within_range",
+            "utility:spell_mage_hand_spectral_hand",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "mending",
+      "spell_id": "mending",
+      "name": "Mending",
+      "level": 0,
+      "school": "transmutation",
+      "casting_time": "1 minute",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "cleric",
+        "druid",
+        "sorcerer",
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_mending_repairs_object",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "cleric",
+          "druid",
+          "sorcerer",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "utility:spell_mending_repairs_object",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "message",
+      "spell_id": "message",
+      "name": "Message",
+      "level": 0,
+      "school": "transmutation",
+      "casting_time": "1 action",
+      "range": "120 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "1 round",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "sorcerer",
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_message_whisper",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "sorcerer",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "utility:spell_message_whisper",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "minor_illusion",
+      "spell_id": "minor_illusion",
+      "name": "Minor Illusion",
+      "level": 0,
+      "school": "illusion",
+      "casting_time": "1 action",
+      "range": "30 feet",
+      "targeting": {
+        "type": "point_within_range"
+      },
+      "duration": "1 minute",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_minor_illusion_image_or_sound",
+        "targeting": "utility"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "sorcerer",
+          "warlock",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:point_within_range",
+            "utility:spell_minor_illusion_image_or_sound",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "prestidigitation",
+      "spell_id": "prestidigitation",
+      "name": "Prestidigitation",
+      "level": 0,
+      "school": "transmutation",
+      "casting_time": "1 action",
+      "range": "10 feet",
+      "targeting": {
+        "type": "point_within_range"
+      },
+      "duration": "up to 1 hour",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_prestidigitation_minor_tricks",
+        "targeting": "utility"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "sorcerer",
+          "warlock",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:point_within_range",
+            "utility:spell_prestidigitation_minor_tricks",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "produce_flame",
+      "spell_id": "produce_flame",
+      "name": "Produce Flame",
+      "level": 0,
+      "school": "conjuration",
+      "casting_time": "1 action",
+      "range": "self",
+      "targeting": {
+        "type": "self"
+      },
+      "duration": "10 minutes",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "druid"
+      ],
+      "effect": {
+        "utility_ref": "spell_produce_flame_light_or_hurl",
+        "targeting": "self"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "druid"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "mixed",
+          "resolver_tags": [
+            "resolution:none",
+            "target:self",
+            "utility:spell_produce_flame_light_or_hurl",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "shillelagh",
+      "spell_id": "shillelagh",
+      "name": "Shillelagh",
+      "level": 0,
+      "school": "transmutation",
+      "casting_time": "1 bonus action",
+      "range": "touch",
+      "targeting": {
+        "type": "self"
+      },
+      "duration": "1 minute",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "druid"
+      ],
+      "effect": {
+        "utility_ref": "spell_shillelagh_weapon_empower",
+        "targeting": "self"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "druid"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "unsupported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:self",
+            "utility:spell_shillelagh_weapon_empower",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "spare_the_dying",
+      "spell_id": "spare_the_dying",
+      "name": "Spare the Dying",
+      "level": 0,
+      "school": "necromancy",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "cleric"
+      ],
+      "effect": {
+        "utility_ref": "spell_spare_the_dying_stabilize",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "cleric"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "utility:spell_spare_the_dying_stabilize",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "true_strike",
+      "spell_id": "true_strike",
+      "name": "True Strike",
+      "level": 0,
+      "school": "divination",
+      "casting_time": "1 action",
+      "range": "30 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "concentration, up to 1 round",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
+      "effect": {
+        "status_hint": "true_strike_advantage",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "sorcerer",
+          "warlock",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "unsupported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "status:true_strike_advantage",
+            "resource:concentration",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "alarm",
+      "spell_id": "alarm",
+      "name": "Alarm",
+      "level": 1,
+      "school": "abjuration",
+      "casting_time": "1 minute",
+      "range": "30 feet",
+      "targeting": {
+        "type": "point_within_range"
+      },
+      "duration": "8 hours",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "ranger",
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_alarm_warded_area",
+        "targeting": "area"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "ranger",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:point_within_range",
+            "utility:spell_alarm_warded_area",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "animal_friendship",
+      "spell_id": "animal_friendship",
+      "name": "Animal Friendship",
+      "level": 1,
+      "school": "enchantment",
+      "casting_time": "1 action",
+      "range": "30 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "24 hours",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "wisdom"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "druid",
+        "ranger"
+      ],
+      "effect": {
+        "status_hint": "animal_friendship_charmed_beast",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "druid",
+          "ranger"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "unsupported",
+          "content_scope": "mixed",
+          "resolver_tags": [
+            "resolution:save",
+            "target:single_target",
+            "status:animal_friendship_charmed_beast",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "color_spray",
+      "spell_id": "color_spray",
+      "name": "Color Spray",
+      "level": 1,
+      "school": "illusion",
+      "casting_time": "1 action",
+      "range": "self",
+      "targeting": {
+        "type": "cone_15ft"
+      },
+      "duration": "1 round",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "sorcerer",
+        "wizard"
+      ],
+      "effect": {
+        "status_hint": "color_spray_blind_hp_pool",
+        "targeting": "area"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "sorcerer",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "unsupported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:cone_15ft",
+            "status:color_spray_blind_hp_pool",
+            "duration:persistent",
+            "import:srd",
+            "shape:area"
+          ]
+        }
+      }
+    },
+    {
+      "id": "command",
+      "spell_id": "command",
+      "name": "Command",
+      "level": 1,
+      "school": "enchantment",
+      "casting_time": "1 action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "1 round",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "wisdom"
+      },
+      "damage": null,
+      "class_refs": [
+        "cleric",
+        "paladin"
+      ],
+      "effect": {
+        "status_hint": "command_forced_action",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "cleric",
+          "paladin"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "unsupported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:single_target",
+            "status:command_forced_action",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "comprehend_languages",
+      "spell_id": "comprehend_languages",
+      "name": "Comprehend Languages",
+      "level": 1,
+      "school": "divination",
+      "casting_time": "1 action",
+      "range": "self",
+      "targeting": {
+        "type": "self"
+      },
+      "duration": "1 hour",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_comprehend_languages_understand_text",
+        "targeting": "self"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "sorcerer",
+          "warlock",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:self",
+            "utility:spell_comprehend_languages_understand_text",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "create_or_destroy_water",
+      "spell_id": "create_or_destroy_water",
+      "name": "Create or Destroy Water",
+      "level": 1,
+      "school": "transmutation",
+      "casting_time": "1 action",
+      "range": "30 feet",
+      "targeting": {
+        "type": "sphere_10ft"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "cleric",
+        "druid"
+      ],
+      "effect": {
+        "utility_ref": "spell_create_or_destroy_water",
+        "targeting": "area"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "cleric",
+          "druid"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:sphere_10ft",
+            "utility:spell_create_or_destroy_water",
+            "import:srd",
+            "shape:area"
+          ]
+        }
+      }
+    },
+    {
+      "id": "detect_evil_and_good",
+      "spell_id": "detect_evil_and_good",
+      "name": "Detect Evil and Good",
+      "level": 1,
+      "school": "divination",
+      "casting_time": "1 action",
+      "range": "self",
+      "targeting": {
+        "type": "self"
+      },
+      "duration": "concentration, up to 10 minutes",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "cleric",
+        "paladin"
+      ],
+      "effect": {
+        "utility_ref": "spell_detect_evil_and_good_sense",
+        "targeting": "self"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "cleric",
+          "paladin"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:self",
+            "utility:spell_detect_evil_and_good_sense",
+            "resource:concentration",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "detect_poison_and_disease",
+      "spell_id": "detect_poison_and_disease",
+      "name": "Detect Poison and Disease",
+      "level": 1,
+      "school": "divination",
+      "casting_time": "1 action",
+      "range": "self",
+      "targeting": {
+        "type": "self"
+      },
+      "duration": "concentration, up to 10 minutes",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "cleric",
+        "druid",
+        "ranger"
+      ],
+      "effect": {
+        "utility_ref": "spell_detect_poison_and_disease_sense",
+        "targeting": "self"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "cleric",
+          "druid",
+          "ranger"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:self",
+            "utility:spell_detect_poison_and_disease_sense",
+            "resource:concentration",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "disguise_self",
+      "spell_id": "disguise_self",
+      "name": "Disguise Self",
+      "level": 1,
+      "school": "illusion",
+      "casting_time": "1 action",
+      "range": "self",
+      "targeting": {
+        "type": "self"
+      },
+      "duration": "1 hour",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "sorcerer",
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_disguise_self_alter_appearance",
+        "targeting": "self"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "sorcerer",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:self",
+            "utility:spell_disguise_self_alter_appearance",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "expeditious_retreat",
+      "spell_id": "expeditious_retreat",
+      "name": "Expeditious Retreat",
+      "level": 1,
+      "school": "transmutation",
+      "casting_time": "1 bonus action",
+      "range": "self",
+      "targeting": {
+        "type": "self"
+      },
+      "duration": "concentration, up to 10 minutes",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
+      "effect": {
+        "status_hint": "expeditious_retreat_dash_bonus",
+        "targeting": "self"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "sorcerer",
+          "warlock",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "unsupported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:self",
+            "status:expeditious_retreat_dash_bonus",
+            "resource:concentration",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "feather_fall",
+      "spell_id": "feather_fall",
+      "name": "Feather Fall",
+      "level": 1,
+      "school": "transmutation",
+      "casting_time": "1 reaction",
+      "range": "60 feet",
+      "targeting": {
+        "type": "up_to_five_falling_creatures"
+      },
+      "duration": "1 minute",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "sorcerer",
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_feather_fall_slow_descent",
+        "targeting": "multi_target"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "sorcerer",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:up_to_five_falling_creatures",
+            "utility:spell_feather_fall_slow_descent",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "find_familiar",
+      "spell_id": "find_familiar",
+      "name": "Find Familiar",
+      "level": 1,
+      "school": "conjuration",
+      "casting_time": "1 hour",
+      "range": "10 feet",
+      "targeting": {
+        "type": "self"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_find_familiar_summon",
+        "targeting": "self"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:self",
+            "utility:spell_find_familiar_summon",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "goodberry",
+      "spell_id": "goodberry",
+      "name": "Goodberry",
+      "level": 1,
+      "school": "transmutation",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "self"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "druid",
+        "ranger"
+      ],
+      "effect": {
+        "utility_ref": "spell_goodberry_create_food",
+        "targeting": "self"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "druid",
+          "ranger"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:self",
+            "utility:spell_goodberry_create_food",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "jump",
+      "spell_id": "jump",
+      "name": "Jump",
+      "level": 1,
+      "school": "transmutation",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "1 minute",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "druid",
+        "ranger",
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_jump_movement_boost",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "druid",
+          "ranger",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "utility:spell_jump_movement_boost",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "protection_from_evil_and_good",
+      "spell_id": "protection_from_evil_and_good",
+      "name": "Protection from Evil and Good",
+      "level": 1,
+      "school": "abjuration",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "concentration, up to 10 minutes",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "cleric",
+        "paladin",
+        "warlock",
+        "wizard"
+      ],
+      "effect": {
+        "status_hint": "protection_from_evil_and_good",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "cleric",
+          "paladin",
+          "warlock",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "unsupported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "status:protection_from_evil_and_good",
+            "resource:concentration",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "purify_food_and_drink",
+      "spell_id": "purify_food_and_drink",
+      "name": "Purify Food and Drink",
+      "level": 1,
+      "school": "transmutation",
+      "casting_time": "1 action",
+      "range": "10 feet",
+      "targeting": {
+        "type": "sphere_10ft"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "cleric",
+        "druid",
+        "paladin"
+      ],
+      "effect": {
+        "utility_ref": "spell_purify_food_and_drink_cleanse",
+        "targeting": "area"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "cleric",
+          "druid",
+          "paladin"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:sphere_10ft",
+            "utility:spell_purify_food_and_drink_cleanse",
+            "import:srd",
+            "shape:area"
+          ]
+        }
+      }
+    },
+    {
+      "id": "sleep",
+      "spell_id": "sleep",
+      "name": "Sleep",
+      "level": 1,
+      "school": "enchantment",
+      "casting_time": "1 action",
+      "range": "90 feet",
+      "targeting": {
+        "type": "sphere_20ft"
+      },
+      "duration": "1 minute",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "sorcerer",
+        "wizard"
+      ],
+      "effect": {
+        "status_hint": "sleep_hp_pool",
+        "targeting": "area"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "sorcerer",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "unsupported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:sphere_20ft",
+            "status:sleep_hp_pool",
+            "duration:persistent",
+            "import:srd",
+            "shape:area"
+          ]
+        }
+      }
+    },
+    {
+      "id": "unseen_servant",
+      "spell_id": "unseen_servant",
+      "name": "Unseen Servant",
+      "level": 1,
+      "school": "conjuration",
+      "casting_time": "1 action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "point_within_range"
+      },
+      "duration": "1 hour",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "warlock",
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_unseen_servant_summon",
+        "targeting": "utility"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "warlock",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:point_within_range",
+            "utility:spell_unseen_servant_summon",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "witch_bolt",
+      "spell_id": "witch_bolt",
+      "name": "Witch Bolt",
+      "level": 1,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "30 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "concentration, up to 1 minute",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "spell_attack",
+        "ability": "spellcasting_ability"
+      },
+      "damage": {
+        "dice": "1d12",
+        "damage_type": "lightning"
+      },
+      "class_refs": [
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
+      "effect": {
+        "damage_ref": "spell_damage_witch_bolt",
+        "targeting": "single",
+        "status_hint": "witch_bolt_sustained_arc"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "sorcerer",
+          "warlock",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "unsupported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:spell_attack",
+            "target:single_target",
+            "status:witch_bolt_sustained_arc",
+            "effect:damage",
+            "damage_type:lightning",
+            "resource:concentration",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "arcane_lock",
+      "spell_id": "arcane_lock",
+      "name": "Arcane Lock",
+      "level": 2,
+      "school": "abjuration",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "until dispelled",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_arcane_lock_secures_object",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "utility:spell_arcane_lock_secures_object",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "augury",
+      "spell_id": "augury",
+      "name": "Augury",
+      "level": 2,
+      "school": "divination",
+      "casting_time": "1 minute",
+      "range": "self",
+      "targeting": {
+        "type": "self"
+      },
+      "duration": "instantaneous",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "cleric",
+        "druid"
+      ],
+      "effect": {
+        "utility_ref": "spell_augury_omens",
+        "targeting": "self"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "cleric",
+          "druid"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:self",
+            "utility:spell_augury_omens",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "calm_emotions",
+      "spell_id": "calm_emotions",
+      "name": "Calm Emotions",
+      "level": 2,
+      "school": "enchantment",
+      "casting_time": "1 action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "sphere_20ft"
+      },
+      "duration": "concentration, up to 1 minute",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "charisma"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "cleric"
+      ],
+      "effect": {
+        "status_hint": "calm_emotions_suppression",
+        "targeting": "area"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "cleric"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "unsupported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:sphere_20ft",
+            "status:calm_emotions_suppression",
+            "resource:concentration",
+            "duration:persistent",
+            "import:srd",
+            "shape:area"
+          ]
+        }
+      }
+    },
+    {
+      "id": "darkvision",
+      "spell_id": "darkvision",
+      "name": "Darkvision",
+      "level": 2,
+      "school": "transmutation",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "8 hours",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "druid",
+        "ranger",
+        "sorcerer",
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_darkvision_enhanced_sight",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "druid",
+          "ranger",
+          "sorcerer",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "utility:spell_darkvision_enhanced_sight",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "enhance_ability",
+      "spell_id": "enhance_ability",
+      "name": "Enhance Ability",
+      "level": 2,
+      "school": "transmutation",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "concentration, up to 1 hour",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "cleric",
+        "druid",
+        "sorcerer"
+      ],
+      "effect": {
+        "status_hint": "enhance_ability",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "cleric",
+          "druid",
+          "sorcerer"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "unsupported",
+          "content_scope": "mixed",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "status:enhance_ability",
+            "resource:concentration",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "enlarge_reduce",
+      "spell_id": "enlarge_reduce",
+      "name": "Enlarge/Reduce",
+      "level": 2,
+      "school": "transmutation",
+      "casting_time": "1 action",
+      "range": "30 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "concentration, up to 1 minute",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "constitution"
+      },
+      "damage": null,
+      "class_refs": [
+        "sorcerer",
+        "wizard"
+      ],
+      "effect": {
+        "status_hint": "enlarge_reduce_size_shift",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "sorcerer",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "unsupported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:single_target",
+            "status:enlarge_reduce_size_shift",
+            "resource:concentration",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "gust_of_wind",
+      "spell_id": "gust_of_wind",
+      "name": "Gust of Wind",
+      "level": 2,
+      "school": "evocation",
+      "casting_time": "1 action",
+      "range": "self",
+      "targeting": {
+        "type": "line_100ft_5ft"
+      },
+      "duration": "concentration, up to 1 minute",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "strength"
+      },
+      "damage": null,
+      "class_refs": [
+        "druid",
+        "sorcerer",
+        "wizard"
+      ],
+      "effect": {
+        "status_hint": "gust_of_wind_push_line",
+        "targeting": "line"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "druid",
+          "sorcerer",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "unsupported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:save",
+            "target:line_100ft_5ft",
+            "status:gust_of_wind_push_line",
+            "resource:concentration",
+            "duration:persistent",
+            "import:srd",
+            "shape:area"
+          ]
+        }
+      }
+    },
+    {
+      "id": "levitate",
+      "spell_id": "levitate",
+      "name": "Levitate",
+      "level": 2,
+      "school": "transmutation",
+      "casting_time": "1 action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "concentration, up to 10 minutes",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "constitution"
+      },
+      "damage": null,
+      "class_refs": [
+        "sorcerer",
+        "wizard"
+      ],
+      "effect": {
+        "status_hint": "levitate_vertical_control",
+        "targeting": "single"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "sorcerer",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "unsupported",
+          "content_scope": "mixed",
+          "resolver_tags": [
+            "resolution:save",
+            "target:single_target",
+            "status:levitate_vertical_control",
+            "resource:concentration",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "locate_object",
+      "spell_id": "locate_object",
+      "name": "Locate Object",
+      "level": 2,
+      "school": "divination",
+      "casting_time": "1 action",
+      "range": "self",
+      "targeting": {
+        "type": "self"
+      },
+      "duration": "concentration, up to 10 minutes",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "cleric",
+        "druid",
+        "ranger",
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_locate_object_direction",
+        "targeting": "self"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "cleric",
+          "druid",
+          "ranger",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:self",
+            "utility:spell_locate_object_direction",
+            "resource:concentration",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "rope_trick",
+      "spell_id": "rope_trick",
+      "name": "Rope Trick",
+      "level": 2,
+      "school": "transmutation",
+      "casting_time": "1 action",
+      "range": "touch",
+      "targeting": {
+        "type": "single_target"
+      },
+      "duration": "1 hour",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_rope_trick_extradimensional_space",
+        "targeting": "utility"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:single_target",
+            "utility:spell_rope_trick_extradimensional_space",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "see_invisibility",
+      "spell_id": "see_invisibility",
+      "name": "See Invisibility",
+      "level": 2,
+      "school": "divination",
+      "casting_time": "1 action",
+      "range": "self",
+      "targeting": {
+        "type": "self"
+      },
+      "duration": "1 hour",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "sorcerer",
+        "wizard"
+      ],
+      "effect": {
+        "utility_ref": "spell_see_invisibility_sight",
+        "targeting": "self"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "sorcerer",
+          "wizard"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:none",
+            "target:self",
+            "utility:spell_see_invisibility_sight",
+            "duration:persistent",
+            "import:srd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "silence",
+      "spell_id": "silence",
+      "name": "Silence",
+      "level": 2,
+      "school": "illusion",
+      "casting_time": "1 action",
+      "range": "120 feet",
+      "targeting": {
+        "type": "sphere_20ft"
+      },
+      "duration": "concentration, up to 10 minutes",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "cleric",
+        "ranger"
+      ],
+      "effect": {
+        "status_hint": "silence_zone",
+        "targeting": "area"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "cleric",
+          "ranger"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "unsupported",
+          "content_scope": "mixed",
+          "resolver_tags": [
+            "resolution:none",
+            "target:sphere_20ft",
+            "status:silence_zone",
+            "resource:concentration",
+            "duration:persistent",
+            "import:srd",
+            "shape:area"
+          ]
+        }
+      }
+    },
+    {
+      "id": "spike_growth",
+      "spell_id": "spike_growth",
+      "name": "Spike Growth",
+      "level": 2,
+      "school": "transmutation",
+      "casting_time": "1 action",
+      "range": "150 feet",
+      "targeting": {
+        "type": "sphere_20ft"
+      },
+      "duration": "concentration, up to 10 minutes",
+      "concentration": true,
+      "attack_or_save": {
+        "type": "none"
+      },
+      "damage": null,
+      "class_refs": [
+        "druid",
+        "ranger"
+      ],
+      "effect": {
+        "damage_ref": "spell_damage_spike_growth",
+        "targeting": "area",
+        "status_hint": "spike_growth_hazard"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "druid",
+          "ranger"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "unsupported",
+          "content_scope": "combat",
+          "resolver_tags": [
+            "resolution:none",
+            "target:sphere_20ft",
+            "status:spike_growth_hazard",
+            "effect:damage",
+            "resource:concentration",
+            "duration:persistent",
+            "import:srd",
+            "shape:area"
+          ]
+        }
+      }
+    },
+    {
+      "id": "zone_of_truth",
+      "spell_id": "zone_of_truth",
+      "name": "Zone of Truth",
+      "level": 2,
+      "school": "enchantment",
+      "casting_time": "1 action",
+      "range": "60 feet",
+      "targeting": {
+        "type": "sphere_20ft"
+      },
+      "duration": "10 minutes",
+      "concentration": false,
+      "attack_or_save": {
+        "type": "save",
+        "save_ability": "charisma"
+      },
+      "damage": null,
+      "class_refs": [
+        "bard",
+        "cleric",
+        "paladin"
+      ],
+      "effect": {
+        "status_hint": "zone_of_truth",
+        "targeting": "area"
+      },
+      "metadata": {
+        "starter_spell": false,
+        "alpha_selectable": false,
+        "source": "srd_import_stage1",
+        "class_refs": [
+          "bard",
+          "cleric",
+          "paladin"
+        ],
+        "notes": [
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
+        ],
+        "runtime_support": {
+          "combat_resolution": "partial",
+          "content_scope": "utility",
+          "resolver_tags": [
+            "resolution:save",
+            "target:sphere_20ft",
+            "status:zone_of_truth",
+            "duration:persistent",
+            "import:srd",
+            "shape:area"
+          ]
+        }
       }
     }
   ]

@@ -1,6 +1,7 @@
 "use strict";
 
 const { ACTION_TYPES, validateActionAvailability, gridDistanceFeet } = require("../validation/validation-helpers");
+const { getParticipantIncapacitationType } = require("../conditions/conditionHelpers");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -41,6 +42,94 @@ function resolveMovementPool(participant) {
   return 30;
 }
 
+function normalizeActionCostValue(value, fallback) {
+  const safe = String(value || "").trim().toLowerCase();
+  if (!safe) {
+    return fallback || "action";
+  }
+  if (safe === "bonus_action" || safe === "bonus action" || safe === "1 bonus action") {
+    return "bonus_action";
+  }
+  if (safe === "reaction" || safe === "1 reaction") {
+    return "reaction";
+  }
+  if (safe === "move" || safe === "movement") {
+    return "move";
+  }
+  return "action";
+}
+
+function resolveActionCostForActionType(actionType, options) {
+  const settings = options || {};
+  if (actionType === ACTION_TYPES.MOVE) {
+    return "move";
+  }
+  if (actionType === ACTION_TYPES.USE_ITEM) {
+    return normalizeActionCostValue(settings.action_cost, "action");
+  }
+  return normalizeActionCostValue(settings.action_cost, "action");
+}
+
+function validateParticipantActionContext(combat, participant, options) {
+  const settings = options && typeof options === "object" ? options : {};
+  const participantId = String(
+    settings.participant_id ||
+    (participant && participant.participant_id) ||
+    ""
+  );
+  const roleKey = String(settings.role_key || "participant_id");
+  const combatId = String(combat && combat.combat_id || "");
+  const verb = String(settings.verb || "act").trim().toLowerCase() || "act";
+  const requireTurn = settings.require_turn !== false;
+  const hp = Number.isFinite(Number(participant && participant.current_hp))
+    ? Number(participant.current_hp)
+    : 0;
+
+  if (hp <= 0) {
+    return {
+      ok: false,
+      message: `defeated participants cannot ${verb}`,
+      payload: {
+        combat_id: combatId,
+        [roleKey]: participantId || null,
+        current_hp: hp
+      }
+    };
+  }
+
+  const incapacitationType = getParticipantIncapacitationType(combat, participantId);
+  if (incapacitationType) {
+    return {
+      ok: false,
+      message: `${incapacitationType} participants cannot ${verb}`,
+      payload: {
+        combat_id: combatId,
+        [roleKey]: participantId || null,
+        incapacitating_condition: incapacitationType
+      }
+    };
+  }
+
+  if (requireTurn) {
+    const initiativeOrder = Array.isArray(combat && combat.initiative_order) ? combat.initiative_order : [];
+    const expectedActorId = initiativeOrder[combat && combat.turn_index];
+    if (!expectedActorId || String(expectedActorId) !== participantId) {
+      return {
+        ok: false,
+        message: settings.turn_error_message || "it is not the participant's turn",
+        payload: {
+          combat_id: combatId,
+          [roleKey]: participantId || null,
+          expected_actor_id: expectedActorId || null,
+          turn_index: combat && combat.turn_index
+        }
+      };
+    }
+  }
+
+  return { ok: true };
+}
+
 function validateParticipantActionAvailability(participant, actionType, options) {
   const settings = options || {};
   const actorForValidation = Object.assign({}, participant, {
@@ -54,11 +143,20 @@ function validateParticipantActionAvailability(participant, actionType, options)
         : true,
     movement_remaining: resolveMovementPool(participant)
   });
+  const actionCost = resolveActionCostForActionType(actionType, settings);
   let availability = null;
-  if (actionType === ACTION_TYPES.USE_ITEM && settings.allow_bonus_action !== true) {
-    availability = actorForValidation.action_available
+  if (actionCost === "bonus_action") {
+    availability = actorForValidation.bonus_action_available === true
       ? { ok: true }
-      : { ok: false, message: "action is not available" };
+      : { ok: false, error: "bonus action is not available" };
+  } else if (actionCost === "reaction") {
+    availability = participant && participant.reaction_available === true
+      ? { ok: true }
+      : { ok: false, error: "reaction is not available" };
+  } else if (actionType === ACTION_TYPES.USE_ITEM) {
+    availability = actorForValidation.action_available === true
+      ? { ok: true }
+      : { ok: false, error: "action is not available" };
   } else {
     availability = validateActionAvailability({
       actor: actorForValidation,
@@ -74,8 +172,9 @@ function validateParticipantActionAvailability(participant, actionType, options)
 function consumeParticipantAction(participant, actionType, options) {
   const settings = options || {};
   const next = clone(participant);
+  const actionCost = resolveActionCostForActionType(actionType, settings);
 
-  if (actionType === ACTION_TYPES.MOVE) {
+  if (actionCost === "move") {
     const moveCostFeet = Number.isFinite(settings.move_cost_feet) ? Math.max(0, Number(settings.move_cost_feet)) : 0;
     const before = resolveMovementPool(next);
     if (before < moveCostFeet) {
@@ -93,14 +192,20 @@ function consumeParticipantAction(participant, actionType, options) {
     });
   }
 
-  if (actionType === ACTION_TYPES.USE_ITEM && settings.prefer_bonus_action === true) {
-    if (next.bonus_action_available === true) {
-      next.bonus_action_available = false;
-      return success("combat_bonus_action_consumed", {
-        participant: next,
-        consumed_resource: "bonus_action"
-      });
-    }
+  if (actionCost === "bonus_action") {
+    next.bonus_action_available = false;
+    return success("combat_bonus_action_consumed", {
+      participant: next,
+      consumed_resource: "bonus_action"
+    });
+  }
+
+  if (actionCost === "reaction") {
+    next.reaction_available = false;
+    return success("combat_reaction_consumed", {
+      participant: next,
+      consumed_resource: "reaction"
+    });
   }
 
   if (
@@ -131,6 +236,8 @@ function consumeParticipantAction(participant, actionType, options) {
 module.exports = {
   ACTION_TYPES,
   normalizeMoveCostFeet,
+  normalizeActionCostValue,
+  validateParticipantActionContext,
   validateParticipantActionAvailability,
   consumeParticipantAction
 };

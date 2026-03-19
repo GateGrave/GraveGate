@@ -1,11 +1,13 @@
 "use strict";
 
-const { applyConditionToCombatState, participantHasCondition } = require("../conditions/conditionHelpers");
+const { applyConditionToCombatState } = require("../conditions/conditionHelpers");
 const { removeConditionFromCombatState } = require("../conditions/conditionHelpers");
 const {
   ACTION_TYPES,
   consumeParticipantAction,
-  validateParticipantActionAvailability
+  normalizeActionCostValue,
+  validateParticipantActionAvailability,
+  validateParticipantActionContext
 } = require("./actionEconomy");
 
 function clone(value) {
@@ -86,6 +88,15 @@ function resolveItemHitpointMaxBonus(item) {
   return Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0;
 }
 
+function resolveItemActionCost(item) {
+  const metadata = item && item.metadata && typeof item.metadata === "object" ? item.metadata : {};
+  const useEffect = metadata.use_effect && typeof metadata.use_effect === "object" ? metadata.use_effect : {};
+  return normalizeActionCostValue(
+    useEffect.action_cost !== undefined ? useEffect.action_cost : metadata.action_cost,
+    "action"
+  );
+}
+
 function applyItemConditionsToCombatState(combat, item, sourceActorId, targetActorId) {
   const configured = resolveItemAppliedConditions(item);
   let nextCombat = clone(combat);
@@ -109,7 +120,9 @@ function applyItemConditionsToCombatState(combat, item, sourceActorId, targetAct
       return failure("use_item_action_failed", applied.error || "failed to apply combat item condition");
     }
     nextCombat = applied.next_state;
-    appliedConditions.push(clone(applied.condition));
+    if (applied.condition) {
+      appliedConditions.push(clone(applied.condition));
+    }
   }
 
   return success("combat_item_conditions_applied", {
@@ -201,39 +214,22 @@ function useItemAction(input) {
     });
   }
 
-  const actorHp = Number.isFinite(actor.current_hp) ? actor.current_hp : 0;
-  if (actorHp <= 0) {
-    return failure("use_item_action_failed", "defeated participants cannot act", {
+  const actionCost = resolveItemActionCost(item);
+  if (actionCost === "reaction") {
+    return failure("use_item_action_failed", "reaction-cost combat item use is not supported on this command path", {
       combat_id: String(combatId),
       participant_id: String(participantId),
-      current_hp: actorHp
+      action_cost: actionCost
     });
   }
-  if (participantHasCondition(combat, participantId, "stunned")) {
-    return failure("use_item_action_failed", "stunned participants cannot act", {
-      combat_id: String(combatId),
-      participant_id: String(participantId)
-    });
-  }
-  if (participantHasCondition(combat, participantId, "paralyzed")) {
-    return failure("use_item_action_failed", "paralyzed participants cannot act", {
-      combat_id: String(combatId),
-      participant_id: String(participantId)
-    });
-  }
-
-  const initiativeOrder = Array.isArray(combat.initiative_order) ? combat.initiative_order : [];
-  const expectedActorId = initiativeOrder[combat.turn_index];
-  if (!expectedActorId || String(expectedActorId) !== String(participantId)) {
-    return failure("use_item_action_failed", "it is not the participant's turn", {
-      combat_id: String(combatId),
-      participant_id: String(participantId),
-      expected_actor_id: expectedActorId || null,
-      turn_index: combat.turn_index
-    });
+  const contextValidation = validateParticipantActionContext(combat, actor, {
+    participant_id: participantId
+  });
+  if (!contextValidation.ok) {
+    return failure("use_item_action_failed", contextValidation.message, contextValidation.payload);
   }
   const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.USE_ITEM, {
-    allow_bonus_action: false
+    action_cost: actionCost
   });
   if (!availability.ok) {
     return failure("use_item_action_failed", availability.error, availability.payload);
@@ -276,7 +272,9 @@ function useItemAction(input) {
   combat.conditions = conditionsRemoved.payload.next_combat.conditions;
   const actorIndex = participants.findIndex((entry) => String(entry.participant_id || "") === String(participantId));
   if (actorIndex !== -1) {
-    const consumed = consumeParticipantAction(actor, ACTION_TYPES.USE_ITEM);
+    const consumed = consumeParticipantAction(actor, ACTION_TYPES.USE_ITEM, {
+      action_cost: actionCost
+    });
     if (!consumed.ok) {
       return failure("use_item_action_failed", consumed.error, consumed.payload);
     }
@@ -291,6 +289,7 @@ function useItemAction(input) {
     timestamp: new Date().toISOString(),
     participant_id: String(participantId),
     item_id: item.item_id || null,
+    action_cost: actionCost,
     item_type: item.item_type,
     heal_amount: Number.isFinite(healAmount) ? Math.floor(healAmount) : 0,
     hitpoint_max_bonus: hitpointMaxBonus,
@@ -313,6 +312,7 @@ function useItemAction(input) {
     combat_id: String(combatId),
     participant_id: String(participantId),
     item_id: item.item_id || null,
+    action_cost: actionCost,
     hp_before: beforeHp,
     hp_after: afterHp,
     healed_for: healedFor,

@@ -152,6 +152,20 @@ function runCharacterRulesHooksTests() {
       return entry && String(entry.spell_id) === "magic_missile";
     });
     assert.equal(hasMagicMissile, true);
+    const hasAlarm = wizardSpellsOut.payload.spells.some((entry) => {
+      return entry && String(entry.spell_id) === "alarm";
+    });
+    assert.equal(hasAlarm, false);
+  }, results);
+
+  runTest("non_alpha_spell_library_entries_remain_addressable_but_hidden_from_alpha_lists", () => {
+    const spellOut = getSpellData("alarm");
+    assert.equal(spellOut.ok, true);
+    assert.equal(spellOut.payload.spell_data.metadata.alpha_selectable, false);
+
+    const allSpellsOut = listAvailableSpells();
+    assert.equal(allSpellsOut.ok, true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "alarm"), false);
   }, results);
 
   runTest("spell_metadata_survives_character_persistence_reload", () => {

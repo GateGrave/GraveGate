@@ -3,12 +3,12 @@
 const {
   ACTION_TYPES,
   consumeParticipantAction,
-  validateParticipantActionAvailability
+  validateParticipantActionAvailability,
+  validateParticipantActionContext
 } = require("./actionEconomy");
 const {
   applyConditionToCombatState,
   getActiveConditionsForParticipant,
-  participantHasCondition,
   normalizeCombatControlConditions
 } = require("../conditions/conditionHelpers");
 const { gridDistanceFeet } = require("../validation/validation-helpers");
@@ -133,25 +133,17 @@ function performShoveAction(input) {
   if (String(attacker.team || "") === String(target.team || "")) {
     return failure("shove_action_failed", "cannot shove an ally");
   }
-  const attackerHp = Number.isFinite(Number(attacker.current_hp)) ? Number(attacker.current_hp) : 0;
   const targetHp = Number.isFinite(Number(target.current_hp)) ? Number(target.current_hp) : 0;
-  if (attackerHp <= 0) {
-    return failure("shove_action_failed", "defeated participants cannot act");
+  const contextValidation = validateParticipantActionContext(combat, attacker, {
+    participant_id: attackerId,
+    role_key: "attacker_id",
+    turn_error_message: "it is not the attacker's turn"
+  });
+  if (!contextValidation.ok) {
+    return failure("shove_action_failed", contextValidation.message, contextValidation.payload);
   }
   if (targetHp <= 0) {
     return failure("shove_action_failed", "target is already defeated");
-  }
-  if (participantHasCondition(combat, attackerId, "stunned")) {
-    return failure("shove_action_failed", "stunned participants cannot act");
-  }
-  if (participantHasCondition(combat, attackerId, "paralyzed")) {
-    return failure("shove_action_failed", "paralyzed participants cannot act");
-  }
-
-  const initiativeOrder = Array.isArray(combat.initiative_order) ? combat.initiative_order : [];
-  const expectedActorId = initiativeOrder[combat.turn_index];
-  if (!expectedActorId || String(expectedActorId) !== String(attackerId)) {
-    return failure("shove_action_failed", "it is not the attacker's turn");
   }
 
   const rangeFeet = attacker.position && target.position ? gridDistanceFeet(attacker.position, target.position) : null;

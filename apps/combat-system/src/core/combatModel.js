@@ -20,6 +20,7 @@ function createCombatModel(input) {
     participants: Array.isArray(data.participants) ? clone(data.participants) : [],
     conditions: Array.isArray(data.conditions) ? clone(data.conditions) : [],
     initiative_order: Array.isArray(data.initiative_order) ? clone(data.initiative_order) : [],
+    active_effects: Array.isArray(data.active_effects) ? clone(data.active_effects) : [],
     battlefield_grid:
       data.battlefield_grid && typeof data.battlefield_grid === "object" ? clone(data.battlefield_grid) : null,
     battlefield: data.battlefield && typeof data.battlefield === "object" ? clone(data.battlefield) : {},

@@ -12,6 +12,11 @@ function normalizeId(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function isAlphaSelectableSpell(spell) {
+  const metadata = spell && spell.metadata && typeof spell.metadata === "object" ? spell.metadata : {};
+  return metadata.alpha_selectable !== false;
+}
+
 function buildSpellMap(entries) {
   const map = {};
   const safeEntries = Array.isArray(entries) ? entries : [];
@@ -81,7 +86,7 @@ function listAvailableSpells() {
     ok: true,
     event_type: "spell_rules_listed",
     payload: {
-      spells: Object.values(getSpellRulesMap())
+      spells: Object.values(getSpellRulesMap()).filter(isAlphaSelectableSpell)
     },
     error: null
   };
@@ -100,6 +105,9 @@ function listSpellsForClass(class_id) {
 
   const allSpells = Object.values(getSpellRulesMap());
   const matched = allSpells.filter((spell) => {
+    if (!isAlphaSelectableSpell(spell)) {
+      return false;
+    }
     const directRefs = toSafeArray(spell.class_refs).map((entry) => normalizeId(entry));
     const metadataRefs = toSafeArray(spell && spell.metadata && spell.metadata.class_refs)
       .map((entry) => normalizeId(entry));
@@ -122,4 +130,3 @@ module.exports = {
   listAvailableSpells,
   listSpellsForClass
 };
-

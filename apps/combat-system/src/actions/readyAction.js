@@ -3,9 +3,9 @@
 const {
   ACTION_TYPES,
   consumeParticipantAction,
-  validateParticipantActionAvailability
+  validateParticipantActionAvailability,
+  validateParticipantActionContext
 } = require("./actionEconomy");
-const { getParticipantIncapacitationType } = require("../conditions/conditionHelpers");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -101,32 +101,11 @@ function performReadyAction(input) {
       participant_id: String(participantId)
     });
   }
-  const actorHp = Number.isFinite(actor.current_hp) ? actor.current_hp : 0;
-  if (actorHp <= 0) {
-    return failure("ready_action_failed", "defeated participants cannot act", {
-      combat_id: String(combatId),
-      participant_id: String(participantId),
-      current_hp: actorHp
-    });
-  }
-  const incapacitationType = getParticipantIncapacitationType(combat, participantId);
-  if (incapacitationType) {
-    return failure("ready_action_failed", `${incapacitationType} participants cannot act`, {
-      combat_id: String(combatId),
-      participant_id: String(participantId),
-      incapacitating_condition: incapacitationType
-    });
-  }
-
-  const initiativeOrder = Array.isArray(combat.initiative_order) ? combat.initiative_order : [];
-  const expectedActorId = initiativeOrder[combat.turn_index];
-  if (!expectedActorId || String(expectedActorId) !== String(participantId)) {
-    return failure("ready_action_failed", "it is not the participant's turn", {
-      combat_id: String(combatId),
-      participant_id: String(participantId),
-      expected_actor_id: expectedActorId || null,
-      turn_index: combat.turn_index
-    });
+  const contextValidation = validateParticipantActionContext(combat, actor, {
+    participant_id: participantId
+  });
+  if (!contextValidation.ok) {
+    return failure("ready_action_failed", contextValidation.message, contextValidation.payload);
   }
 
   const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.READY);

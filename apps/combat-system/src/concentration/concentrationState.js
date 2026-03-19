@@ -17,6 +17,7 @@ function normalizeConcentrationState(participant) {
     source_spell_id: concentration.source_spell_id || null,
     target_actor_id: concentration.target_actor_id || null,
     linked_condition_ids: Array.isArray(concentration.linked_condition_ids) ? concentration.linked_condition_ids.slice() : [],
+    linked_effect_ids: Array.isArray(concentration.linked_effect_ids) ? concentration.linked_effect_ids.slice() : [],
     linked_restorations: Array.isArray(concentration.linked_restorations) ? clone(concentration.linked_restorations) : [],
     started_at_round: Number.isFinite(Number(concentration.started_at_round)) ? Number(concentration.started_at_round) : null,
     broken_reason: concentration.broken_reason || null
@@ -84,10 +85,14 @@ function clearParticipantConcentration(combatState, participantId, reason) {
   const participant = nextCombat.participants[participantIndex];
   const current = normalizeConcentrationState(participant);
   const linkedConditionIds = current.linked_condition_ids;
+  const linkedEffectIds = current.linked_effect_ids;
   const linkedRestorations = current.linked_restorations;
 
   nextCombat.conditions = Array.isArray(nextCombat.conditions)
     ? nextCombat.conditions.filter((condition) => !linkedConditionIds.includes(String(condition && condition.condition_id || "")))
+    : [];
+  nextCombat.active_effects = Array.isArray(nextCombat.active_effects)
+    ? nextCombat.active_effects.filter((effect) => !linkedEffectIds.includes(String(effect && effect.effect_id || "")))
     : [];
   const restoredCombat = applyRestorations(nextCombat, linkedRestorations);
   restoredCombat.participants[participantIndex] = Object.assign({}, restoredCombat.participants[participantIndex], {
@@ -96,6 +101,7 @@ function clearParticipantConcentration(combatState, participantId, reason) {
       source_spell_id: null,
       target_actor_id: null,
       linked_condition_ids: [],
+      linked_effect_ids: [],
       linked_restorations: [],
       started_at_round: null,
       broken_reason: reason || null
@@ -108,6 +114,7 @@ function clearParticipantConcentration(combatState, participantId, reason) {
     next_state: restoredCombat,
     cleared: current.is_concentrating === true,
     removed_condition_ids: linkedConditionIds.slice(),
+    removed_effect_ids: linkedEffectIds.slice(),
     restoration_count: linkedRestorations.length
   };
 }
@@ -132,9 +139,11 @@ function startParticipantConcentration(combatState, input) {
     }
     replaced = {
       source_spell_id: current.source_spell_id,
-      removed_condition_ids: cleared.removed_condition_ids
+      removed_condition_ids: cleared.removed_condition_ids,
+      removed_effect_ids: cleared.removed_effect_ids
     };
     nextCombat.conditions = cleared.next_state.conditions;
+    nextCombat.active_effects = cleared.next_state.active_effects;
     nextCombat.participants = cleared.next_state.participants;
   }
 
@@ -145,6 +154,7 @@ function startParticipantConcentration(combatState, input) {
       source_spell_id: input && input.source_spell_id ? String(input.source_spell_id) : null,
       target_actor_id: input && input.target_actor_id ? String(input.target_actor_id) : null,
       linked_condition_ids: Array.isArray(input && input.linked_condition_ids) ? input.linked_condition_ids.map((entry) => String(entry)) : [],
+      linked_effect_ids: Array.isArray(input && input.linked_effect_ids) ? input.linked_effect_ids.map((entry) => String(entry)) : [],
       linked_restorations: Array.isArray(input && input.linked_restorations) ? clone(input.linked_restorations) : [],
       started_at_round: Number.isFinite(Number(input && input.started_at_round)) ? Number(input.started_at_round) : null,
       broken_reason: null

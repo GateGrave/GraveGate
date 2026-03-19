@@ -1064,6 +1064,60 @@ function runProcessCombatActionRequestTests() {
     assert.equal(reactor.reaction_available, true);
   }, results);
 
+  runTest("player_move_request_applies_zone_entry_effects_from_active_spell_areas", () => {
+    const playerId = "player-combat-move-zone-001";
+    const combatId = "combat-move-zone-001";
+    const manager = createCombatReadyForMove(combatId, playerId);
+    const combat = manager.getCombatById(combatId).payload.combat;
+    combat.active_effects = [{
+      effect_id: "effect-web-zone-request-001",
+      type: "spell_active_web",
+      source: { participant_id: "enemy-reactor-001", event_id: null },
+      target: { participant_id: "enemy-reactor-001" },
+      duration: { remaining_turns: 10, max_turns: 10 },
+      tick_timing: "none",
+      stacking_rules: { mode: "refresh", max_stacks: 1 },
+      modifiers: {
+        spell_id: "web",
+        area_tiles: [{ x: 0, y: 1 }],
+        zone_behavior: {
+          terrain_kind: "difficult",
+          on_enter_condition: {
+            save_ability: "dexterity",
+            save_dc: 13,
+            condition_type: "restrained",
+            expiration_trigger: "manual",
+            metadata: {
+              source_spell_id: "web"
+            }
+          }
+        }
+      }
+    }];
+    manager.combats.set(combatId, combat);
+
+    const out = processCombatMoveRequest({
+      context: createMoveRequestContext(manager, {
+        spellSavingThrowFn: () => ({ final_total: 4 })
+      }),
+      player_id: playerId,
+      combat_id: combatId,
+      payload: {
+        target_x: 0,
+        target_y: 1
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.move.zone_effect_results.length, 1);
+    assert.equal(out.payload.move.zone_effect_results[0].applied_condition.condition_type, "restrained");
+    assert.equal(out.payload.move.movement_cost_feet, 10);
+    assert.equal(out.payload.move.combat.conditions.some((entry) => {
+      return String(entry && entry.condition_type || "") === "restrained" &&
+        String(entry && entry.target_actor_id || "") === playerId;
+    }), true);
+  }, results);
+
   runTest("no_opportunity_attack_if_reactor_has_no_reaction", () => {
     const playerId = "player-combat-move-no-reaction-001";
     const combatId = "combat-move-no-reaction-001";
@@ -1277,11 +1331,11 @@ function runProcessCombatActionRequestTests() {
     assert.equal(out.payload.reactions.opportunity_attacks[0].spell_id, "shocking_grasp");
 
     const updated = manager.getCombatById(combatId).payload.combat;
-    const updatedReactor = updated.participants.find((entry) => entry.participant_id === "enemy-reactor-001");
     const mover = updated.participants.find((entry) => entry.participant_id === playerId);
-    assert.equal(updatedReactor.reaction_available, true);
     assert.equal(mover.current_hp, 9);
-    assert.equal(updated.event_log.some((entry) => entry.event_type === "cast_spell_action" && entry.war_caster_reaction === true), true);
+    const warCasterEvent = updated.event_log.find((entry) => entry.event_type === "cast_spell_action" && entry.war_caster_reaction === true);
+    assert.equal(Boolean(warCasterEvent), true);
+    assert.equal(warCasterEvent.action_cost, "reaction");
   }, results);
 
   runTest("no_opportunity_attack_from_dead_or_stunned_reactor", () => {

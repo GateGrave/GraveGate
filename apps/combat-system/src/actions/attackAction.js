@@ -20,6 +20,8 @@ const {
   resolveTargetingProtectionOutcome
 } = require("../spells/spellcastingHelpers");
 const { gridDistanceFeet } = require("../validation/validation-helpers");
+const { validateHarmfulTargetingRestriction } = require("./hostileTargetingRules");
+const { participantIsHeavilyObscured } = require("../effects/battlefieldEffectHelpers");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -167,30 +169,6 @@ function removeBreakOnHarmfulActionConditions(combat, participantId) {
   };
 }
 
-function isAttackBlockedByCharm(combat, attackerId, targetId) {
-  const attackerConditions = getActiveConditionsForParticipant(combat, attackerId);
-  for (let index = 0; index < attackerConditions.length; index += 1) {
-    const condition = attackerConditions[index];
-    if (String(condition && condition.condition_type || "") !== "charmed") {
-      continue;
-    }
-    const sourceActorId = String(condition && condition.source_actor_id || "").trim();
-    if (sourceActorId && sourceActorId === String(targetId || "")) {
-      return true;
-    }
-    const metadata = condition && condition.metadata && typeof condition.metadata === "object"
-      ? condition.metadata
-      : {};
-    const blockedTargets = Array.isArray(metadata.cannot_target_actor_ids)
-      ? metadata.cannot_target_actor_ids.map((entry) => String(entry || ""))
-      : [];
-    if (blockedTargets.includes(String(targetId || ""))) {
-      return true;
-    }
-  }
-  return false;
-}
-
 function resolveAttackDamageProfile(attacker, input) {
   const readiness = attacker && attacker.readiness && typeof attacker.readiness === "object"
     ? attacker.readiness
@@ -321,6 +299,8 @@ function resolveAttackRoll(input) {
   const targetIsProne = targetConditions.some((condition) => String(condition && condition.condition_type || "") === "prone");
   const targetIsBlinded = targetConditions.some((condition) => String(condition && condition.condition_type || "") === "blinded");
   const targetIsInvisible = targetConditions.some((condition) => String(condition && condition.condition_type || "") === "invisible");
+  const attackerIsHeavilyObscured = participantIsHeavilyObscured(combat, attacker);
+  const targetIsHeavilyObscured = participantIsHeavilyObscured(combat, target);
   const attackerHasConditionDisadvantage = attackerConditions.some((condition) => {
     const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
     return metadata.has_attack_disadvantage === true;
@@ -329,6 +309,10 @@ function resolveAttackRoll(input) {
     const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
     return metadata.has_attack_advantage === true;
   });
+  const consumedAttackerCondition = attackerConditions.find((condition) => {
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
+    return metadata.consume_on_attack === true && (metadata.has_attack_disadvantage === true || metadata.has_attack_advantage === true);
+  }) || null;
   const attackerHasHelpedAttack = attackerConditions.some((condition) => {
     return String(condition && condition.condition_type || "") === "helped_attack";
   });
@@ -350,8 +334,10 @@ function resolveAttackRoll(input) {
     attackerIsRestrained ||
     attackerIsProne ||
     attackerIsBlinded ||
+    attackerIsHeavilyObscured ||
     attackerIsFrightened ||
     targetIsInvisible ||
+    targetIsHeavilyObscured ||
     targetImposesDisadvantage ||
     attackerHasConditionDisadvantage ||
     targetProneDisadvantage;
@@ -380,7 +366,8 @@ function resolveAttackRoll(input) {
       roll_values: [rollA, rollB],
       final_roll: Math.max(rollA, rollB),
       consumed_target_condition_type: targetIsMarked ? "guiding_bolt_marked" : null,
-      consumed_attacker_condition_type: attackerHasHelpedAttack ? "helped_attack" : null
+      consumed_attacker_condition_type: attackerHasHelpedAttack ? "helped_attack" : null,
+      consumed_attacker_condition_id: consumedAttackerCondition ? String(consumedAttackerCondition.condition_id || "") : null
     };
   }
 
@@ -392,7 +379,8 @@ function resolveAttackRoll(input) {
       roll_values: [roll],
       final_roll: roll,
       consumed_target_condition_type: targetIsMarked ? "guiding_bolt_marked" : null,
-      consumed_attacker_condition_type: attackerHasHelpedAttack ? "helped_attack" : null
+      consumed_attacker_condition_type: attackerHasHelpedAttack ? "helped_attack" : null,
+      consumed_attacker_condition_id: consumedAttackerCondition ? String(consumedAttackerCondition.condition_id || "") : null
     };
   }
 
@@ -404,7 +392,8 @@ function resolveAttackRoll(input) {
     roll_mode: "disadvantage",
     roll_values: [rollA, rollB],
     final_roll: Math.min(rollA, rollB),
-    consumed_attacker_condition_type: attackerHasHelpedAttack ? "helped_attack" : null
+    consumed_attacker_condition_type: attackerHasHelpedAttack ? "helped_attack" : null,
+    consumed_attacker_condition_id: consumedAttackerCondition ? String(consumedAttackerCondition.condition_id || "") : null
   };
 }
 
@@ -456,11 +445,18 @@ function resolveAttackAgainstCombatState(input) {
       current_hp: targetHp
     });
   }
-  if (isAttackBlockedByCharm(combat, attackerId, targetId)) {
-    return failure("attack_action_failed", "charmed participants cannot make harmful attacks against the charmer", {
+  const hostileTargeting = validateHarmfulTargetingRestriction(combat, attackerId, targetId, {
+    condition_type: "charmed",
+    error_message: "charmed participants cannot make harmful attacks against the charmer"
+  });
+  if (!hostileTargeting.ok) {
+    return failure("attack_action_failed", hostileTargeting.error, {
       combat_id: String(combat.combat_id || ""),
       attacker_id: String(attackerId),
-      target_id: String(targetId)
+      target_id: String(targetId),
+      gating_condition: hostileTargeting.payload && hostileTargeting.payload.gating_condition
+        ? clone(hostileTargeting.payload.gating_condition)
+        : null
     });
   }
   const rangeProfile = computeAttackRangeProfile(attacker, target, data);
@@ -576,6 +572,12 @@ function resolveAttackAgainstCombatState(input) {
       if (removed.ok) {
         updatedCombat = removed.next_state;
       }
+    }
+  }
+  if (attackRollResult.consumed_attacker_condition_id) {
+    const removed = removeConditionFromCombatState(updatedCombat, attackRollResult.consumed_attacker_condition_id);
+    if (removed.ok) {
+      updatedCombat = removed.next_state;
     }
   }
 
@@ -716,6 +718,7 @@ function resolveAttackAgainstCombatState(input) {
     reaction_mode: reactionMode,
     consumed_target_condition_type: attackRollResult.consumed_target_condition_type || null,
     consumed_attacker_condition_type: attackRollResult.consumed_attacker_condition_type || null,
+    consumed_attacker_condition_id: attackRollResult.consumed_attacker_condition_id || null,
     concentration_result: clone(concentrationResult)
   });
   updatedCombat.updated_at = new Date().toISOString();

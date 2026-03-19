@@ -9,7 +9,14 @@ const SUPPORTED_SPELL_TARGET_TYPES = new Set([
   "single_or_split_target",
   "self",
   "up_to_three_allies",
-  "up_to_three_enemies"
+  "up_to_three_enemies",
+  "cone_15ft",
+  "cube_15ft",
+  "line_100ft_5ft",
+  "sphere_20ft",
+  "sphere_10ft",
+  "aura_15ft",
+  "cylinder_20ft"
 ]);
 
 const AREA_TEMPLATE_TARGET_TYPES = new Set([
@@ -367,6 +374,13 @@ function validateSpellTargeting(spell, caster, target) {
       return {
         ok: false,
         error: "spell requires a hostile target"
+      };
+    }
+  } else if (AREA_TEMPLATE_TARGET_TYPES.has(targetType)) {
+    if (!target) {
+      return {
+        ok: false,
+        error: "spell requires valid area targets"
       };
     }
   } else if (!target) {

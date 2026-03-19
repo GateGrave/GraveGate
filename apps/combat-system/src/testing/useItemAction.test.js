@@ -104,6 +104,76 @@ function runUseItemActionTests() {
     assert.equal(second.error, "action is not available");
   }, results);
 
+  runTest("bonus_action_item_consumes_bonus_action_and_leaves_action_open", () => {
+    const manager = createActiveCombatForUseItemTests();
+    const combat = manager.getCombatById("combat-item-001").payload.combat;
+    combat.participants[0].action_available = true;
+    combat.participants[0].bonus_action_available = true;
+    manager.combats.set("combat-item-001", combat);
+
+    const first = useItemAction({
+      combatManager: manager,
+      combat_id: "combat-item-001",
+      participant_id: "p1",
+      item: {
+        item_id: "item-quick-vial",
+        item_type: "consumable",
+        heal_amount: 2,
+        metadata: {
+          use_effect: {
+            action_cost: "bonus_action"
+          }
+        }
+      }
+    });
+    assert.equal(first.ok, true);
+    assert.equal(first.payload.action_cost, "bonus_action");
+    const actorAfterFirst = first.payload.combat.participants.find((entry) => entry.participant_id === "p1");
+    assert.equal(actorAfterFirst.action_available, true);
+    assert.equal(actorAfterFirst.bonus_action_available, false);
+
+    const second = useItemAction({
+      combatManager: manager,
+      combat_id: "combat-item-001",
+      participant_id: "p1",
+      item: {
+        item_id: "item-heal-small",
+        item_type: "consumable",
+        heal_amount: 1
+      }
+    });
+    assert.equal(second.ok, true);
+    const actorAfterSecond = second.payload.combat.participants.find((entry) => entry.participant_id === "p1");
+    assert.equal(actorAfterSecond.action_available, false);
+  }, results);
+
+  runTest("bonus_action_item_fails_when_bonus_action_is_unavailable", () => {
+    const manager = createActiveCombatForUseItemTests();
+    const combat = manager.getCombatById("combat-item-001").payload.combat;
+    combat.participants[0].action_available = true;
+    combat.participants[0].bonus_action_available = false;
+    manager.combats.set("combat-item-001", combat);
+
+    const out = useItemAction({
+      combatManager: manager,
+      combat_id: "combat-item-001",
+      participant_id: "p1",
+      item: {
+        item_id: "item-quick-vial",
+        item_type: "consumable",
+        heal_amount: 2,
+        metadata: {
+          use_effect: {
+            action_cost: "bonus_action"
+          }
+        }
+      }
+    });
+
+    assert.equal(out.ok, false);
+    assert.equal(out.error, "bonus action is not available");
+  }, results);
+
   runTest("hp_does_not_exceed_max_hp", () => {
     const manager = createActiveCombatForUseItemTests();
     const out = useItemAction({

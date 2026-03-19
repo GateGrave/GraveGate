@@ -20,6 +20,29 @@ function isArray(value) {
   return Array.isArray(value);
 }
 
+function isStringArray(value) {
+  return Array.isArray(value) && value.every((entry) => isString(entry));
+}
+
+function isSpellRuntimeSupport(value) {
+  if (!isObject(value)) {
+    return false;
+  }
+  const combatResolution = String(value.combat_resolution || "").trim().toLowerCase();
+  const contentScope = String(value.content_scope || "").trim().toLowerCase();
+  if (!["supported", "partial", "unsupported"].includes(combatResolution)) {
+    return false;
+  }
+  if (!["combat", "utility", "mixed"].includes(contentScope)) {
+    return false;
+  }
+  return isStringArray(value.resolver_tags) && value.resolver_tags.length > 0;
+}
+
+function isSpellMetadataObject(value) {
+  return isObject(value) && isSpellRuntimeSupport(value.runtime_support);
+}
+
 function isRecipeMaterialsArray(value) {
   if (!Array.isArray(value)) {
     return false;
@@ -98,7 +121,7 @@ const CONTENT_SCHEMAS = {
       level: isNumber,
       school: isString,
       effect: isObject,
-      metadata: isObject
+      metadata: isSpellMetadataObject
     }
   },
   feat: {

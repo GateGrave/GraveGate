@@ -738,6 +738,90 @@ function runAttackActionTests() {
     assert.equal(out.payload.attack_roll, 4);
   }, results);
 
+  runTest("fog_cloud_at_target_position_imposes_disadvantage_on_attack_rolls", () => {
+    const manager = createActiveCombatForAttackTests();
+    const combat = manager.getCombatById("combat-attack-001").payload.combat;
+    combat.active_effects = [{
+      effect_id: "effect-fog-cloud-attack-001",
+      type: "spell_active_fog_cloud",
+      source: {
+        participant_id: "caster-001"
+      },
+      target: {
+        participant_id: "caster-001"
+      },
+      duration: {
+        remaining_turns: 10,
+        max_turns: 10
+      },
+      tick_timing: "none",
+      stacking_rules: {
+        mode: "refresh",
+        max_stacks: 1
+      },
+      modifiers: {
+        spell_id: "fog_cloud",
+        utility_ref: "spell_fog_cloud_heavily_obscured",
+        area_tiles: [{ x: 1, y: 0 }]
+      }
+    }];
+    manager.combats.set("combat-attack-001", combat);
+
+    let callCount = 0;
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "attacker-001",
+      target_id: "target-001",
+      attack_roll_fn: () => {
+        callCount += 1;
+        return callCount === 1 ? 18 : 2;
+      },
+      damage_roll_fn: () => 5
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.attack_roll_mode, "disadvantage");
+    assert.deepEqual(out.payload.attack_roll_values, [18, 2]);
+    assert.equal(out.payload.attack_roll, 2);
+  }, results);
+
+  runTest("one_shot_attack_disadvantage_condition_is_consumed_after_attack", () => {
+    const manager = createActiveCombatForAttackTests();
+    const found = manager.getCombatById("combat-attack-001");
+    const combat = found.payload.combat;
+    combat.turn_index = 1;
+    combat.conditions = [{
+      condition_id: "condition-next-attack-disadvantage-001",
+      condition_type: "next_attack_disadvantage",
+      target_actor_id: "target-001",
+      expiration_trigger: "manual",
+      metadata: {
+        has_attack_disadvantage: true,
+        consume_on_attack: true
+      }
+    }];
+    manager.combats.set("combat-attack-001", combat);
+
+    let callCount = 0;
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "target-001",
+      target_id: "attacker-001",
+      attack_roll_fn: () => {
+        callCount += 1;
+        return callCount === 1 ? 19 : 4;
+      },
+      damage_roll_fn: () => 5
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.attack_roll_mode, "disadvantage");
+    assert.equal(out.payload.attack_roll, 4);
+    assert.equal(out.payload.combat.conditions.some((entry) => entry.condition_type === "next_attack_disadvantage"), false);
+  }, results);
+
   runTest("restrained_target_grants_advantage_on_attack_rolls", () => {
     const manager = createActiveCombatForAttackTests();
     const found = manager.getCombatById("combat-attack-001");
@@ -1231,6 +1315,36 @@ function runAttackActionTests() {
         condition_id: "condition-charmed-attack-001",
         condition_type: "charmed",
         source_actor_id: "target-001",
+        target_actor_id: "attacker-001",
+        expiration_trigger: "manual",
+        metadata: {
+          cannot_target_actor_ids: ["target-001"]
+        }
+      }
+    ];
+    manager.combats.set("combat-attack-001", combat);
+
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "attacker-001",
+      target_id: "target-001",
+      attack_roll_fn: () => 16,
+      damage_roll_fn: () => 3
+    });
+
+    assert.equal(out.ok, false);
+    assert.equal(out.error, "charmed participants cannot make harmful attacks against the charmer");
+  }, results);
+
+  runTest("charmed_attacker_cannot_attack_metadata_blocked_target", () => {
+    const manager = createActiveCombatForAttackTests();
+    const combat = manager.getCombatById("combat-attack-001").payload.combat;
+    combat.conditions = [
+      {
+        condition_id: "condition-charmed-attack-metadata-001",
+        condition_type: "charmed",
+        source_actor_id: null,
         target_actor_id: "attacker-001",
         expiration_trigger: "manual",
         metadata: {

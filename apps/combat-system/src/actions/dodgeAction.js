@@ -3,7 +3,8 @@
 const {
   ACTION_TYPES,
   consumeParticipantAction,
-  validateParticipantActionAvailability
+  validateParticipantActionAvailability,
+  validateParticipantActionContext
 } = require("./actionEconomy");
 
 function clone(value) {
@@ -72,24 +73,11 @@ function performDodgeAction(input) {
     });
   }
 
-  const actorHp = Number.isFinite(actor.current_hp) ? actor.current_hp : 0;
-  if (actorHp <= 0) {
-    return failure("dodge_action_failed", "defeated participants cannot act", {
-      combat_id: String(combatId),
-      participant_id: String(participantId),
-      current_hp: actorHp
-    });
-  }
-
-  const initiativeOrder = Array.isArray(combat.initiative_order) ? combat.initiative_order : [];
-  const expectedActorId = initiativeOrder[combat.turn_index];
-  if (!expectedActorId || String(expectedActorId) !== String(participantId)) {
-    return failure("dodge_action_failed", "it is not the participant's turn", {
-      combat_id: String(combatId),
-      participant_id: String(participantId),
-      expected_actor_id: expectedActorId || null,
-      turn_index: combat.turn_index
-    });
+  const contextValidation = validateParticipantActionContext(combat, actor, {
+    participant_id: participantId
+  });
+  if (!contextValidation.ok) {
+    return failure("dodge_action_failed", contextValidation.message, contextValidation.payload);
   }
 
   const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.DODGE);

@@ -586,7 +586,9 @@ function processCombatMoveRequest(input) {
     combatManager: context.combatManager,
     combat_id: String(combatId),
     participant_id: controlled.payload.participant_id,
-    target_position: targetPosition
+    target_position: targetPosition,
+    saving_throw_fn: context.spellSavingThrowFn,
+    saving_throw_bonus_rng: context.spellSavingThrowBonusRng
   });
   if (!out.ok) {
     return failure("player_move_failed", out.error || "combat move action failed", out.payload);
@@ -810,6 +812,7 @@ function processCombatCastSpellRequest(input) {
     target_ids: Array.isArray(payload.target_ids) ? payload.target_ids : null,
     reaction_mode: payload.reaction_mode === true,
     war_caster_reaction: payload.war_caster_reaction === true,
+    area_tiles: Array.isArray(payload.area_tiles) ? payload.area_tiles : null,
     spell: loadedSpell.payload.spell,
     attack_roll_fn: context.spellAttackRollFn,
     attack_roll_rng: context.spellAttackRollRng,

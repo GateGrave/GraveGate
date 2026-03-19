@@ -1,6 +1,6 @@
 # GateGrave Implementation Status
 
-Last updated: 2026-03-18
+Last updated: 2026-03-19
 
 This is the working roadmap for the actual repo state.
 
@@ -53,16 +53,20 @@ Current goals in progress:
 5. Keep button-first UX where it removes real player friction
 
 Most recent completed chunk:
-- Map-system and combat-depth work were integrated onto `main`
-  - combat and dungeon map flows now exist on the shared branch
-  - clean control-map and mask workflow is now the intended authoring path
-  - opportunity-attack range regression caused by the new attack range guard was fixed on `main`
+- Combat depth and spell-library work continued on the combat branch without widening into gateway/runtime hotfiles
+  - persistent battlefield spell effects now use canonical `combat.active_effects`
+  - ongoing zones now support obscuration, difficult terrain, on-enter damage, on-enter conditions, and start-of-turn damage/conditions
+  - `darkness` and `moonbeam` now resolve through the same persistent-zone model
+  - the canonical spell library now contains 105 entries total
+  - 46 imported SRD spells are present as canonical content but hidden from current alpha spell selection
+  - every spell entry now declares `metadata.runtime_support`
 
 Next recommended resume point:
-1. Improve combat-map and dungeon-map live UX
-2. Add better map authoring/debug validation for masks, markers, and edge walls
-3. Continue combat completion through central combat hooks
-4. Keep dungeon interaction depth growing from content/session metadata instead of gateway logic
+1. Sync this branch cleanly before further work
+2. Continue SRD spell import in content-only slices
+3. Keep imported spells marked with honest `supported` / `partial` / `unsupported` support metadata
+4. Keep imported non-alpha spells hidden from class/player selection until the matching resolver slice exists
+5. Only widen combat logic again when a central spell-mechanic class justifies its own focused slice
 
 ## Core Architecture
 
@@ -233,13 +237,16 @@ Next recommended resume point:
   - `prone` now affects ordinary attack rolls in the supported slice: adjacent melee attacks gain advantage and ranged attacks suffer disadvantage against prone targets
   - repeating end-of-turn condition saves now exist on the canonical turn lifecycle, which supports spells like `blindness/deafness`
 - [x] AI monster control foundation
-- [ ] Full D&D spell engine
+- [~] Full D&D spell engine
 - [~] Utility spell gameplay integration
   - Dungeon interaction path now supports `light`, `thaumaturgy`, `knock`, `detect_magic`, and `identify`
 - [~] SRD spell content coverage for future map/template work
   - area-template spell content now includes representative SRD shapes for cone, cube, line, sphere, aura, and cylinder-style effects
   - current scaffold entries now include `burning_hands`, `thunderwave`, `fog_cloud`, `shatter`, `fireball`, `lightning_bolt`, and `spirit_guardians`
   - direct combat content entries now also include `inflict_wounds`, `acid_arrow`, `hellish_rebuke`, and `dissonant_whispers`
+  - the canonical spell library now contains 105 total spell entries
+  - 46 imported SRD entries are present as canonical content but hidden from current alpha spell lists via `metadata.alpha_selectable: false`
+  - all spell entries now declare `metadata.runtime_support` so future onboarding can be honest about supported vs partial vs unsupported mechanics
   - this content is intended to support later map-side targeting/template work without making map state authoritative
 - [ ] Advanced combat AI behavior profiles
 - [ ] Full action economy enforcement across all action types
@@ -406,6 +413,9 @@ Next recommended resume point:
 - [ ] Reduce redundant commands across core play
 - [ ] Broaden economy progression beyond starter balancing
 - [~] Add richer shop/craft button UX beyond browse/buy/make
+- [~] Continue SRD spell library import in content-only passes
+  - next recommended pass: additional level 2-3 SRD staples with honest support tagging
+  - do not surface non-alpha-selectable spells in class/player spell lists until their resolver slice exists
 
 ### Later
 
@@ -467,3 +477,21 @@ Next recommended resume point:
 - [x] Routed normal weapon attacks through the typed-damage pipeline so resistances and vulnerabilities now matter outside the spell path
 - [x] Added temporary hit point handling to the supported damage and item-use slices
 - [x] Added canonical world-item healing/temp-HP resolution with inventory parity coverage
+- [x] Added canonical persistent battlefield spell-state support
+  - ongoing spell zones now use `combat.active_effects`
+  - zone behavior now covers obscuration, difficult terrain, on-enter damage, on-enter conditions, and start-of-turn damage/conditions
+- [x] Added `darkness` and `moonbeam` through the canonical persistent-zone model
+- [x] Added canonical spell support truth to content
+  - all spells now declare `metadata.runtime_support`
+  - non-alpha imported SRD spells are hidden from normal spell-list surfaces with `metadata.alpha_selectable: false`
+- [x] Expanded the canonical spell library in a content-safe way
+  - total spell entries: `105`
+  - hidden imported SRD entries: `46`
+
+## Sync Resume Note
+
+If resuming after sync, the intended next slice is:
+1. Continue SRD spell import in content-only passes
+2. Group imports by mechanic family and assign honest `runtime_support`
+3. Leave imported spells hidden from alpha selection until the corresponding resolver slice is actually implemented
+4. Treat any future combat-system widening as a separate focused slice, not as part of the import pass

@@ -155,7 +155,7 @@ function runMoveActionTests() {
 
     assert.equal(out.ok, false);
     assert.equal(out.event_type, "move_action_failed");
-    assert.equal(out.error, "defeated participants cannot act");
+    assert.equal(out.error, "defeated participants cannot move");
   }, results);
 
   runTest("stunned_participant_cannot_move", () => {
@@ -180,7 +180,7 @@ function runMoveActionTests() {
     });
 
     assert.equal(out.ok, false);
-    assert.equal(out.error, "stunned participants cannot act");
+    assert.equal(out.error, "stunned participants cannot move");
   }, results);
 
   runTest("restrained_participant_cannot_move", () => {
@@ -283,6 +283,136 @@ function runMoveActionTests() {
     assert.equal(out.payload.combat.conditions.some((entry) => {
       return String(entry && entry.condition_type || "") === "grappled";
     }), false);
+  }, results);
+
+  runTest("entering_grease_zone_costs_difficult_terrain_movement", () => {
+    const manager = createActiveCombatForMoveTests();
+    const combat = manager.getCombatById("combat-move-001").payload.combat;
+    combat.active_effects = [{
+      effect_id: "effect-grease-zone-001",
+      type: "spell_active_grease",
+      source: { participant_id: "p2", event_id: null },
+      target: { participant_id: "p2" },
+      duration: { remaining_turns: 10, max_turns: 10 },
+      tick_timing: "none",
+      stacking_rules: { mode: "refresh", max_stacks: 1 },
+      modifiers: {
+        spell_id: "grease",
+        area_tiles: [{ x: 1, y: 0 }],
+        zone_behavior: {
+          terrain_kind: "difficult"
+        }
+      }
+    }];
+    manager.combats.set("combat-move-001", combat);
+
+    const out = performMoveAction({
+      combatManager: manager,
+      combat_id: "combat-move-001",
+      participant_id: "p1",
+      target_position: { x: 1, y: 0 }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.movement_cost_feet, 10);
+    const actor = out.payload.combat.participants.find((entry) => entry.participant_id === "p1");
+    assert.equal(actor.movement_remaining, 20);
+  }, results);
+
+  runTest("entering_web_zone_failed_save_applies_restrained_condition", () => {
+    const manager = createActiveCombatForMoveTests();
+    const combat = manager.getCombatById("combat-move-001").payload.combat;
+    combat.active_effects = [{
+      effect_id: "effect-web-zone-001",
+      type: "spell_active_web",
+      source: { participant_id: "p2", event_id: null },
+      target: { participant_id: "p2" },
+      duration: { remaining_turns: 10, max_turns: 10 },
+      tick_timing: "none",
+      stacking_rules: { mode: "refresh", max_stacks: 1 },
+      modifiers: {
+        spell_id: "web",
+        area_tiles: [{ x: 1, y: 0 }],
+        zone_behavior: {
+          terrain_kind: "difficult",
+          on_enter_condition: {
+            save_ability: "dexterity",
+            save_dc: 13,
+            condition_type: "restrained",
+            expiration_trigger: "manual",
+            metadata: {
+              source_spell_id: "web"
+            }
+          }
+        }
+      }
+    }];
+    manager.combats.set("combat-move-001", combat);
+
+    const out = performMoveAction({
+      combatManager: manager,
+      combat_id: "combat-move-001",
+      participant_id: "p1",
+      target_position: { x: 1, y: 0 },
+      saving_throw_fn: () => ({ final_total: 4 })
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.zone_effect_results.length, 1);
+    assert.equal(out.payload.zone_effect_results[0].applied_condition.condition_type, "restrained");
+    assert.equal(out.payload.combat.conditions.some((entry) => {
+      return String(entry && entry.condition_type || "") === "restrained" &&
+        String(entry && entry.target_actor_id || "") === "p1";
+    }), true);
+  }, results);
+
+  runTest("entering_moonbeam_zone_failed_save_applies_radiant_damage", () => {
+    const manager = createActiveCombatForMoveTests();
+    const combat = manager.getCombatById("combat-move-001").payload.combat;
+    combat.active_effects = [{
+      effect_id: "effect-moonbeam-zone-001",
+      type: "spell_active_moonbeam",
+      source: { participant_id: "p2", event_id: null },
+      target: { participant_id: "p2" },
+      duration: { remaining_turns: 10, max_turns: 10 },
+      tick_timing: "none",
+      stacking_rules: { mode: "refresh", max_stacks: 1 },
+      modifiers: {
+        spell_id: "moonbeam",
+        area_tiles: [{ x: 1, y: 0 }],
+        zone_behavior: {
+          on_enter_damage: {
+            save_ability: "constitution",
+            save_dc: 13,
+            damage_formula: "2d10",
+            damage_type: "radiant",
+            save_result: "half_damage_on_success"
+          },
+          on_turn_start_damage: {
+            save_ability: "constitution",
+            save_dc: 13,
+            damage_formula: "2d10",
+            damage_type: "radiant",
+            save_result: "half_damage_on_success"
+          }
+        }
+      }
+    }];
+    manager.combats.set("combat-move-001", combat);
+
+    const out = performMoveAction({
+      combatManager: manager,
+      combat_id: "combat-move-001",
+      participant_id: "p1",
+      target_position: { x: 1, y: 0 },
+      saving_throw_fn: () => ({ final_total: 4 }),
+      damage_rng: () => 0
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.zone_effect_results.length, 1);
+    assert.equal(out.payload.zone_effect_results[0].damage_applied.damage_type, "radiant");
+    assert.equal(Number(out.payload.zone_effect_results[0].damage_applied.final_damage) > 0, true);
   }, results);
 
   const passed = results.filter((x) => x.ok).length;

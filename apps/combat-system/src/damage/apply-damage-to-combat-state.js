@@ -51,6 +51,7 @@ function buildConditionDamageProfile(combatState, targetId) {
  * @param {string} input.target_participant_id
  * @param {string} input.damage_type
  * @param {string} input.damage_formula
+ * @param {number} [input.flat_damage]
  * @param {number} [input.flat_modifier]
  * @param {Function} [input.rng]
  * @returns {object}
@@ -81,7 +82,9 @@ function applyDamageToCombatState(input) {
     target: enrichedTarget,
     damage_type: input.damage_type,
     damage_formula: input.damage_formula,
-    flat_modifier: input.flat_modifier,
+    flat_modifier: Number.isFinite(Number(input.flat_damage))
+      ? Number(input.flat_damage)
+      : input.flat_modifier,
     rng: input.rng
   });
 

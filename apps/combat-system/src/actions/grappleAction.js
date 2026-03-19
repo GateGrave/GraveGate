@@ -3,13 +3,13 @@
 const {
   ACTION_TYPES,
   consumeParticipantAction,
-  validateParticipantActionAvailability
+  validateParticipantActionAvailability,
+  validateParticipantActionContext
 } = require("./actionEconomy");
 const {
   applyConditionToCombatState,
   getActiveConditionsForParticipant,
-  removeConditionFromCombatState,
-  participantHasCondition
+  removeConditionFromCombatState
 } = require("../conditions/conditionHelpers");
 const { gridDistanceFeet } = require("../validation/validation-helpers");
 const { getAbilityModifier, resolveContestedCheck } = require("./contestedChecks");
@@ -124,39 +124,19 @@ function performGrappleAction(input) {
     });
   }
 
-  const attackerHp = Number.isFinite(Number(attacker.current_hp)) ? Number(attacker.current_hp) : 0;
   const targetHp = Number.isFinite(Number(target.current_hp)) ? Number(target.current_hp) : 0;
-  if (attackerHp <= 0) {
-    return failure("grapple_action_failed", "defeated participants cannot act", {
-      attacker_id: String(attackerId),
-      current_hp: attackerHp
-    });
+  const contextValidation = validateParticipantActionContext(combat, attacker, {
+    participant_id: attackerId,
+    role_key: "attacker_id",
+    turn_error_message: "it is not the attacker's turn"
+  });
+  if (!contextValidation.ok) {
+    return failure("grapple_action_failed", contextValidation.message, contextValidation.payload);
   }
   if (targetHp <= 0) {
     return failure("grapple_action_failed", "target is already defeated", {
       target_id: String(targetId),
       current_hp: targetHp
-    });
-  }
-  if (participantHasCondition(combat, attackerId, "stunned")) {
-    return failure("grapple_action_failed", "stunned participants cannot act", {
-      attacker_id: String(attackerId)
-    });
-  }
-  if (participantHasCondition(combat, attackerId, "paralyzed")) {
-    return failure("grapple_action_failed", "paralyzed participants cannot act", {
-      attacker_id: String(attackerId)
-    });
-  }
-
-  const initiativeOrder = Array.isArray(combat.initiative_order) ? combat.initiative_order : [];
-  const expectedActorId = initiativeOrder[combat.turn_index];
-  if (!expectedActorId || String(expectedActorId) !== String(attackerId)) {
-    return failure("grapple_action_failed", "it is not the attacker's turn", {
-      combat_id: String(combatId),
-      attacker_id: String(attackerId),
-      expected_actor_id: expectedActorId || null,
-      turn_index: combat.turn_index
     });
   }
 

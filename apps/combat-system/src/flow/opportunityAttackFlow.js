@@ -241,6 +241,10 @@ function resolveOpportunityAttacksForMove(input) {
       combat.conditions = clone(nextCombat.conditions || []);
       combat.event_log = clone(nextCombat.event_log || []);
       combat.updated_at = nextCombat.updated_at;
+      const refreshedReactor = findParticipantById(combat.participants, reactorId);
+      if (refreshedReactor) {
+        refreshedReactor.reaction_available = false;
+      }
       reactors.push({
         reactor_participant_id: reactorId,
         target_participant_id: moverId,

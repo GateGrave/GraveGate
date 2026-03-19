@@ -337,6 +337,428 @@ function runNextTurnTests() {
     assert.equal(out.payload.combat.conditions.length, 0);
   }, results);
 
+  runTest("start_of_turn_active_effect_duration_ticks_and_expires", () => {
+    const manager = createBaseCombat();
+    const combat = manager.getCombatById("combat-next-001").payload.combat;
+    combat.active_effects = [{
+      effect_id: "effect-start-turn-expire-001",
+      type: "test_start_effect",
+      target: {
+        participant_id: "p2"
+      },
+      duration: {
+        remaining_turns: 1,
+        max_turns: 1
+      },
+      tick_timing: "start_of_turn",
+      stacking_rules: {
+        mode: "refresh",
+        max_stacks: 1
+      },
+      modifiers: {}
+    }];
+    manager.combats.set("combat-next-001", combat);
+
+    const out = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001"
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.combat.active_effects.length, 0);
+    assert.equal(out.payload.combat.event_log[0].details.start_of_turn_effects.length, 1);
+    assert.equal(out.payload.combat.event_log[0].details.expired_effect_ids.includes("effect-start-turn-expire-001"), true);
+  }, results);
+
+  runTest("end_of_turn_active_effect_duration_ticks_before_turn_advances", () => {
+    const manager = createBaseCombat();
+    const combat = manager.getCombatById("combat-next-001").payload.combat;
+    combat.active_effects = [{
+      effect_id: "effect-end-turn-expire-001",
+      type: "test_end_effect",
+      target: {
+        participant_id: "p1"
+      },
+      duration: {
+        remaining_turns: 1,
+        max_turns: 1
+      },
+      tick_timing: "end_of_turn",
+      stacking_rules: {
+        mode: "refresh",
+        max_stacks: 1
+      },
+      modifiers: {}
+    }];
+    manager.combats.set("combat-next-001", combat);
+
+    const out = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001"
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.combat.active_effects.length, 0);
+    assert.equal(out.payload.combat.event_log[0].details.end_of_turn_effects.length, 1);
+    assert.equal(out.payload.combat.event_log[0].details.expired_effect_ids.includes("effect-end-turn-expire-001"), true);
+  }, results);
+
+  runTest("spirit_guardians_active_effect_damages_hostile_target_at_start_of_turn", () => {
+    const manager = createBaseCombat();
+    const combat = manager.getCombatById("combat-next-001").payload.combat;
+    combat.participants[1].position = { x: 2, y: 2 };
+    combat.participants[1].current_hp = 20;
+    combat.participants[1].max_hp = 20;
+    combat.participants[0].team = "ally";
+    combat.participants[1].team = "enemy";
+    combat.active_effects = [{
+      effect_id: "effect-spirit-guardians-001",
+      type: "spell_active_spirit_guardians",
+      source: {
+        participant_id: "p1"
+      },
+      target: {
+        participant_id: "p1"
+      },
+      duration: {
+        remaining_turns: 10,
+        max_turns: 10
+      },
+      tick_timing: "none",
+      stacking_rules: {
+        mode: "refresh",
+        max_stacks: 1
+      },
+      modifiers: {
+        spell_id: "spirit_guardians",
+        area_tiles: [{ x: 2, y: 2 }],
+        zone_behavior: {
+          hostile_only: true,
+          on_turn_start_damage: {
+            save_ability: "wisdom",
+            save_dc: 14,
+            damage_formula: "3d8",
+            damage_type: "radiant",
+            save_result: "half_damage_on_success"
+          }
+        }
+      }
+    }];
+    manager.combats.set("combat-next-001", combat);
+
+    const out = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001",
+      saving_throw_fn() {
+        return { final_total: 4 };
+      },
+      damage_rng() {
+        return 0;
+      }
+    });
+
+    assert.equal(out.ok, true);
+    const participant = out.payload.combat.participants.find((entry) => entry.participant_id === "p2");
+    assert.equal(participant.current_hp < 20, true);
+    assert.equal(out.payload.combat.event_log[0].details.active_effect_results.length, 1);
+    assert.equal(out.payload.combat.event_log[0].details.active_effect_results[0].spell_id, "spirit_guardians");
+    assert.equal(out.payload.combat.event_log[0].details.active_effect_results[0].damage_applied.final_damage > 0, true);
+  }, results);
+
+  runTest("spirit_guardians_active_effect_skips_friendly_target_and_can_break_concentration", () => {
+    const manager = createBaseCombat();
+    const combat = manager.getCombatById("combat-next-001").payload.combat;
+    combat.participants[1].position = { x: 2, y: 2 };
+    combat.participants[1].current_hp = 20;
+    combat.participants[1].max_hp = 20;
+    combat.participants[1].team = "enemy";
+    combat.participants[1].concentration = {
+      is_concentrating: true,
+      source_spell_id: "blur",
+      target_actor_id: "p1",
+      linked_condition_ids: ["condition-blur-001"],
+      linked_effect_ids: [],
+      linked_restorations: [],
+      started_at_round: 1,
+      broken_reason: null
+    };
+    combat.conditions = [{
+      condition_id: "condition-blur-001",
+      condition_type: "blur",
+      source_actor_id: "p2",
+      target_actor_id: "p2",
+      expiration_trigger: "manual",
+      metadata: {
+        attackers_have_disadvantage: true
+      }
+    }];
+    combat.active_effects = [{
+      effect_id: "effect-spirit-guardians-002",
+      type: "spell_active_spirit_guardians",
+      source: {
+        participant_id: "p1"
+      },
+      target: {
+        participant_id: "p1"
+      },
+      duration: {
+        remaining_turns: 10,
+        max_turns: 10
+      },
+      tick_timing: "none",
+      stacking_rules: {
+        mode: "refresh",
+        max_stacks: 1
+      },
+      modifiers: {
+        spell_id: "spirit_guardians",
+        area_tiles: [{ x: 2, y: 2 }],
+        zone_behavior: {
+          hostile_only: true,
+          on_turn_start_damage: {
+            save_ability: "wisdom",
+            save_dc: 14,
+            damage_formula: "3d8",
+            damage_type: "radiant",
+            save_result: "half_damage_on_success"
+          }
+        }
+      }
+    }, {
+      effect_id: "effect-spirit-guardians-friendly-001",
+      type: "spell_active_spirit_guardians",
+      source: {
+        participant_id: "p2"
+      },
+      target: {
+        participant_id: "p2"
+      },
+      duration: {
+        remaining_turns: 10,
+        max_turns: 10
+      },
+      tick_timing: "none",
+      stacking_rules: {
+        mode: "refresh",
+        max_stacks: 1
+      },
+      modifiers: {
+        spell_id: "spirit_guardians",
+        area_tiles: [{ x: 2, y: 2 }],
+        zone_behavior: {
+          hostile_only: true,
+          on_turn_start_damage: {
+            save_ability: "wisdom",
+            save_dc: 14,
+            damage_formula: "3d8",
+            damage_type: "radiant",
+            save_result: "half_damage_on_success"
+          }
+        }
+      }
+    }];
+    manager.combats.set("combat-next-001", combat);
+
+    const out = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001",
+      saving_throw_fn() {
+        return { final_total: 4 };
+      },
+      damage_rng() {
+        return 0;
+      },
+      concentration_save_rng() {
+        return 0;
+      }
+    });
+
+    assert.equal(out.ok, true);
+    const effectResults = out.payload.combat.event_log[0].details.active_effect_results;
+    assert.equal(effectResults.length, 1);
+    assert.equal(effectResults[0].source_actor_id, "p1");
+    const participant = out.payload.combat.participants.find((entry) => entry.participant_id === "p2");
+    assert.equal(participant.concentration.is_concentrating, false);
+    assert.equal(out.payload.combat.conditions.some((entry) => entry.condition_id === "condition-blur-001"), false);
+    assert.equal(effectResults[0].concentration_result.concentration_broken, true);
+  }, results);
+
+  runTest("grease_active_effect_can_prone_target_at_start_of_turn_on_failed_save", () => {
+    const manager = createBaseCombat();
+    const combat = manager.getCombatById("combat-next-001").payload.combat;
+    combat.participants[1].position = { x: 2, y: 2 };
+    combat.active_effects = [{
+      effect_id: "effect-grease-start-001",
+      type: "spell_active_grease",
+      source: {
+        participant_id: "p1"
+      },
+      target: {
+        participant_id: "p1"
+      },
+      duration: {
+        remaining_turns: 10,
+        max_turns: 10
+      },
+      tick_timing: "none",
+      stacking_rules: {
+        mode: "refresh",
+        max_stacks: 1
+      },
+      modifiers: {
+        spell_id: "grease",
+        area_tiles: [{ x: 2, y: 2 }],
+        zone_behavior: {
+          terrain_kind: "difficult",
+          on_turn_start_condition: {
+            save_ability: "dexterity",
+            save_dc: 14,
+            condition_type: "prone",
+            expiration_trigger: "manual",
+            metadata: {
+              source_spell_id: "grease"
+            }
+          }
+        }
+      }
+    }];
+    manager.combats.set("combat-next-001", combat);
+
+    const out = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001",
+      saving_throw_fn() {
+        return { final_total: 4 };
+      }
+    });
+
+    assert.equal(out.ok, true);
+    const effectResults = out.payload.combat.event_log[0].details.active_effect_results;
+    assert.equal(effectResults.length, 1);
+    assert.equal(effectResults[0].applied_condition.condition_type, "prone");
+    assert.equal(out.payload.combat.conditions.some((entry) => {
+      return String(entry && entry.condition_type || "") === "prone" &&
+        String(entry && entry.target_actor_id || "") === "p2";
+    }), true);
+  }, results);
+
+  runTest("web_active_effect_can_restrain_target_at_start_of_turn_on_failed_save", () => {
+    const manager = createBaseCombat();
+    const combat = manager.getCombatById("combat-next-001").payload.combat;
+    combat.participants[1].position = { x: 2, y: 2 };
+    combat.active_effects = [{
+      effect_id: "effect-web-start-001",
+      type: "spell_active_web",
+      source: {
+        participant_id: "p1"
+      },
+      target: {
+        participant_id: "p1"
+      },
+      duration: {
+        remaining_turns: 10,
+        max_turns: 10
+      },
+      tick_timing: "none",
+      stacking_rules: {
+        mode: "refresh",
+        max_stacks: 1
+      },
+      modifiers: {
+        spell_id: "web",
+        area_tiles: [{ x: 2, y: 2 }],
+        zone_behavior: {
+          terrain_kind: "difficult",
+          on_turn_start_condition: {
+            save_ability: "dexterity",
+            save_dc: 14,
+            condition_type: "restrained",
+            expiration_trigger: "manual",
+            metadata: {
+              source_spell_id: "web"
+            }
+          }
+        }
+      }
+    }];
+    manager.combats.set("combat-next-001", combat);
+
+    const out = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001",
+      saving_throw_fn() {
+        return { final_total: 4 };
+      }
+    });
+
+    assert.equal(out.ok, true);
+    const effectResults = out.payload.combat.event_log[0].details.active_effect_results;
+    assert.equal(effectResults.length, 1);
+    assert.equal(effectResults[0].applied_condition.condition_type, "restrained");
+    assert.equal(out.payload.combat.conditions.some((entry) => {
+      return String(entry && entry.condition_type || "") === "restrained" &&
+        String(entry && entry.target_actor_id || "") === "p2";
+    }), true);
+  }, results);
+
+  runTest("moonbeam_active_effect_damages_target_at_start_of_turn_on_failed_save", () => {
+    const manager = createBaseCombat();
+    const combat = manager.getCombatById("combat-next-001").payload.combat;
+    combat.participants[1].position = { x: 2, y: 2 };
+    combat.active_effects = [{
+      effect_id: "effect-moonbeam-start-001",
+      type: "spell_active_moonbeam",
+      source: {
+        participant_id: "p1"
+      },
+      target: {
+        participant_id: "p1"
+      },
+      duration: {
+        remaining_turns: 10,
+        max_turns: 10
+      },
+      tick_timing: "none",
+      stacking_rules: {
+        mode: "refresh",
+        max_stacks: 1
+      },
+      modifiers: {
+        spell_id: "moonbeam",
+        area_tiles: [{ x: 2, y: 2 }],
+        zone_behavior: {
+          on_turn_start_damage: {
+            save_ability: "constitution",
+            save_dc: 14,
+            damage_formula: "2d10",
+            damage_type: "radiant",
+            save_result: "half_damage_on_success"
+          }
+        }
+      }
+    }];
+    manager.combats.set("combat-next-001", combat);
+
+    const beforeHp = combat.participants[1].current_hp;
+    const out = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001",
+      saving_throw_fn() {
+        return { final_total: 4 };
+      },
+      damage_rng() {
+        return 0;
+      }
+    });
+
+    assert.equal(out.ok, true);
+    const effectResults = out.payload.combat.event_log[0].details.active_effect_results;
+    assert.equal(effectResults.length, 1);
+    assert.equal(effectResults[0].damage_applied.damage_type, "radiant");
+    const participant = out.payload.combat.participants.find((entry) => entry.participant_id === "p2");
+    assert.equal(participant.current_hp < beforeHp, true);
+  }, results);
+
   const passed = results.filter((x) => x.ok).length;
   const failed = results.length - passed;
   return {

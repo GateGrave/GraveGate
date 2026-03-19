@@ -3,11 +3,11 @@
 const {
   ACTION_TYPES,
   consumeParticipantAction,
-  validateParticipantActionAvailability
+  validateParticipantActionAvailability,
+  validateParticipantActionContext
 } = require("./actionEconomy");
 const {
   applyConditionToCombatState,
-  getParticipantIncapacitationType,
   getActiveConditionsForParticipant,
   removeConditionFromCombatState
 } = require("../conditions/conditionHelpers");
@@ -122,37 +122,19 @@ function performHelpAction(input) {
       target_id: String(targetId)
     });
   }
-  if (Number(helper.current_hp || 0) <= 0) {
-    return failure("help_action_failed", "defeated participants cannot act", {
-      combat_id: String(combatId),
-      helper_id: String(helperId),
-      current_hp: Number(helper.current_hp || 0)
-    });
-  }
-  const incapacitationType = getParticipantIncapacitationType(combat, helperId);
-  if (incapacitationType) {
-    return failure("help_action_failed", `${incapacitationType} participants cannot act`, {
-      combat_id: String(combatId),
-      helper_id: String(helperId),
-      incapacitating_condition: incapacitationType
-    });
+  const contextValidation = validateParticipantActionContext(combat, helper, {
+    participant_id: helperId,
+    role_key: "helper_id",
+    turn_error_message: "it is not the helper's turn"
+  });
+  if (!contextValidation.ok) {
+    return failure("help_action_failed", contextValidation.message, contextValidation.payload);
   }
   if (Number(target.current_hp || 0) <= 0) {
     return failure("help_action_failed", "target is already defeated", {
       combat_id: String(combatId),
       target_id: String(targetId),
       current_hp: Number(target.current_hp || 0)
-    });
-  }
-
-  const initiativeOrder = Array.isArray(combat.initiative_order) ? combat.initiative_order : [];
-  const expectedActorId = initiativeOrder[combat.turn_index];
-  if (!expectedActorId || String(expectedActorId) !== String(helperId)) {
-    return failure("help_action_failed", "it is not the helper's turn", {
-      combat_id: String(combatId),
-      helper_id: String(helperId),
-      expected_actor_id: expectedActorId || null,
-      turn_index: combat.turn_index
     });
   }
 

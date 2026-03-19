@@ -4,11 +4,16 @@ const {
   expireConditionsForTrigger,
   getActiveConditionsForParticipant,
   removeConditionFromCombatState,
-  normalizeCombatControlConditions
+  normalizeCombatControlConditions,
+  applyConditionToCombatState
 } = require("../conditions/conditionHelpers");
 const { resetReactionForParticipant } = require("../reactions/reactionState");
 const { resolveSavingThrowOutcome } = require("../spells/spellcastingHelpers");
 const { initializeParticipantSpellcastingTurnState } = require("../spells/spellcastingHelpers");
+const { applyDamageToCombatState } = require("../damage/apply-damage-to-combat-state");
+const { resolveConcentrationDamageCheck } = require("../concentration/concentrationState");
+const { processStartOfTurnEffects, processEndOfTurnEffects } = require("../status-effects/status-effect-helpers");
+const { getActiveAreaEffectsAtPosition } = require("../effects/battlefieldEffectHelpers");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -34,6 +39,166 @@ function failure(eventType, message, payload) {
 
 function findParticipantById(participants, participantId) {
   return participants.find((p) => String(p.participant_id) === String(participantId)) || null;
+}
+
+function resolveStartOfTurnActiveEffects(combat, participantId, input) {
+  const participant = findParticipantById(combat.participants || [], participantId);
+  const participantHp = Number.isFinite(Number(participant && participant.current_hp))
+    ? Number(participant.current_hp)
+    : 0;
+  if (!participant || participantHp <= 0 || !participant.position) {
+    return {
+      combat,
+      active_effect_results: []
+    };
+  }
+
+  let nextCombat = clone(combat);
+  const areaEffects = getActiveAreaEffectsAtPosition(nextCombat, participant.position);
+  const activeEffectResults = [];
+
+  for (let index = 0; index < areaEffects.length; index += 1) {
+    const currentParticipant = findParticipantById(nextCombat.participants || [], participantId);
+    const currentHp = Number.isFinite(Number(currentParticipant && currentParticipant.current_hp))
+      ? Number(currentParticipant.current_hp)
+      : 0;
+    if (!currentParticipant || currentHp <= 0) {
+      break;
+    }
+
+    const effect = areaEffects[index];
+    const modifiers = effect && effect.modifiers && typeof effect.modifiers === "object" ? effect.modifiers : {};
+    const zoneBehavior = modifiers.zone_behavior && typeof modifiers.zone_behavior === "object" ? modifiers.zone_behavior : {};
+    const turnStartDamage = zoneBehavior.on_turn_start_damage && typeof zoneBehavior.on_turn_start_damage === "object"
+      ? zoneBehavior.on_turn_start_damage
+      : null;
+    const turnStartCondition = zoneBehavior.on_turn_start_condition && typeof zoneBehavior.on_turn_start_condition === "object"
+      ? zoneBehavior.on_turn_start_condition
+      : null;
+    if (!turnStartDamage && !turnStartCondition) {
+      continue;
+    }
+
+    const sourceParticipantId = effect && effect.source && effect.source.participant_id
+      ? String(effect.source.participant_id)
+      : null;
+    const sourceParticipant = sourceParticipantId
+      ? findParticipantById(nextCombat.participants || [], sourceParticipantId)
+      : null;
+    if (zoneBehavior.hostile_only === true && sourceParticipant) {
+      if (String(sourceParticipant.team || "") === String(currentParticipant.team || "")) {
+        continue;
+      }
+    }
+
+    const saveOut = resolveSavingThrowOutcome({
+      combat_state: nextCombat,
+      participant: currentParticipant,
+      save_ability: String(
+        (turnStartDamage && turnStartDamage.save_ability) ||
+        (turnStartCondition && turnStartCondition.save_ability) ||
+        "wisdom"
+      ).trim().toLowerCase(),
+      dc: Number(
+        (turnStartDamage && turnStartDamage.save_dc) ||
+        (turnStartCondition && turnStartCondition.save_dc) ||
+        10
+      ),
+      saving_throw_fn: typeof input.saving_throw_fn === "function" ? input.saving_throw_fn : null,
+      bonus_rng: typeof input.bonus_rng === "function" ? input.bonus_rng : null
+    });
+    if (!saveOut.ok) {
+      continue;
+    }
+
+    let damageApplied = null;
+    let appliedCondition = null;
+    if (turnStartDamage && turnStartDamage.damage_formula && turnStartDamage.damage_type) {
+      if (saveOut.payload.success === true && String(turnStartDamage.save_result || "") === "half_damage_on_success") {
+        const preview = applyDamageToCombatState({
+          combat_state: nextCombat,
+          target_participant_id: participantId,
+          damage_type: turnStartDamage.damage_type,
+          damage_formula: turnStartDamage.damage_formula,
+          rng: typeof input.damage_rng === "function" ? input.damage_rng : null
+        });
+        const halfAmount = Math.floor(Number(preview.damage_result && preview.damage_result.final_damage || 0) / 2);
+        if (halfAmount > 0) {
+          const appliedHalf = applyDamageToCombatState({
+            combat_state: nextCombat,
+            target_participant_id: participantId,
+            damage_type: turnStartDamage.damage_type,
+            damage_formula: null,
+            flat_damage: halfAmount,
+            rng: typeof input.damage_rng === "function" ? input.damage_rng : null
+          });
+          nextCombat = clone(appliedHalf.next_state);
+          damageApplied = clone(appliedHalf.damage_result);
+        } else {
+          damageApplied = {
+            final_damage: 0,
+            damage_type: turnStartDamage.damage_type
+          };
+        }
+      } else if (saveOut.payload.success !== true) {
+        const applied = applyDamageToCombatState({
+          combat_state: nextCombat,
+          target_participant_id: participantId,
+          damage_type: turnStartDamage.damage_type,
+          damage_formula: turnStartDamage.damage_formula,
+          rng: typeof input.damage_rng === "function" ? input.damage_rng : null
+        });
+        nextCombat = clone(applied.next_state);
+        damageApplied = clone(applied.damage_result);
+      }
+    }
+    if (turnStartCondition && saveOut.payload.success !== true) {
+      const applied = applyConditionToCombatState(nextCombat, {
+        condition_type: turnStartCondition.condition_type,
+        source_actor_id: sourceParticipantId,
+        target_actor_id: participantId,
+        expiration_trigger: turnStartCondition.expiration_trigger || "manual",
+        metadata: turnStartCondition.metadata && typeof turnStartCondition.metadata === "object"
+          ? clone(turnStartCondition.metadata)
+          : {}
+      });
+      if (applied.ok) {
+        nextCombat = clone(applied.next_state);
+        appliedCondition = applied.condition ? clone(applied.condition) : null;
+      }
+    }
+
+    let concentrationResult = null;
+    if (damageApplied && Number(damageApplied.final_damage || 0) > 0) {
+      const concentrationCheck = resolveConcentrationDamageCheck(
+        nextCombat,
+        participantId,
+        damageApplied.final_damage,
+        typeof input.concentration_save_rng === "function" ? input.concentration_save_rng : null
+      );
+      if (concentrationCheck.ok) {
+        nextCombat = clone(concentrationCheck.next_state);
+        concentrationResult = concentrationCheck.concentration_result
+          ? clone(concentrationCheck.concentration_result)
+          : null;
+      }
+    }
+
+    activeEffectResults.push({
+      effect_id: String(effect && effect.effect_id || ""),
+      spell_id: modifiers.spell_id || null,
+      source_actor_id: sourceParticipantId,
+      save_result: clone(saveOut.payload),
+      damage_applied: damageApplied,
+      applied_condition: appliedCondition,
+      concentration_result: concentrationResult
+    });
+  }
+
+  return {
+    combat: nextCombat,
+    active_effect_results: activeEffectResults
+  };
 }
 
 function applyStartOfTurnConditionBoons(combat, participantId) {
@@ -244,6 +409,12 @@ function nextTurn(input) {
         removed_conditions: []
       };
   let combatState = clone(endOfTurnSaves.combat || combat);
+  const endOfTurnEffects = previousActorId
+    ? processEndOfTurnEffects(combatState, previousActorId)
+    : { ok: true, next_state: combatState, processed_effects: [], expired_effects: [] };
+  if (endOfTurnEffects.ok) {
+    combatState = clone(endOfTurnEffects.next_state);
+  }
   let nextIndex = previousTurnIndex;
   let nextRound = Number.isFinite(combat.round) ? Math.max(1, Math.floor(combat.round)) : 1;
 
@@ -291,6 +462,10 @@ function nextTurn(input) {
   if (reactionReset.ok) {
     combatState.participants = reactionReset.next_state.participants;
   }
+  const startOfTurnEffects = processStartOfTurnEffects(combatState, selectedParticipant.participant_id);
+  if (startOfTurnEffects.ok) {
+    combatState = clone(startOfTurnEffects.next_state);
+  }
   const expiredStartOfTurn = expireConditionsForTrigger(combatState, {
     participant_id: selectedParticipant.participant_id,
     expiration_trigger: "start_of_turn"
@@ -305,6 +480,9 @@ function nextTurn(input) {
     refreshedSelectedParticipant.movement_remaining = movementAdjustments.movement_remaining;
   }
   const startOfTurnBoons = applyStartOfTurnConditionBoons(combatState, selectedParticipant.participant_id);
+  combatState = clone(startOfTurnBoons.combat || combatState);
+  const startOfTurnActiveEffects = resolveStartOfTurnActiveEffects(combatState, selectedParticipant.participant_id, data);
+  combatState = clone(startOfTurnActiveEffects.combat || combatState);
   const expiredSourceTurn = expireConditionsForTrigger(combatState, {
     source_actor_id: selectedParticipant.participant_id,
     expiration_trigger: "start_of_source_turn"
@@ -333,6 +511,12 @@ function nextTurn(input) {
       movement_penalty_applied: movementAdjustments ? movementAdjustments.speed_penalty : 0,
       temporary_hitpoints_granted: startOfTurnBoons.temporary_hitpoints_granted,
       applied_boon_conditions: startOfTurnBoons.applied_boon_conditions,
+      active_effect_results: startOfTurnActiveEffects.active_effect_results,
+      start_of_turn_effects: startOfTurnEffects.ok ? startOfTurnEffects.processed_effects : [],
+      end_of_turn_effects: endOfTurnEffects.ok ? endOfTurnEffects.processed_effects : [],
+      expired_effect_ids: []
+        .concat(startOfTurnEffects.ok ? startOfTurnEffects.expired_effects.map((effect) => effect.effect_id) : [])
+        .concat(endOfTurnEffects.ok ? endOfTurnEffects.expired_effects.map((effect) => effect.effect_id) : []),
       end_of_turn_save_results: endOfTurnSaves.save_results,
       expired_condition_ids: expiredStartOfTurn.ok
         ? expiredStartOfTurn.expired_conditions

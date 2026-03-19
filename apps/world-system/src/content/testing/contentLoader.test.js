@@ -218,6 +218,26 @@ function runContentLoaderTests() {
     assert.equal(Array.isArray(byId.magic_missile.class_refs), true);
     assert.equal(byId.shield.concentration, false);
     assert.equal(byId.bless.concentration, true);
+    assert.equal(byId.fire_bolt.metadata.runtime_support.combat_resolution, "supported");
+    assert.equal(Array.isArray(byId.fire_bolt.metadata.runtime_support.resolver_tags), true);
+    assert.equal(byId.detect_magic.metadata.runtime_support.combat_resolution, "partial");
+    assert.equal(byId.detect_magic.metadata.runtime_support.content_scope, "utility");
+  }, results);
+
+  runTest("spell_library_includes_non_alpha_srd_import_entries", () => {
+    const out = loadSpellContent();
+    expectLoaded(out, "spell");
+
+    const byId = {};
+    for (let i = 0; i < out.payload.entries.length; i += 1) {
+      byId[String(out.payload.entries[i].spell_id)] = out.payload.entries[i];
+    }
+
+    assert.equal(Boolean(byId.alarm), true);
+    assert.equal(Boolean(byId.guidance), true);
+    assert.equal(byId.alarm.metadata.alpha_selectable, false);
+    assert.equal(byId.guidance.metadata.alpha_selectable, false);
+    assert.equal(byId.alarm.metadata.runtime_support.combat_resolution, "partial");
   }, results);
 
   runTest("starter_feats_include_minimum_progression_slice", () => {
@@ -343,6 +363,22 @@ function runContentLoaderTests() {
     assert.equal(out.ok, false);
     assert.equal(typeof out.error, "string");
     assert.equal(out.error, "invalid or missing field: effect");
+  }, results);
+
+  runTest("spell_without_runtime_support_metadata_fails_validation_cleanly", () => {
+    const out = validateContentEntry("spell", {
+      spell_id: "spell_missing_support",
+      name: "Supportless Spell",
+      level: 1,
+      school: "evocation",
+      effect: {},
+      metadata: {
+        source: "test"
+      }
+    });
+
+    assert.equal(out.ok, false);
+    assert.equal(out.error, "invalid or missing field: metadata");
   }, results);
 
   runTest("invalid_recipe_definition_fails_validation_cleanly", () => {

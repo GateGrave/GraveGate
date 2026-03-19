@@ -17,6 +17,45 @@ function normalizeCombatConditions(combatState) {
   return Array.isArray(combatState.conditions) ? combatState.conditions : [];
 }
 
+function normalizeConditionType(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getConditionMetadata(condition) {
+  return condition && condition.metadata && typeof condition.metadata === "object"
+    ? condition.metadata
+    : {};
+}
+
+function findDuplicateCondition(existing, condition) {
+  const targetType = normalizeConditionType(condition && condition.condition_type);
+  const targetSource = String(condition && condition.source_actor_id || "");
+  const targetActor = String(condition && condition.target_actor_id || "");
+  return existing.find((entry) => {
+    return normalizeConditionType(entry && entry.condition_type) === targetType &&
+      String(entry && entry.source_actor_id || "") === targetSource &&
+      String(entry && entry.target_actor_id || "") === targetActor;
+  }) || null;
+}
+
+function findConditionImmunityBlocker(existing, condition) {
+  const targetType = normalizeConditionType(condition && condition.condition_type);
+  const targetActor = String(condition && condition.target_actor_id || "");
+  if (!targetType || !targetActor) {
+    return null;
+  }
+  return existing.find((entry) => {
+    if (String(entry && entry.target_actor_id || "") !== targetActor) {
+      return false;
+    }
+    const metadata = getConditionMetadata(entry);
+    const immunityTags = Array.isArray(metadata.immunity_tags) ? metadata.immunity_tags : [];
+    return immunityTags
+      .map((tag) => normalizeConditionType(tag))
+      .includes(targetType);
+  }) || null;
+}
+
 function createCombatCondition(input) {
   const data = input || {};
   return {
@@ -54,6 +93,31 @@ function participantHasCondition(combatState, participantId, conditionType) {
 function applyConditionToCombatState(combatState, input) {
   const condition = createCombatCondition(input);
   const existing = normalizeCombatConditions(combatState);
+  const immunityBlocker = findConditionImmunityBlocker(existing, condition);
+  if (immunityBlocker) {
+    return {
+      ok: true,
+      condition: null,
+      prevented: true,
+      prevented_by_condition: clone(immunityBlocker),
+      next_state: Object.assign({}, combatState, {
+        conditions: existing,
+        updated_at: combatState && combatState.updated_at ? combatState.updated_at : new Date().toISOString()
+      })
+    };
+  }
+  const duplicate = findDuplicateCondition(existing, condition);
+  if (duplicate) {
+    return {
+      ok: true,
+      condition: clone(duplicate),
+      duplicate: true,
+      next_state: Object.assign({}, combatState, {
+        conditions: existing,
+        updated_at: combatState && combatState.updated_at ? combatState.updated_at : new Date().toISOString()
+      })
+    };
+  }
   const nextConditions = existing.concat([condition]);
   return {
     ok: true,

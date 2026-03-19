@@ -3,9 +3,9 @@
 const {
   ACTION_TYPES,
   consumeParticipantAction,
-  validateParticipantActionAvailability
+  validateParticipantActionAvailability,
+  validateParticipantActionContext
 } = require("./actionEconomy");
-const { participantHasCondition } = require("../conditions/conditionHelpers");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -86,36 +86,11 @@ function performDashAction(input) {
     });
   }
 
-  const actorHp = Number.isFinite(Number(actor.current_hp)) ? Number(actor.current_hp) : 0;
-  if (actorHp <= 0) {
-    return failure("dash_action_failed", "defeated participants cannot act", {
-      combat_id: String(combatId),
-      participant_id: String(participantId),
-      current_hp: actorHp
-    });
-  }
-  if (participantHasCondition(combat, participantId, "stunned")) {
-    return failure("dash_action_failed", "stunned participants cannot act", {
-      combat_id: String(combatId),
-      participant_id: String(participantId)
-    });
-  }
-  if (participantHasCondition(combat, participantId, "paralyzed")) {
-    return failure("dash_action_failed", "paralyzed participants cannot act", {
-      combat_id: String(combatId),
-      participant_id: String(participantId)
-    });
-  }
-
-  const initiativeOrder = Array.isArray(combat.initiative_order) ? combat.initiative_order : [];
-  const expectedActorId = initiativeOrder[combat.turn_index];
-  if (!expectedActorId || String(expectedActorId) !== String(participantId)) {
-    return failure("dash_action_failed", "it is not the participant's turn", {
-      combat_id: String(combatId),
-      participant_id: String(participantId),
-      expected_actor_id: expectedActorId || null,
-      turn_index: combat.turn_index
-    });
+  const contextValidation = validateParticipantActionContext(combat, actor, {
+    participant_id: participantId
+  });
+  if (!contextValidation.ok) {
+    return failure("dash_action_failed", contextValidation.message, contextValidation.payload);
   }
 
   const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.DASH);

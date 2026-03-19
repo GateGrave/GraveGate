@@ -3,12 +3,12 @@
 const {
   ACTION_TYPES,
   consumeParticipantAction,
-  validateParticipantActionAvailability
+  validateParticipantActionAvailability,
+  validateParticipantActionContext
 } = require("./actionEconomy");
 const {
   getActiveConditionsForParticipant,
-  removeConditionFromCombatState,
-  participantHasCondition
+  removeConditionFromCombatState
 } = require("../conditions/conditionHelpers");
 const { getAbilityModifier, resolveContestedCheck } = require("./contestedChecks");
 
@@ -86,26 +86,11 @@ function performEscapeGrappleAction(input) {
       participant_id: String(participantId)
     });
   }
-  const hp = Number.isFinite(Number(actor.current_hp)) ? Number(actor.current_hp) : 0;
-  if (hp <= 0) {
-    return failure("escape_grapple_action_failed", "defeated participants cannot act");
-  }
-  if (participantHasCondition(combat, participantId, "stunned")) {
-    return failure("escape_grapple_action_failed", "stunned participants cannot act");
-  }
-  if (participantHasCondition(combat, participantId, "paralyzed")) {
-    return failure("escape_grapple_action_failed", "paralyzed participants cannot act");
-  }
-
-  const initiativeOrder = Array.isArray(combat.initiative_order) ? combat.initiative_order : [];
-  const expectedActorId = initiativeOrder[combat.turn_index];
-  if (!expectedActorId || String(expectedActorId) !== String(participantId)) {
-    return failure("escape_grapple_action_failed", "it is not the participant's turn", {
-      combat_id: String(combatId),
-      participant_id: String(participantId),
-      expected_actor_id: expectedActorId || null,
-      turn_index: combat.turn_index
-    });
+  const contextValidation = validateParticipantActionContext(combat, actor, {
+    participant_id: participantId
+  });
+  if (!contextValidation.ok) {
+    return failure("escape_grapple_action_failed", contextValidation.message, contextValidation.payload);
   }
 
   const grappleCondition = pickGrappleConditionForTarget(combat, participantId);
