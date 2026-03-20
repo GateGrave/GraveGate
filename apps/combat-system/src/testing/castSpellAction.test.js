@@ -846,7 +846,9 @@ function runCastSpellActionTests() {
     });
 
     assert.equal(out.ok, true);
-    assert.equal(out.payload.applied_conditions.some((entry) => entry.condition_type === "banished"), true);
+    const applied = out.payload.applied_conditions.find((entry) => entry.condition_type === "banished");
+    assert.equal(Boolean(applied), true);
+    assert.equal(applied.metadata.removed_from_battlefield, true);
   }, results);
 
   runTest("confusion_applies_condition_with_end_of_turn_wisdom_save_metadata", () => {
@@ -6102,6 +6104,7 @@ function runCastSpellActionTests() {
     assert.equal(Boolean(applied), true);
     assert.equal(applied.metadata.end_of_turn_save_ability, "intelligence");
     assert.equal(applied.metadata.end_of_turn_save_dc, 20);
+    assert.equal(applied.metadata.removed_from_battlefield, true);
   }, results);
 
   runTest("sunburst_applies_blinded_condition_on_failed_save", () => {
@@ -6397,6 +6400,7 @@ function runCastSpellActionTests() {
 
     assert.equal(out.ok, true);
     assert.equal(out.payload.cast_spell.active_effects_added.length, 1);
+    assert.equal(out.payload.cast_spell.active_effects_added[0].modifiers.zone_behavior.protection_rules.blocks_movement_across_tiles, true);
     assert.equal(out.payload.cast_spell.active_effects_added[0].modifiers.zone_behavior.protection_rules.blocks_hostile_attacks_across_tiles, true);
     assert.equal(out.payload.cast_spell.active_effects_added[0].modifiers.zone_behavior.protection_rules.blocks_harmful_spells_across_tiles, true);
   }, results);

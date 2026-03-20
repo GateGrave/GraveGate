@@ -119,6 +119,60 @@ function runMoveActionTests() {
     assert.equal(out.error, "target tile is occupied");
   }, results);
 
+  runTest("banished_target_does_not_block_tile_occupancy", () => {
+    const manager = createActiveCombatForMoveTests();
+    const combat = manager.getCombatById("combat-move-001").payload.combat;
+    combat.conditions.push({
+      condition_id: "condition-banished-move-001",
+      condition_type: "banished",
+      source_actor_id: "p1",
+      target_actor_id: "p2",
+      expiration_trigger: "manual",
+      metadata: {
+        untargetable: true,
+        removed_from_battlefield: true
+      }
+    });
+    manager.combats.set("combat-move-001", combat);
+
+    const out = performMoveAction({
+      combatManager: manager,
+      combat_id: "combat-move-001",
+      participant_id: "p1",
+      target_position: { x: 2, y: 2 }
+    });
+
+    assert.equal(out.ok, true);
+    assert.deepEqual(out.payload.to_position, { x: 2, y: 2 });
+  }, results);
+
+  runTest("maze_target_does_not_block_tile_occupancy", () => {
+    const manager = createActiveCombatForMoveTests();
+    const combat = manager.getCombatById("combat-move-001").payload.combat;
+    combat.conditions.push({
+      condition_id: "condition-maze-move-001",
+      condition_type: "maze",
+      source_actor_id: "p1",
+      target_actor_id: "p2",
+      expiration_trigger: "manual",
+      metadata: {
+        untargetable: true,
+        removed_from_battlefield: true
+      }
+    });
+    manager.combats.set("combat-move-001", combat);
+
+    const out = performMoveAction({
+      combatManager: manager,
+      combat_id: "combat-move-001",
+      participant_id: "p1",
+      target_position: { x: 2, y: 2 }
+    });
+
+    assert.equal(out.ok, true);
+    assert.deepEqual(out.payload.to_position, { x: 2, y: 2 });
+  }, results);
+
   runTest("movement_blocking_condition_prevents_move", () => {
     const manager = createActiveCombatForMoveTests();
     const combat = manager.getCombatById("combat-move-001").payload.combat;
@@ -782,6 +836,87 @@ function runMoveActionTests() {
     assert.equal(out.payload.zone_effect_results[0].forced_movement_result.moved, true);
     assert.equal(out.payload.zone_effect_results[0].forced_movement_result.tiles_moved, 3);
     assert.deepEqual(out.payload.zone_effect_results[0].forced_movement_result.to_position, { x: 4, y: 0 });
+  }, results);
+
+  runTest("wall_of_force_barrier_tiles_block_movement", () => {
+    const manager = createActiveCombatForMoveTests();
+    const combat = manager.getCombatById("combat-move-001").payload.combat;
+    combat.participants[1].position = { x: 8, y: 8 };
+    combat.active_effects = [{
+      effect_id: "effect-wall-force-move-001",
+      type: "spell_active_wall_of_force",
+      modifiers: {
+        area_tiles: [{ x: 1, y: 0 }],
+        zone_behavior: {
+          protection_rules: {
+            blocks_movement_across_tiles: true,
+            blocks_hostile_attacks_across_tiles: true,
+            blocks_harmful_spells_across_tiles: true
+          }
+        }
+      }
+    }];
+    manager.combats.set("combat-move-001", combat);
+
+    const out = performMoveAction({
+      combatManager: manager,
+      combat_id: "combat-move-001",
+      participant_id: "p1",
+      target_position: { x: 2, y: 0 }
+    });
+
+    assert.equal(out.ok, false);
+    assert.equal(out.error, "movement is blocked by an impassable barrier");
+  }, results);
+
+  runTest("wall_of_force_barrier_tiles_block_forced_movement", () => {
+    const manager = createActiveCombatForMoveTests();
+    const combat = manager.getCombatById("combat-move-001").payload.combat;
+    const source = combat.participants.find((entry) => entry.participant_id === "p2");
+    source.position = { x: 0, y: 0 };
+    combat.active_effects = [{
+      effect_id: "effect-gust-zone-wall-force-001",
+      type: "spell_active_gust_of_wind",
+      source: { participant_id: "p2", event_id: null },
+      modifiers: {
+        area_tiles: [{ x: 1, y: 0 }],
+        zone_behavior: {
+          on_enter_forced_movement: {
+            save_ability: "strength",
+            save_dc: 15,
+            push_tiles: 3
+          }
+        }
+      }
+    }, {
+      effect_id: "effect-wall-force-forced-001",
+      type: "spell_active_wall_of_force",
+      modifiers: {
+        area_tiles: [{ x: 2, y: 0 }],
+        zone_behavior: {
+          protection_rules: {
+            blocks_movement_across_tiles: true,
+            blocks_hostile_attacks_across_tiles: true,
+            blocks_harmful_spells_across_tiles: true
+          }
+        }
+      }
+    }];
+    manager.combats.set("combat-move-001", combat);
+
+    const out = performMoveAction({
+      combatManager: manager,
+      combat_id: "combat-move-001",
+      participant_id: "p1",
+      target_position: { x: 1, y: 0 },
+      saving_throw_fn: () => ({ final_total: 2 })
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.zone_effect_results.length, 1);
+    assert.equal(out.payload.zone_effect_results[0].forced_movement_result.moved, false);
+    assert.equal(out.payload.zone_effect_results[0].forced_movement_result.blocked, true);
+    assert.deepEqual(out.payload.zone_effect_results[0].forced_movement_result.to_position, { x: 1, y: 0 });
   }, results);
 
   runTest("guardian_of_faith_damages_hostile_entry_once_per_turn_and_reduces_damage_pool", () => {

@@ -3,6 +3,7 @@
 const assert = require("assert");
 const { CombatManager } = require("../core/combatManager");
 const { performAttackAction } = require("../actions/attackAction");
+const { clearParticipantConcentration } = require("../concentration/concentrationState");
 
 function runTest(name, fn, results) {
   try {
@@ -1585,11 +1586,22 @@ function runAttackActionTests() {
   runTest("holy_aura_can_blind_melee_attacker_on_failed_reactive_save", () => {
     const manager = createActiveCombatForAttackTests();
     const combat = manager.getCombatById("combat-attack-001").payload.combat;
+    combat.participants.push({
+      participant_id: "caster-001",
+      name: "Cleric",
+      team: "A",
+      armor_class: 15,
+      current_hp: 18,
+      max_hp: 18,
+      attack_bonus: 4,
+      damage: 5,
+      position: { x: 0, y: 1 }
+    });
     combat.conditions = [
       {
         condition_id: "condition-holy-aura-target-001",
         condition_type: "holy_aura",
-        source_actor_id: "target-001",
+        source_actor_id: "caster-001",
         target_actor_id: "target-001",
         expiration_trigger: "manual",
         metadata: {
@@ -1603,7 +1615,7 @@ function runAttackActionTests() {
         }
       }
     ];
-    combat.participants[1].concentration = {
+    combat.participants[2].concentration = {
       is_concentrating: true,
       source_spell_id: "holy_aura",
       linked_condition_ids: []
@@ -1635,9 +1647,12 @@ function runAttackActionTests() {
         String(condition && condition.target_actor_id || "") === "attacker-001";
     });
     assert.equal(Boolean(blinded), true);
-    const concentrationState = updated.participants.find((entry) => entry.participant_id === "target-001").concentration;
+    const concentrationState = updated.participants.find((entry) => entry.participant_id === "caster-001").concentration;
     assert.equal(Array.isArray(concentrationState.linked_condition_ids), true);
     assert.equal(concentrationState.linked_condition_ids.includes(String(blinded.condition_id)), true);
+    const cleared = clearParticipantConcentration(updated, "caster-001", "test_cleanup");
+    assert.equal(cleared.ok, true);
+    assert.equal(cleared.next_state.conditions.some((condition) => String(condition && condition.condition_id || "") === String(blinded.condition_id)), false);
   }, results);
 
   runTest("resilient_sphere_target_cannot_be_attacked", () => {

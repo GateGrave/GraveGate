@@ -1028,6 +1028,7 @@ function resolvePersistentZoneBehavior(spell, caster, targetIds) {
   if (spellId === "wall_of_force") {
     return {
       protection_rules: {
+        blocks_movement_across_tiles: true,
         blocks_hostile_attacks_across_tiles: true,
         blocks_harmful_spells_across_tiles: true
       }
@@ -1862,6 +1863,7 @@ function resolveAppliedConditions(combat, spell, casterId, targetId, conditionGa
         blocks_attack_targeting: true,
         blocks_harmful_spell_targeting: true,
         untargetable: true,
+        removed_from_battlefield: true,
         source_spell_id: spell.spell_id || spell.id || null
       }
     });
@@ -1896,6 +1898,7 @@ function resolveAppliedConditions(combat, spell, casterId, targetId, conditionGa
         blocks_attack_targeting: true,
         blocks_harmful_spell_targeting: true,
         untargetable: true,
+        removed_from_battlefield: true,
         end_of_turn_save_ability: "intelligence",
         end_of_turn_save_dc: 20,
         source_spell_id: spell.spell_id || spell.id || null

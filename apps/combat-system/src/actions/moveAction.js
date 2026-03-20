@@ -20,6 +20,7 @@ const { applyDamageToCombatState } = require("../damage/apply-damage-to-combat-s
 const { resolveConcentrationDamageCheck } = require("../concentration/concentrationState");
 const {
   getActiveAreaEffectsAtPosition: getSharedActiveAreaEffectsAtPosition,
+  getActiveAreaEffectsCrossingLine: getSharedActiveAreaEffectsCrossingLine,
   areaEffectHasTriggeredForParticipantThisTurn,
   markAreaEffectTriggeredForParticipant,
   consumeAreaEffectDamagePool
@@ -51,10 +52,24 @@ function findParticipantById(participants, participantId) {
   return participants.find((p) => String(p.participant_id) === String(participantId)) || null;
 }
 
+function participantRemovesBattlefieldOccupancy(combat, participantId) {
+  const conditions = getActiveConditionsForParticipant(combat, participantId);
+  return conditions.some((condition) => {
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
+    const conditionType = String(condition && condition.condition_type || "");
+    return metadata.removed_from_battlefield === true ||
+      conditionType === "banished" ||
+      conditionType === "maze";
+  });
+}
+
 function isOccupiedByOtherParticipant(combat, participantId, position) {
   const participants = Array.isArray(combat && combat.participants) ? combat.participants : [];
   return participants.some((participant) => {
     if (String(participant && participant.participant_id || "") === String(participantId || "")) {
+      return false;
+    }
+    if (participantRemovesBattlefieldOccupancy(combat, participant && participant.participant_id)) {
       return false;
     }
     const participantPosition = normalizePosition(participant && participant.position);
@@ -108,7 +123,9 @@ function resolveZoneForcedMovement(combat, participantId, sourceParticipantId, f
   let tilesMoved = 0;
   for (let index = 0; index < path.length; index += 1) {
     const candidate = path[index];
-    if (!isInsideBounds(candidate.x, candidate.y) || isOccupiedByOtherParticipant(nextCombat, participantId, candidate)) {
+    if (!isInsideBounds(candidate.x, candidate.y) ||
+      isOccupiedByOtherParticipant(nextCombat, participantId, candidate) ||
+      movementCrossesImpassableBarrier(nextCombat, finalPosition, candidate)) {
       break;
     }
     finalPosition = clone(candidate);
@@ -207,6 +224,22 @@ function positionMatchesTile(position, tile) {
 function getActiveAreaEffectsAtPosition(combat, position) {
   const effects = Array.isArray(combat && combat.active_effects) ? combat.active_effects : [];
   return effects.filter((effect) => getAreaEffectTiles(effect).some((tile) => positionMatchesTile(position, tile)));
+}
+
+function isMovementBlockingBarrierEffect(effect) {
+  const modifiers = effect && effect.modifiers && typeof effect.modifiers === "object" ? effect.modifiers : {};
+  const zoneBehavior = modifiers.zone_behavior && typeof modifiers.zone_behavior === "object"
+    ? modifiers.zone_behavior
+    : {};
+  const protectionRules = zoneBehavior.protection_rules && typeof zoneBehavior.protection_rules === "object"
+    ? zoneBehavior.protection_rules
+    : {};
+  return protectionRules.blocks_movement_across_tiles === true;
+}
+
+function movementCrossesImpassableBarrier(combat, fromPosition, toPosition) {
+  const effects = getSharedActiveAreaEffectsCrossingLine(combat, fromPosition, toPosition);
+  return effects.some((effect) => isMovementBlockingBarrierEffect(effect));
 }
 
 function enumerateMovementTiles(fromPosition, toPosition) {
@@ -581,6 +614,9 @@ function performMoveAction(input) {
     if (String(participant.participant_id) === String(participantId)) {
       return false;
     }
+    if (participantRemovesBattlefieldOccupancy(combat, participant.participant_id)) {
+      return false;
+    }
     const position = normalizePosition(participant.position);
     if (!position) return false;
     return position.x === targetPosition.x && position.y === targetPosition.y;
@@ -594,6 +630,14 @@ function performMoveAction(input) {
   }
 
   const previousPosition = currentPosition;
+  if (movementCrossesImpassableBarrier(combat, previousPosition, targetPosition)) {
+    return failure("move_action_failed", "movement is blocked by an impassable barrier", {
+      combat_id: String(combatId),
+      participant_id: String(participantId),
+      from_position: previousPosition,
+      target_position: targetPosition
+    });
+  }
   const traversedTiles = enumerateMovementTiles(previousPosition, targetPosition);
   const areaEffectsAtDestination = getSharedActiveAreaEffectsAtPosition(combat, targetPosition, {
     trigger_keys: [

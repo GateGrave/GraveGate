@@ -1072,7 +1072,7 @@ function resolveReactiveConditionEffects(input) {
     if (applied.condition && applied.condition.condition_id) {
       nextCombat = appendLinkedConditionToSourceConcentration(
         nextCombat,
-        target.participant_id,
+        sourceCondition.source_actor_id ? String(sourceCondition.source_actor_id) : target.participant_id,
         metadata.source_spell_id || null,
         applied.condition.condition_id
       );
