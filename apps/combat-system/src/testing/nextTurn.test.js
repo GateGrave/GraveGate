@@ -342,6 +342,56 @@ function runNextTurnTests() {
     assert.equal(out.payload.combat.event_log.some((entry) => entry.event_type === "attack_action" && entry.attacker_id === "p2"), true);
   }, results);
 
+  runTest("confusion_random_melee_can_target_any_adjacent_participant_via_rng_hook", () => {
+    const manager = createBaseCombat();
+    const combat = manager.getCombatById("combat-next-001").payload.combat;
+    combat.participants[1].position = { x: 1, y: 1 };
+    combat.participants[0].position = { x: 0, y: 1 };
+    combat.participants[2].position = { x: 2, y: 1 };
+    combat.participants.push({
+      participant_id: "p4",
+      name: "D",
+      team: "enemy",
+      armor_class: 10,
+      current_hp: 10,
+      max_hp: 10,
+      attack_bonus: 2,
+      damage: 4,
+      position: { x: 1, y: 2 }
+    });
+    combat.initiative_order.push("p4");
+    combat.conditions = [{
+      condition_id: "condition-confusion-003b",
+      condition_type: "confusion",
+      source_actor_id: "p1",
+      target_actor_id: "p2",
+      expiration_trigger: "manual",
+      metadata: {
+        status_hint: "confusion",
+        blocks_reaction: true,
+        end_of_turn_save_ability: "wisdom",
+        end_of_turn_save_dc: 13
+      }
+    }];
+    manager.combats.set("combat-next-001", combat);
+
+    const out = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001",
+      confusion_roll_fn: () => ({ final_total: 7 }),
+      confusion_target_rng: () => 2,
+      attack_roll_fn: () => 18,
+      damage_roll_fn: () => 4
+    });
+
+    assert.equal(out.ok, true);
+    const updatedCombat = out.payload.combat;
+    const p4 = updatedCombat.participants.find((entry) => entry.participant_id === "p4");
+    const turnEvent = updatedCombat.event_log.find((entry) => entry.event_type === "turn_advanced");
+    assert.equal(turnEvent.details.confusion_turn_result.target_id, "p4");
+    assert.equal(p4.current_hp, 6);
+  }, results);
+
   runTest("confusion_roll_seven_uses_deterministic_damage_hook_for_adjacent_melee_attack", () => {
     const manager = createBaseCombat();
     const combat = manager.getCombatById("combat-next-001").payload.combat;
@@ -366,6 +416,7 @@ function runNextTurnTests() {
       combatManager: manager,
       combat_id: "combat-next-001",
       confusion_roll_fn: () => ({ final_total: 7 }),
+      confusion_target_rng: () => 0,
       attack_roll_fn: () => 18,
       damage_roll_fn: () => 3
     });
@@ -452,6 +503,39 @@ function runNextTurnTests() {
     assert.equal(Boolean(activated), true);
     assert.deepEqual(activated.metadata.applies_against_actor_ids, ["p2"]);
     assert.equal(out.payload.combat.conditions.some((entry) => String(entry && entry.condition_type || "") === "true_strike_pending"), false);
+  }, results);
+
+  runTest("true_strike_advantage_expires_when_source_turn_ends_without_attack", () => {
+    const manager = createBaseCombat();
+    const combat = manager.getCombatById("combat-next-001").payload.combat;
+    combat.conditions = [{
+      condition_id: "condition-true-strike-pending-002",
+      condition_type: "true_strike_pending",
+      source_actor_id: "p1",
+      target_actor_id: "p1",
+      expiration_trigger: "manual",
+      metadata: {
+        prepared_target_actor_id: "p2",
+        source_spell_id: "true_strike"
+      }
+    }];
+    combat.turn_index = 2;
+    manager.combats.set("combat-next-001", combat);
+
+    const firstAdvance = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001"
+    });
+    assert.equal(firstAdvance.ok, true);
+    assert.equal(firstAdvance.payload.combat.conditions.some((entry) => String(entry && entry.condition_type || "") === "true_strike_advantage"), true);
+
+    const secondAdvance = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001"
+    });
+    assert.equal(secondAdvance.ok, true);
+    assert.equal(secondAdvance.payload.active_participant_id, "p2");
+    assert.equal(secondAdvance.payload.combat.conditions.some((entry) => String(entry && entry.condition_type || "") === "true_strike_advantage"), false);
   }, results);
 
   runTest("heroism_condition_grants_temporary_hitpoints_at_start_of_turn", () => {

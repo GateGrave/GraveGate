@@ -106,6 +106,29 @@ function rollConfusionTurnBehavior(input) {
   };
 }
 
+function selectConfusionTargetIndex(adjacentTargets, participant, roll, input) {
+  if (!Array.isArray(adjacentTargets) || adjacentTargets.length <= 0) {
+    return 0;
+  }
+  const rngFn = input && typeof input.confusion_target_rng === "function"
+    ? input.confusion_target_rng
+    : null;
+  if (rngFn) {
+    const rolled = Number(rngFn({
+      adjacent_targets: adjacentTargets,
+      participant,
+      roll
+    }));
+    if (Number.isFinite(rolled)) {
+      if (rolled >= 0 && rolled < 1) {
+        return Math.max(0, Math.min(adjacentTargets.length - 1, Math.floor(rolled * adjacentTargets.length)));
+      }
+      return Math.abs(Math.floor(rolled)) % adjacentTargets.length;
+    }
+  }
+  return Math.floor(Math.random() * adjacentTargets.length);
+}
+
 function resolveRandomDirectionPosition(combat, participantId, origin, tiles, directionIndex) {
   const directions = [
     { x: 0, y: -1 },
@@ -219,7 +242,7 @@ function activateConfusionTurnBehavior(combat, participantId, input) {
         }
       };
     }
-    const selected = adjacentTargets[(total - 7) % adjacentTargets.length];
+    const selected = adjacentTargets[selectConfusionTargetIndex(adjacentTargets, participant, roll, input)];
     const attackOut = resolveAttackAgainstCombatState({
       combat: nextCombat,
       attacker_id: participantId,
@@ -410,7 +433,7 @@ function activatePreparedStartOfTurnConditions(combat, participantId) {
       condition_type: "true_strike_advantage",
       source_actor_id: participantId,
       target_actor_id: participantId,
-      expiration_trigger: "start_of_source_turn",
+      expiration_trigger: "end_of_turn",
       duration: {
         remaining_triggers: 1
       },
