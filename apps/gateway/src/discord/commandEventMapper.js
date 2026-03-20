@@ -420,6 +420,7 @@ function normalizeCastPayload(commandOptions) {
   const spellId = normalizeIdentifier(getOptionValue(commandOptions, "spell_id"));
   const targetId = normalizeIdentifier(getOptionValue(commandOptions, "target_id"));
   const additionalTargetIds = normalizeIdentifierList(getOptionValue(commandOptions, "additional_target_ids"));
+  const hazardSide = normalizeIdentifier(getOptionValue(commandOptions, "hazard_side"));
 
   if (!spellId) {
     return {
@@ -434,7 +435,8 @@ function normalizeCastPayload(commandOptions) {
     payload: {
       spell_id: spellId,
       target_id: targetId || null,
-      target_ids: Array.from(new Set([targetId].concat(additionalTargetIds).filter(Boolean)))
+      target_ids: Array.from(new Set([targetId].concat(additionalTargetIds).filter(Boolean))),
+      hazard_side: hazardSide || null
     },
     error: null
   };

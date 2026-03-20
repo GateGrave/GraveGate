@@ -2,6 +2,7 @@
 
 const { rollSavingThrow, rollDiceFormula } = require("../dice");
 const { getActiveConditionsForParticipant } = require("../conditions/conditionHelpers");
+const { getActiveAreaEffectsAtPosition, getActiveAreaEffectsCrossingLine } = require("../effects/battlefieldEffectHelpers");
 
 const SAVE_ABILITIES = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"];
 const SUPPORTED_SPELL_TARGET_TYPES = new Set([
@@ -10,13 +11,15 @@ const SUPPORTED_SPELL_TARGET_TYPES = new Set([
   "self",
   "up_to_three_allies",
   "up_to_three_enemies",
+  "up_to_seven_hundred_hitpoints",
   "cone_15ft",
   "cube_15ft",
   "line_100ft_5ft",
   "sphere_20ft",
   "sphere_10ft",
   "aura_15ft",
-  "cylinder_20ft"
+  "cylinder_20ft",
+  "up_to_ten_10ft_cubes"
 ]);
 
 const AREA_TEMPLATE_TARGET_TYPES = new Set([
@@ -28,6 +31,13 @@ const AREA_TEMPLATE_TARGET_TYPES = new Set([
   "aura_15ft",
   "cylinder_20ft"
 ]);
+
+const LIMITED_MULTI_TARGET_WORD_TO_COUNT = {
+  three: 3,
+  four: 4,
+  six: 6,
+  ten: 10
+};
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -171,6 +181,18 @@ function getSpellTargetType(spell) {
   }
   const targetingType = spell && spell.targeting && spell.targeting.type ? String(spell.targeting.type) : "";
   return targetingType || "single_target";
+}
+
+function parseLimitedMultiTargetType(targetType) {
+  const normalized = String(targetType || "").trim().toLowerCase();
+  const match = normalized.match(/^up_to_(three|four|six|ten)_(allies|enemies)$/);
+  if (!match) {
+    return null;
+  }
+  return {
+    limit: LIMITED_MULTI_TARGET_WORD_TO_COUNT[match[1]] || null,
+    disposition: match[2]
+  };
 }
 
 function getSpellAreaTemplate(spell) {
@@ -333,7 +355,8 @@ function validateSpellKnown(participant, spellId) {
 
 function validateSpellTargeting(spell, caster, target) {
   const targetType = getSpellTargetType(spell);
-  if (!SUPPORTED_SPELL_TARGET_TYPES.has(targetType)) {
+  const limitedMultiTarget = parseLimitedMultiTargetType(targetType);
+  if (!SUPPORTED_SPELL_TARGET_TYPES.has(targetType) && !limitedMultiTarget) {
     return {
       ok: false,
       error: "spell target type is not supported yet",
@@ -350,7 +373,7 @@ function validateSpellTargeting(spell, caster, target) {
         error: "self-target spell must target the caster"
       };
     }
-  } else if (targetType === "up_to_three_allies") {
+  } else if (targetType === "up_to_three_allies" || (limitedMultiTarget && limitedMultiTarget.disposition === "allies")) {
     if (!target) {
       return {
         ok: false,
@@ -363,22 +386,35 @@ function validateSpellTargeting(spell, caster, target) {
         error: "spell requires an allied target"
       };
     }
-  } else if (targetType === "up_to_three_enemies") {
-    if (!target) {
-      return {
-        ok: false,
-        error: "spell requires a valid enemy target"
+    } else if (targetType === "up_to_three_enemies" || (limitedMultiTarget && limitedMultiTarget.disposition === "enemies")) {
+      if (!target) {
+        return {
+          ok: false,
+          error: "spell requires a valid enemy target"
       };
     }
     if (String(caster && caster.team || "") === String(target && target.team || "")) {
+        return {
+          ok: false,
+          error: "spell requires a hostile target"
+        };
+      }
+    } else if (targetType === "up_to_seven_hundred_hitpoints") {
+      if (!target) {
+        return {
+          ok: false,
+          error: "spell requires a valid ally target"
+        };
+      }
+      if (String(caster && caster.team || "") !== String(target && target.team || "")) {
+        return {
+          ok: false,
+          error: "spell requires an allied target"
+        };
+      }
+    } else if (AREA_TEMPLATE_TARGET_TYPES.has(targetType)) {
       return {
-        ok: false,
-        error: "spell requires a hostile target"
-      };
-    }
-  } else if (AREA_TEMPLATE_TARGET_TYPES.has(targetType)) {
-    return {
-      ok: true,
+        ok: true,
       payload: {
         target_type: targetType
       },
@@ -410,6 +446,92 @@ function validateSpellActionAvailability(participant, actionCost, spell) {
 
   const spellcastingState = getParticipantSpellcastingTurnState(participant);
   const cantrip = isCantripSpell(spell);
+  const combatState = arguments.length >= 4 ? arguments[3] : null;
+  const options = arguments.length >= 5 && arguments[4] && typeof arguments[4] === "object"
+    ? arguments[4]
+    : {};
+  let spellcastGatePayload = null;
+  if (combatState) {
+    const activeConditions = getActiveConditionsForParticipant(combatState, participant.participant_id);
+    for (let index = 0; index < activeConditions.length; index += 1) {
+      const condition = activeConditions[index];
+      const metadata = condition && condition.metadata && typeof condition.metadata === "object"
+        ? condition.metadata
+        : {};
+      if (actionCost === "action" && metadata.blocks_action === true) {
+        return {
+          ok: false,
+          error: "action is blocked by an active condition"
+        };
+      }
+      if (actionCost === "bonus_action" && metadata.blocks_bonus_action === true) {
+        return {
+          ok: false,
+          error: "bonus action is blocked by an active condition"
+        };
+      }
+      if (actionCost === "reaction" && (metadata.blocks_reaction === true || metadata.apply_no_reaction === true)) {
+        return {
+          ok: false,
+          error: "reaction is blocked by an active condition"
+        };
+      }
+      if (metadata.blocks_spellcasting === true) {
+        return {
+          ok: false,
+          error: "spellcasting is blocked by an active condition"
+        };
+      }
+      if (metadata.forbid_action_and_bonus_same_turn === true) {
+        if (actionCost === "action" && participant.bonus_action_available === false) {
+          return {
+            ok: false,
+            error: "cannot take an action after using a bonus action this turn"
+          };
+        }
+        if (actionCost === "bonus_action" && participant.action_available === false) {
+          return {
+            ok: false,
+            error: "cannot take a bonus action after using an action this turn"
+          };
+        }
+      }
+      const minimumSpellcastRoll = Number(metadata.spellcast_roll_minimum);
+      if (Number.isFinite(minimumSpellcastRoll)) {
+        const rawRoll = typeof options.spellcast_check_fn === "function"
+          ? options.spellcast_check_fn({
+            combat_state: combatState,
+            participant,
+            spell,
+            minimum_roll: minimumSpellcastRoll,
+            condition: clone(condition)
+          })
+          : Math.floor(Math.random() * 20) + 1;
+        const rolledValue = Number(
+          rawRoll && typeof rawRoll === "object" && Number.isFinite(Number(rawRoll.rolled_value))
+            ? rawRoll.rolled_value
+            : rawRoll && typeof rawRoll === "object" && Number.isFinite(Number(rawRoll.final_total))
+              ? rawRoll.final_total
+              : rawRoll
+        );
+        const finalRoll = Number.isFinite(rolledValue) ? rolledValue : 0;
+        spellcastGatePayload = {
+          rolled_value: finalRoll,
+          minimum_roll: minimumSpellcastRoll,
+          blocking_condition: String(condition && condition.condition_type || "")
+        };
+        if (finalRoll < minimumSpellcastRoll) {
+          return {
+            ok: false,
+            error: "spell casting fails under the effects of slow",
+            payload: {
+              spellcast_gate: clone(spellcastGatePayload)
+            }
+          };
+        }
+      }
+    }
+  }
 
   if (actionCost === "bonus_action" && spellcastingState.action_spell_cast === true && spellcastingState.action_spell_was_cantrip !== true) {
     return {
@@ -437,7 +559,8 @@ function validateSpellActionAvailability(participant, actionCost, spell) {
     }
     return {
       ok: true,
-      error: null
+      error: null,
+      payload: spellcastGatePayload ? { spellcast_gate: clone(spellcastGatePayload) } : null
     };
   }
 
@@ -450,7 +573,8 @@ function validateSpellActionAvailability(participant, actionCost, spell) {
     }
     return {
       ok: true,
-      error: null
+      error: null,
+      payload: spellcastGatePayload ? { spellcast_gate: clone(spellcastGatePayload) } : null
     };
   }
 
@@ -463,7 +587,8 @@ function validateSpellActionAvailability(participant, actionCost, spell) {
 
   return {
     ok: true,
-    error: null
+    error: null,
+    payload: spellcastGatePayload ? { spellcast_gate: clone(spellcastGatePayload) } : null
   };
 }
 
@@ -585,8 +710,25 @@ function resolveSavingThrowOutcome(input) {
   const participantIsParalyzed = activeConditions.some((condition) => String(condition && condition.condition_type || "") === "paralyzed");
   const participantIsDodging = participant && participant.is_dodging === true ||
     activeConditions.some((condition) => String(condition && condition.condition_type || "") === "dodging");
+  const metadataSaveAdvantage = activeConditions.some((condition) => {
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
+    if (metadata.save_advantage_all === true) {
+      return true;
+    }
+    const listed = Array.isArray(metadata.save_advantage_abilities) ? metadata.save_advantage_abilities : [];
+    return listed.map((entry) => String(entry || "").trim().toLowerCase()).includes(saveAbility);
+  });
+  const metadataSaveDisadvantage = activeConditions.some((condition) => {
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
+    if (metadata.save_disadvantage_all === true) {
+      return true;
+    }
+    const listed = Array.isArray(metadata.save_disadvantage_abilities) ? metadata.save_disadvantage_abilities : [];
+    return listed.map((entry) => String(entry || "").trim().toLowerCase()).includes(saveAbility);
+  });
   const saveDisadvantage = participantIsRestrained && saveAbility === "dexterity";
-  const saveAdvantage = participantIsDodging && saveAbility === "dexterity";
+  const saveAdvantage = (participantIsDodging && saveAbility === "dexterity") || metadataSaveAdvantage;
+  const effectiveSaveDisadvantage = saveDisadvantage || metadataSaveDisadvantage;
   if (participantIsParalyzed && (saveAbility === "strength" || saveAbility === "dexterity")) {
     return {
       ok: true,
@@ -646,12 +788,12 @@ function resolveSavingThrowOutcome(input) {
         dc,
         bonus_modifier: conditionBonus.total + flatConditionBonus,
         advantage: saveAdvantage,
-        disadvantage: saveDisadvantage
+        disadvantage: effectiveSaveDisadvantage
       })
     : rollSavingThrow({
         modifier,
         advantage: saveAdvantage,
-        disadvantage: saveDisadvantage
+        disadvantage: effectiveSaveDisadvantage
       });
 
   const finalTotal = Number(roll && roll.final_total);
@@ -670,7 +812,7 @@ function resolveSavingThrowOutcome(input) {
       bonus_modifier: conditionBonus.total + flatConditionBonus,
       flat_condition_bonus: flatConditionBonus,
       advantage: saveAdvantage,
-      disadvantage: saveDisadvantage,
+      disadvantage: effectiveSaveDisadvantage,
       dc,
       roll,
       success: finalTotal + conditionBonus.total + flatConditionBonus >= dc,
@@ -688,9 +830,11 @@ function resolveTargetingProtectionOutcome(input) {
   const sourceParticipant = input && input.source_participant ? input.source_participant : null;
   const targetParticipant = input && input.target_participant ? input.target_participant : null;
   const protectionKind = String(input && input.protection_kind || "").trim().toLowerCase();
+  const incomingSpell = input && input.spell && typeof input.spell === "object" ? input.spell : null;
   const savingThrowFn = typeof input.saving_throw_fn === "function"
     ? input.saving_throw_fn
     : null;
+  const attackMode = String(input && input.attack_mode || "").trim().toLowerCase();
 
   if (!combatState || !sourceParticipant || !targetParticipant || !protectionKind) {
     return {
@@ -722,6 +866,136 @@ function resolveTargetingProtectionOutcome(input) {
     };
   }
 
+  if ((protectionKind === "harmful_spell" || protectionKind === "attack") && targetParticipant.position) {
+    const targetAreaEffects = getActiveAreaEffectsAtPosition(combatState, targetParticipant.position);
+    const sourceAreaEffects = sourceParticipant.position
+      ? getActiveAreaEffectsAtPosition(combatState, sourceParticipant.position)
+      : [];
+    const crossingAreaEffects = sourceParticipant.position && targetParticipant.position
+      ? getActiveAreaEffectsCrossingLine(combatState, sourceParticipant.position, targetParticipant.position)
+      : [];
+    for (let index = 0; index < targetAreaEffects.length; index += 1) {
+      const effect = targetAreaEffects[index];
+      const modifiers = effect && effect.modifiers && typeof effect.modifiers === "object" ? effect.modifiers : {};
+      const zoneBehavior = modifiers.zone_behavior && typeof modifiers.zone_behavior === "object"
+        ? modifiers.zone_behavior
+        : {};
+      const protectionRules = zoneBehavior.protection_rules && typeof zoneBehavior.protection_rules === "object"
+        ? zoneBehavior.protection_rules
+        : {};
+      const sourceInsideSameEffect = sourceAreaEffects.some((entry) => String(entry && entry.effect_id || "") === String(effect && effect.effect_id || ""));
+      const appliesOnlyFromOutside = protectionRules.only_from_outside === true;
+      if (protectionKind === "harmful_spell" && incomingSpell) {
+        const blockedSpellLevelMax = Number(protectionRules.blocks_harmful_spells_up_to_level);
+        const blocksHarmfulSpellsFromOutside = protectionRules.blocks_harmful_spells_from_outside === true;
+        const blocksSpellAttacksFromOutside = protectionRules.blocks_spell_attacks_from_outside === true;
+        const spellLevel = normalizeSpellLevel(incomingSpell);
+        const attackOrSave = incomingSpell.attack_or_save && typeof incomingSpell.attack_or_save === "object"
+          ? incomingSpell.attack_or_save
+          : {};
+        const incomingIsSpellAttack = String(attackOrSave.type || "").trim().toLowerCase() === "spell_attack";
+        const shouldBlockByLevel = Number.isFinite(blockedSpellLevelMax) && spellLevel <= blockedSpellLevelMax;
+        const shouldBlockBySpell = blocksHarmfulSpellsFromOutside === true;
+        const shouldBlockBySpellAttack = incomingIsSpellAttack && blocksSpellAttacksFromOutside === true;
+        if ((shouldBlockByLevel || shouldBlockBySpell || shouldBlockBySpellAttack) && (!appliesOnlyFromOutside || !sourceInsideSameEffect)) {
+          return {
+            ok: true,
+            payload: {
+              blocked: true,
+              gate_result: {
+                blocked_by_area_effect_id: String(effect && effect.effect_id || ""),
+                blocked_spell_level_max: Number.isFinite(blockedSpellLevelMax) ? blockedSpellLevelMax : null,
+                incoming_spell_level: spellLevel,
+                block_reason: shouldBlockBySpellAttack
+                  ? "spell_attack_blocked"
+                  : shouldBlockBySpell
+                    ? "harmful_spell_blocked"
+                    : "spell_level_blocked"
+              },
+              gating_condition: null
+            },
+            error: null
+          };
+        }
+      }
+      if (protectionKind === "attack") {
+        const blocksHostileAttacksFromOutside = protectionRules.blocks_hostile_attacks_from_outside === true;
+        const blocksRangedAttacksFromOutside = protectionRules.blocks_ranged_attacks_from_outside === true;
+        const shouldBlockAttack = blocksHostileAttacksFromOutside || (attackMode === "ranged" && blocksRangedAttacksFromOutside);
+        if (shouldBlockAttack && (!appliesOnlyFromOutside || !sourceInsideSameEffect)) {
+          return {
+            ok: true,
+            payload: {
+              blocked: true,
+              gate_result: {
+                blocked_by_area_effect_id: String(effect && effect.effect_id || ""),
+                block_reason: attackMode === "ranged" && blocksRangedAttacksFromOutside
+                  ? "ranged_attack_blocked"
+                  : "attack_blocked"
+              },
+              gating_condition: null
+            },
+            error: null
+          };
+        }
+      }
+    }
+    for (let index = 0; index < crossingAreaEffects.length; index += 1) {
+      const effect = crossingAreaEffects[index];
+      const modifiers = effect && effect.modifiers && typeof effect.modifiers === "object" ? effect.modifiers : {};
+      const zoneBehavior = modifiers.zone_behavior && typeof modifiers.zone_behavior === "object"
+        ? modifiers.zone_behavior
+        : {};
+      const protectionRules = zoneBehavior.protection_rules && typeof zoneBehavior.protection_rules === "object"
+        ? zoneBehavior.protection_rules
+        : {};
+      if (protectionKind === "attack") {
+        const shouldBlockAttack = protectionRules.blocks_hostile_attacks_across_tiles === true ||
+          (attackMode === "ranged" && protectionRules.blocks_ranged_attacks_across_tiles === true);
+        if (shouldBlockAttack) {
+          return {
+            ok: true,
+            payload: {
+              blocked: true,
+              gate_result: {
+                blocked_by_area_effect_id: String(effect && effect.effect_id || ""),
+                block_reason: attackMode === "ranged" && protectionRules.blocks_ranged_attacks_across_tiles === true
+                  ? "ranged_attack_barrier"
+                  : "attack_barrier"
+              },
+              gating_condition: null
+            },
+            error: null
+          };
+        }
+      }
+      if (protectionKind === "harmful_spell" && incomingSpell) {
+        const attackOrSave = incomingSpell.attack_or_save && typeof incomingSpell.attack_or_save === "object"
+          ? incomingSpell.attack_or_save
+          : {};
+        const incomingIsSpellAttack = String(attackOrSave.type || "").trim().toLowerCase() === "spell_attack";
+        const shouldBlockSpell = protectionRules.blocks_harmful_spells_across_tiles === true ||
+          (incomingIsSpellAttack && protectionRules.blocks_spell_attacks_across_tiles === true);
+        if (shouldBlockSpell) {
+          return {
+            ok: true,
+            payload: {
+              blocked: true,
+              gate_result: {
+                blocked_by_area_effect_id: String(effect && effect.effect_id || ""),
+                block_reason: incomingIsSpellAttack && protectionRules.blocks_spell_attacks_across_tiles === true
+                  ? "spell_attack_barrier"
+                  : "spell_barrier"
+              },
+              gating_condition: null
+            },
+            error: null
+          };
+        }
+      }
+    }
+  }
+
   for (let index = 0; index < activeConditions.length; index += 1) {
     const condition = activeConditions[index];
     const metadata = condition && condition.metadata && typeof condition.metadata === "object"
@@ -730,11 +1004,30 @@ function resolveTargetingProtectionOutcome(input) {
     if (metadata[metadataKey] !== true) {
       continue;
     }
+    if (metadata.untargetable === true) {
+      return {
+        ok: true,
+        payload: {
+          blocked: true,
+          gate_result: null,
+          gating_condition: clone(condition)
+        },
+        error: null
+      };
+    }
 
     const saveAbility = normalizeAbilityKey(metadata.targeting_save_ability || "wisdom");
     const dc = Number(metadata.targeting_save_dc);
     if (!saveAbility || !Number.isFinite(dc)) {
-      continue;
+      return {
+        ok: true,
+        payload: {
+          blocked: true,
+          gate_result: null,
+          gating_condition: clone(condition)
+        },
+        error: null
+      };
     }
 
     const saveOut = resolveSavingThrowOutcome({
@@ -783,6 +1076,7 @@ module.exports = {
   computeSpellSaveDc,
   parseSpellRangeFeet,
   getSpellTargetType,
+  parseLimitedMultiTargetType,
   getSpellAreaTemplate,
   resolveSpellActionCost,
   normalizeSpellLevel,

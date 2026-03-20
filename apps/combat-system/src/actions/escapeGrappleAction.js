@@ -104,8 +104,14 @@ function performEscapeGrappleAction(input) {
   if (!grappler) {
     return failure("escape_grapple_action_failed", "grapple source not found");
   }
+  const freedomCondition = getActiveConditionsForParticipant(combat, participantId).find((condition) => {
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
+    return metadata.escape_grapple_auto_success === true;
+  });
 
-  const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.ESCAPE_GRAPPLE);
+  const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.ESCAPE_GRAPPLE, {
+    combat_state: combat
+  });
   if (!availability.ok) {
     return failure("escape_grapple_action_failed", availability.error || "action is not available", availability.payload);
   }
@@ -120,14 +126,24 @@ function performEscapeGrappleAction(input) {
   const escapeAbility = getAbilityModifier(actor, "dexterity") >= getAbilityModifier(actor, "strength")
     ? "dexterity"
     : "strength";
-  const contest = resolveContestedCheck({
-    attacker: actor,
-    defender: grappler,
-    attacker_ability: escapeAbility,
-    defender_ability: "strength",
-    roll_fn: contestRollFn,
-    combat
-  });
+  const contest = freedomCondition
+    ? {
+      attacker_ability: escapeAbility,
+      defender_ability: "strength",
+      attacker_total: null,
+      defender_total: null,
+      attacker_wins: true,
+      auto_success: true,
+      source_condition_id: String(freedomCondition.condition_id || "")
+    }
+    : resolveContestedCheck({
+      attacker: actor,
+      defender: grappler,
+      attacker_ability: escapeAbility,
+      defender_ability: "strength",
+      roll_fn: contestRollFn,
+      combat
+    });
 
   let removedCondition = null;
   if (contest.attacker_wins) {

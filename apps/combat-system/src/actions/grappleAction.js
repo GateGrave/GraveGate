@@ -151,7 +151,9 @@ function performGrappleAction(input) {
     });
   }
 
-  const availability = validateParticipantActionAvailability(attacker, ACTION_TYPES.GRAPPLE);
+  const availability = validateParticipantActionAvailability(attacker, ACTION_TYPES.GRAPPLE, {
+    combat_state: combat
+  });
   if (!availability.ok) {
     return failure("grapple_action_failed", availability.error || "action is not available", availability.payload);
   }

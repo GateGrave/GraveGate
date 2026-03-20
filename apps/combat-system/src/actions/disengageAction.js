@@ -95,7 +95,9 @@ function performDisengageAction(input) {
     return failure("disengage_action_failed", contextValidation.message, contextValidation.payload);
   }
 
-  const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.DISENGAGE);
+  const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.DISENGAGE, {
+    combat_state: combat
+  });
   if (!availability.ok) {
     return failure("disengage_action_failed", availability.error || "action is not available", availability.payload);
   }

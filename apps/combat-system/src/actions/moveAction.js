@@ -18,6 +18,12 @@ const { gridDistanceFeet } = require("../validation/validation-helpers");
 const { resolveSavingThrowOutcome } = require("../spells/spellcastingHelpers");
 const { applyDamageToCombatState } = require("../damage/apply-damage-to-combat-state");
 const { resolveConcentrationDamageCheck } = require("../concentration/concentrationState");
+const {
+  getActiveAreaEffectsAtPosition: getSharedActiveAreaEffectsAtPosition,
+  areaEffectHasTriggeredForParticipantThisTurn,
+  markAreaEffectTriggeredForParticipant,
+  consumeAreaEffectDamagePool
+} = require("../effects/battlefieldEffectHelpers");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -43,6 +49,97 @@ function failure(eventType, message, payload) {
 
 function findParticipantById(participants, participantId) {
   return participants.find((p) => String(p.participant_id) === String(participantId)) || null;
+}
+
+function isOccupiedByOtherParticipant(combat, participantId, position) {
+  const participants = Array.isArray(combat && combat.participants) ? combat.participants : [];
+  return participants.some((participant) => {
+    if (String(participant && participant.participant_id || "") === String(participantId || "")) {
+      return false;
+    }
+    const participantPosition = normalizePosition(participant && participant.position);
+    return participantPosition &&
+      participantPosition.x === Number(position && position.x) &&
+      participantPosition.y === Number(position && position.y);
+  });
+}
+
+function computePushPath(sourcePosition, targetPosition, tiles) {
+  if (!sourcePosition || !targetPosition) {
+    return [];
+  }
+  const dx = Number(targetPosition.x) - Number(sourcePosition.x);
+  const dy = Number(targetPosition.y) - Number(sourcePosition.y);
+  const stepX = dx === 0 ? 0 : (dx > 0 ? 1 : -1);
+  const stepY = dy === 0 ? 0 : (dy > 0 ? 1 : -1);
+  if (stepX === 0 && stepY === 0) {
+    return [];
+  }
+  const path = [];
+  let currentX = Number(targetPosition.x);
+  let currentY = Number(targetPosition.y);
+  for (let index = 0; index < tiles; index += 1) {
+    currentX += stepX;
+    currentY += stepY;
+    path.push({ x: currentX, y: currentY });
+  }
+  return path;
+}
+
+function resolveZoneForcedMovement(combat, participantId, sourceParticipantId, forcedMovementConfig, saveOut) {
+  if (!forcedMovementConfig || !saveOut || saveOut.payload.success === true) {
+    return success("zone_forced_movement_skipped", {
+      next_combat: clone(combat),
+      forced_movement_result: null
+    });
+  }
+  const nextCombat = clone(combat);
+  const sourceParticipant = findParticipantById(nextCombat.participants || [], sourceParticipantId);
+  const targetParticipant = findParticipantById(nextCombat.participants || [], participantId);
+  if (!sourceParticipant || !sourceParticipant.position || !targetParticipant || !targetParticipant.position) {
+    return success("zone_forced_movement_skipped", {
+      next_combat: nextCombat,
+      forced_movement_result: null
+    });
+  }
+  const pushTiles = Math.max(0, Math.floor(Number(forcedMovementConfig.push_tiles) || 0));
+  const path = computePushPath(sourceParticipant.position, targetParticipant.position, pushTiles);
+  let finalPosition = clone(targetParticipant.position);
+  let tilesMoved = 0;
+  for (let index = 0; index < path.length; index += 1) {
+    const candidate = path[index];
+    if (!isInsideBounds(candidate.x, candidate.y) || isOccupiedByOtherParticipant(nextCombat, participantId, candidate)) {
+      break;
+    }
+    finalPosition = clone(candidate);
+    tilesMoved += 1;
+  }
+  if (tilesMoved <= 0) {
+    return success("zone_forced_movement_skipped", {
+      next_combat: nextCombat,
+      forced_movement_result: {
+        moved: false,
+        blocked: true,
+        from_position: clone(targetParticipant.position),
+        to_position: clone(targetParticipant.position),
+        tiles_moved: 0
+      }
+    });
+  }
+  const targetIndex = nextCombat.participants.findIndex((entry) => String(entry && entry.participant_id || "") === String(participantId || ""));
+  nextCombat.participants[targetIndex] = Object.assign({}, targetParticipant, {
+    position: clone(finalPosition)
+  });
+  return success("zone_forced_movement_applied", {
+    next_combat: nextCombat,
+    forced_movement_result: {
+      moved: true,
+      blocked: false,
+      from_position: clone(targetParticipant.position),
+      to_position: clone(finalPosition),
+      tiles_moved: tilesMoved
+    }
+  });
 }
 
 function isInsideBounds(x, y) {
@@ -112,6 +209,29 @@ function getActiveAreaEffectsAtPosition(combat, position) {
   return effects.filter((effect) => getAreaEffectTiles(effect).some((tile) => positionMatchesTile(position, tile)));
 }
 
+function enumerateMovementTiles(fromPosition, toPosition) {
+  const start = normalizePosition(fromPosition);
+  const end = normalizePosition(toPosition);
+  if (!start || !end) {
+    return [];
+  }
+  const tiles = [];
+  let x = start.x;
+  let y = start.y;
+  const stepX = Math.sign(end.x - start.x);
+  const stepY = Math.sign(end.y - start.y);
+  while (x !== end.x || y !== end.y) {
+    if (x !== end.x) {
+      x += stepX;
+    }
+    if (y !== end.y) {
+      y += stepY;
+    }
+    tiles.push({ x, y });
+  }
+  return tiles;
+}
+
 function resolveZoneMovementCostFeet(baseCostFeet, areaEffects) {
   const effects = Array.isArray(areaEffects) ? areaEffects : [];
   const hasDifficultZone = effects.some((effect) => {
@@ -120,6 +240,16 @@ function resolveZoneMovementCostFeet(baseCostFeet, areaEffects) {
     return zoneBehavior.terrain_kind === "difficult";
   });
   return hasDifficultZone ? Math.max(baseCostFeet, 10) : baseCostFeet;
+}
+
+function participantHasMovementFreedom(combat, participantId) {
+  const conditions = getActiveConditionsForParticipant(combat, participantId);
+  return conditions.some((condition) => {
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
+    return metadata.ignore_difficult_terrain === true ||
+      metadata.ignore_grappled_move_block === true ||
+      metadata.ignore_restrained_move_block === true;
+  });
 }
 
 function resolveZoneEntryEffects(combat, participantId, areaEffects, input) {
@@ -136,11 +266,28 @@ function resolveZoneEntryEffects(combat, participantId, areaEffects, input) {
     const enterCondition = zoneBehavior.on_enter_condition && typeof zoneBehavior.on_enter_condition === "object"
       ? zoneBehavior.on_enter_condition
       : null;
-    if (!enterDamage && !enterCondition) {
+    const enterForcedMovement = zoneBehavior.on_enter_forced_movement && typeof zoneBehavior.on_enter_forced_movement === "object"
+      ? zoneBehavior.on_enter_forced_movement
+      : null;
+    if (!enterDamage && !enterCondition && !enterForcedMovement) {
       continue;
     }
     const foundParticipant = findParticipantById(nextCombat.participants || [], participantId);
     if (!foundParticipant) {
+      continue;
+    }
+    const sourceParticipantId = effect && effect.source && effect.source.participant_id
+      ? String(effect.source.participant_id)
+      : null;
+    const sourceParticipant = sourceParticipantId
+      ? findParticipantById(nextCombat.participants || [], sourceParticipantId)
+      : null;
+    if (zoneBehavior.hostile_only === true && sourceParticipant) {
+      if (String(sourceParticipant.team || "") === String(foundParticipant.team || "")) {
+        continue;
+      }
+    }
+    if (areaEffectHasTriggeredForParticipantThisTurn(effect, participantId, nextCombat)) {
       continue;
     }
     const saveOut = resolveSavingThrowOutcome({
@@ -164,6 +311,7 @@ function resolveZoneEntryEffects(combat, participantId, areaEffects, input) {
     }
     let damageApplied = null;
     let concentrationResult = null;
+    let forcedMovementResult = null;
     if (enterDamage) {
       if (saveOut.payload.success === true && String(enterDamage.save_result || "") === "half_damage_on_success") {
         const preview = applyDamageToCombatState({
@@ -236,6 +384,22 @@ function resolveZoneEntryEffects(combat, participantId, areaEffects, input) {
       nextCombat = clone(applied.next_state);
       appliedCondition = applied.condition ? clone(applied.condition) : null;
     }
+    if (enterForcedMovement) {
+      const forcedMovement = resolveZoneForcedMovement(
+        nextCombat,
+        participantId,
+        effect && effect.source && effect.source.participant_id ? String(effect.source.participant_id) : null,
+        enterForcedMovement,
+        saveOut
+      );
+      if (!forcedMovement.ok) {
+        return failure("move_action_failed", forcedMovement.error || "failed to resolve zone forced movement");
+      }
+      nextCombat = clone(forcedMovement.payload.next_combat);
+      forcedMovementResult = forcedMovement.payload.forced_movement_result
+        ? clone(forcedMovement.payload.forced_movement_result)
+        : null;
+    }
     zoneEffectResults.push({
       effect_id: String(effect && effect.effect_id || ""),
       spell_id: modifiers.spell_id || null,
@@ -243,10 +407,80 @@ function resolveZoneEntryEffects(combat, participantId, areaEffects, input) {
       save_result: clone(saveOut.payload),
       damage_applied: damageApplied,
       applied_condition: appliedCondition,
-      concentration_result: concentrationResult
+      concentration_result: concentrationResult,
+      forced_movement_result: forcedMovementResult
     });
+    if (enterDamage || enterCondition || enterForcedMovement) {
+      const marked = markAreaEffectTriggeredForParticipant(nextCombat, effect && effect.effect_id, participantId);
+      nextCombat = clone(marked.combat);
+      if (damageApplied && Number(damageApplied.final_damage || 0) > 0) {
+        const pooled = consumeAreaEffectDamagePool(nextCombat, effect && effect.effect_id, Number(damageApplied.final_damage || 0));
+        nextCombat = clone(pooled.combat);
+      }
+    }
   }
   return success("zone_entry_effects_resolved", {
+    next_combat: nextCombat,
+    zone_effect_results: zoneEffectResults
+  });
+}
+
+function resolveZoneTraversalEffects(combat, participantId, traversedTiles, input) {
+  let nextCombat = clone(combat);
+  const zoneEffectResults = [];
+  const tiles = Array.isArray(traversedTiles) ? traversedTiles : [];
+  for (let tileIndex = 0; tileIndex < tiles.length; tileIndex += 1) {
+    const tile = normalizePosition(tiles[tileIndex]);
+    if (!tile) {
+      continue;
+    }
+    const effects = getActiveAreaEffectsAtPosition(nextCombat, tile);
+    for (let index = 0; index < effects.length; index += 1) {
+      const effect = effects[index];
+      const modifiers = effect && effect.modifiers && typeof effect.modifiers === "object" ? effect.modifiers : {};
+      const zoneBehavior = modifiers.zone_behavior && typeof modifiers.zone_behavior === "object" ? modifiers.zone_behavior : {};
+      const traverseDamage = zoneBehavior.on_traverse_damage_per_tile && typeof zoneBehavior.on_traverse_damage_per_tile === "object"
+        ? zoneBehavior.on_traverse_damage_per_tile
+        : null;
+      if (!traverseDamage) {
+        continue;
+      }
+      const applied = applyDamageToCombatState({
+        combat_state: nextCombat,
+        target_participant_id: participantId,
+        damage_type: traverseDamage.damage_type,
+        damage_formula: traverseDamage.damage_formula,
+        flat_damage: Number.isFinite(Number(traverseDamage.flat_damage)) ? Number(traverseDamage.flat_damage) : null,
+        rng: input.damage_rng
+      });
+      nextCombat = clone(applied.next_state);
+      let concentrationResult = null;
+      if (applied.damage_result && Number(applied.damage_result.final_damage || 0) > 0) {
+        const concentrationCheck = resolveConcentrationDamageCheck(
+          nextCombat,
+          participantId,
+          applied.damage_result.final_damage,
+          typeof input.concentration_save_rng === "function" ? input.concentration_save_rng : null
+        );
+        if (concentrationCheck.ok) {
+          nextCombat = clone(concentrationCheck.next_state);
+          concentrationResult = concentrationCheck.concentration_result
+            ? clone(concentrationCheck.concentration_result)
+            : null;
+        }
+      }
+      zoneEffectResults.push({
+        effect_id: String(effect && effect.effect_id || ""),
+        spell_id: modifiers.spell_id || null,
+        effect_type: effect && effect.type ? String(effect.type) : null,
+        traversed_tile: tile,
+        damage_applied: applied.damage_result ? clone(applied.damage_result) : null,
+        concentration_result: concentrationResult
+      });
+    }
+  }
+
+  return success("zone_traversal_effects_resolved", {
     next_combat: nextCombat,
     zone_effect_results: zoneEffectResults
   });
@@ -303,13 +537,14 @@ function performMoveAction(input) {
   if (!contextValidation.ok) {
     return failure("move_action_failed", contextValidation.message, contextValidation.payload);
   }
-  if (participantHasCondition(combat, participantId, "restrained")) {
+  const movementFreedom = participantHasMovementFreedom(combat, participantId);
+  if (!movementFreedom && participantHasCondition(combat, participantId, "restrained")) {
     return failure("move_action_failed", "restrained participants cannot move", {
       combat_id: String(combatId),
       participant_id: String(participantId)
     });
   }
-  if (participantHasCondition(combat, participantId, "grappled")) {
+  if (!movementFreedom && participantHasCondition(combat, participantId, "grappled")) {
     return failure("move_action_failed", "grappled participants cannot move", {
       combat_id: String(combatId),
       participant_id: String(participantId)
@@ -327,7 +562,9 @@ function performMoveAction(input) {
     });
   }
 
-  const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.MOVE);
+  const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.MOVE, {
+    combat_state: combat
+  });
   if (!availability.ok) {
     return failure("move_action_failed", availability.error, availability.payload);
   }
@@ -357,11 +594,18 @@ function performMoveAction(input) {
   }
 
   const previousPosition = currentPosition;
-  const areaEffectsAtDestination = getActiveAreaEffectsAtPosition(combat, targetPosition);
-  const moveCostFeet = resolveZoneMovementCostFeet(
-    normalizeMoveCostFeet(previousPosition, targetPosition),
-    areaEffectsAtDestination
-  );
+  const traversedTiles = enumerateMovementTiles(previousPosition, targetPosition);
+  const areaEffectsAtDestination = getSharedActiveAreaEffectsAtPosition(combat, targetPosition, {
+    trigger_keys: [
+      "on_enter_damage",
+      "on_enter_condition",
+      "on_enter_forced_movement"
+    ]
+  });
+  const baseMoveCostFeet = normalizeMoveCostFeet(previousPosition, targetPosition);
+  const moveCostFeet = movementFreedom
+    ? baseMoveCostFeet
+    : resolveZoneMovementCostFeet(baseMoveCostFeet, areaEffectsAtDestination);
   const consumedMovement = consumeParticipantAction(actor, ACTION_TYPES.MOVE, {
     move_cost_feet: moveCostFeet
   });
@@ -384,11 +628,24 @@ function performMoveAction(input) {
   if (normalizedConditions.ok) {
     combat.conditions = normalizedConditions.next_state.conditions;
   }
+  const traversalResolution = resolveZoneTraversalEffects(combat, participantId, traversedTiles, input);
+  if (!traversalResolution.ok) {
+    return traversalResolution;
+  }
+  combat.conditions = traversalResolution.payload.next_combat.conditions;
+  combat.participants = traversalResolution.payload.next_combat.participants;
+  combat.active_effects = traversalResolution.payload.next_combat.active_effects;
   const zoneResolution = resolveZoneEntryEffects(combat, participantId, areaEffectsAtDestination, input);
   if (!zoneResolution.ok) {
     return zoneResolution;
   }
   combat.conditions = zoneResolution.payload.next_combat.conditions;
+  combat.participants = zoneResolution.payload.next_combat.participants;
+  combat.active_effects = zoneResolution.payload.next_combat.active_effects;
+  const combinedZoneEffectResults = [
+    ...clone(traversalResolution.payload.zone_effect_results || []),
+    ...clone(zoneResolution.payload.zone_effect_results || [])
+  ];
   combat.event_log.push({
     event_type: "move_action",
     timestamp: new Date().toISOString(),
@@ -397,7 +654,7 @@ function performMoveAction(input) {
     to_position: clone(actorRef.position),
     movement_cost_feet: moveCostFeet,
     movement_remaining_after: actorRef.movement_remaining,
-    zone_effect_results: clone(zoneResolution.payload.zone_effect_results || [])
+    zone_effect_results: combinedZoneEffectResults
   });
   combat.updated_at = new Date().toISOString();
 
@@ -409,7 +666,7 @@ function performMoveAction(input) {
     from_position: previousPosition,
     to_position: clone(actorRef.position),
     movement_cost_feet: moveCostFeet,
-    zone_effect_results: clone(zoneResolution.payload.zone_effect_results || []),
+    zone_effect_results: combinedZoneEffectResults,
     combat: clone(combat)
   });
 }

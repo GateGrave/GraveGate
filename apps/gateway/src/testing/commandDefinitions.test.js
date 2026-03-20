@@ -193,6 +193,10 @@ function runCommandDefinitionsTests() {
       return option && option.name === "spell_id";
     });
     assert.equal(Boolean(interactSpellOption), true);
+    const castHazardSideOption = castDef.options.find(function findOption(option) {
+      return option && option.name === "hazard_side";
+    });
+    assert.equal(Boolean(castHazardSideOption), true);
   }, results);
 
   const passed = results.filter((x) => x.ok).length;

@@ -138,7 +138,9 @@ function performHelpAction(input) {
     });
   }
 
-  const availability = validateParticipantActionAvailability(helper, ACTION_TYPES.HELP);
+  const availability = validateParticipantActionAvailability(helper, ACTION_TYPES.HELP, {
+    combat_state: combat
+  });
   if (!availability.ok) {
     return failure("help_action_failed", availability.error || "action is not available", availability.payload);
   }

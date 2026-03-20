@@ -44,6 +44,16 @@ function canParticipantReact(combatState, participantId) {
   ) {
     return false;
   }
+  const activeConditions = Array.isArray(combatState && combatState.conditions)
+    ? combatState.conditions.filter((condition) => String(condition && condition.target_actor_id || "") === String(participantId || ""))
+    : [];
+  const blockedByMetadata = activeConditions.some((condition) => {
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
+    return metadata.apply_no_reaction === true;
+  });
+  if (blockedByMetadata) {
+    return false;
+  }
   return participant.reaction_available === true;
 }
 

@@ -80,7 +80,9 @@ function performDodgeAction(input) {
     return failure("dodge_action_failed", contextValidation.message, contextValidation.payload);
   }
 
-  const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.DODGE);
+  const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.DODGE, {
+    combat_state: combat
+  });
   if (!availability.ok) {
     return failure("dodge_action_failed", availability.error || "action is not available", availability.payload);
   }

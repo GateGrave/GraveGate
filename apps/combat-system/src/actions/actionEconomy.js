@@ -1,7 +1,7 @@
 "use strict";
 
 const { ACTION_TYPES, validateActionAvailability, gridDistanceFeet } = require("../validation/validation-helpers");
-const { getParticipantIncapacitationType } = require("../conditions/conditionHelpers");
+const { getParticipantIncapacitationType, getActiveConditionsForParticipant } = require("../conditions/conditionHelpers");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -68,6 +68,65 @@ function resolveActionCostForActionType(actionType, options) {
     return normalizeActionCostValue(settings.action_cost, "action");
   }
   return normalizeActionCostValue(settings.action_cost, "action");
+}
+
+function actionTypeSupportsHastedExtraAction(actionType) {
+  return actionType === ACTION_TYPES.ATTACK ||
+    actionType === ACTION_TYPES.DASH ||
+    actionType === ACTION_TYPES.DISENGAGE;
+}
+
+function resolveConditionActionRestriction(participant, actionCost, combatState) {
+  const participantId = String(participant && participant.participant_id || "").trim();
+  if (!participantId || !combatState) {
+    return null;
+  }
+  const activeConditions = getActiveConditionsForParticipant(combatState, participantId);
+  for (let index = 0; index < activeConditions.length; index += 1) {
+    const condition = activeConditions[index];
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object"
+      ? condition.metadata
+      : {};
+    if (actionCost === "action" && metadata.blocks_action === true) {
+      return {
+        error: "action is blocked by an active condition",
+        blocking_condition: String(condition && condition.condition_type || "")
+      };
+    }
+    if (actionCost === "bonus_action" && metadata.blocks_bonus_action === true) {
+      return {
+        error: "bonus action is blocked by an active condition",
+        blocking_condition: String(condition && condition.condition_type || "")
+      };
+    }
+    if (actionCost === "reaction" && (metadata.blocks_reaction === true || metadata.apply_no_reaction === true)) {
+      return {
+        error: "reaction is blocked by an active condition",
+        blocking_condition: String(condition && condition.condition_type || "")
+      };
+    }
+    if (actionCost === "move" && metadata.blocks_move === true) {
+      return {
+        error: "movement is blocked by an active condition",
+        blocking_condition: String(condition && condition.condition_type || "")
+      };
+    }
+    if (metadata.forbid_action_and_bonus_same_turn === true) {
+      if (actionCost === "action" && participant && participant.bonus_action_available === false) {
+        return {
+          error: "cannot take an action after using a bonus action this turn",
+          blocking_condition: String(condition && condition.condition_type || "")
+        };
+      }
+      if (actionCost === "bonus_action" && participant && participant.action_available === false) {
+        return {
+          error: "cannot take a bonus action after using an action this turn",
+          blocking_condition: String(condition && condition.condition_type || "")
+        };
+      }
+    }
+  }
+  return null;
 }
 
 function validateParticipantActionContext(combat, participant, options) {
@@ -144,6 +203,30 @@ function validateParticipantActionAvailability(participant, actionType, options)
     movement_remaining: resolveMovementPool(participant)
   });
   const actionCost = resolveActionCostForActionType(actionType, settings);
+  const conditionRestriction = resolveConditionActionRestriction(
+    participant,
+    actionCost,
+    settings.combat_state
+  );
+  if (conditionRestriction) {
+    return failure(
+      "combat_action_economy_failed",
+      conditionRestriction.error,
+      {
+        blocking_condition: conditionRestriction.blocking_condition || null
+      }
+    );
+  }
+  const hasteEligible = actionTypeSupportsHastedExtraAction(actionType) &&
+    actionCost === "action" &&
+    participant &&
+    participant.action_available === false &&
+    participant.hasted_action_available === true;
+  if (hasteEligible) {
+    return success("combat_action_available", {
+      consumed_resource: "hasted_action"
+    });
+  }
   let availability = null;
   if (actionCost === "bonus_action") {
     availability = actorForValidation.bonus_action_available === true
@@ -221,6 +304,18 @@ function consumeParticipantAction(participant, actionType, options) {
     actionType === ACTION_TYPES.ESCAPE_GRAPPLE ||
     actionType === ACTION_TYPES.SHOVE
   ) {
+    if (
+      actionTypeSupportsHastedExtraAction(actionType) &&
+      actionCost === "action" &&
+      next.action_available === false &&
+      next.hasted_action_available === true
+    ) {
+      next.hasted_action_available = false;
+      return success("combat_hasted_action_consumed", {
+        participant: next,
+        consumed_resource: "hasted_action"
+      });
+    }
     next.action_available = false;
     return success("combat_action_consumed", {
       participant: next,

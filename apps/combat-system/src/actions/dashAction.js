@@ -6,6 +6,7 @@ const {
   validateParticipantActionAvailability,
   validateParticipantActionContext
 } = require("./actionEconomy");
+const { getActiveConditionsForParticipant } = require("../conditions/conditionHelpers");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -31,6 +32,16 @@ function failure(eventType, message, payload) {
 
 function findParticipantById(participants, participantId) {
   return participants.find((entry) => String(entry && entry.participant_id || "") === String(participantId || "")) || null;
+}
+
+function canDashAsBonusAction(combat, participantId) {
+  const conditions = getActiveConditionsForParticipant(combat, participantId);
+  return conditions.some((condition) => {
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object"
+      ? condition.metadata
+      : {};
+    return metadata.allow_dash_as_bonus_action === true;
+  });
 }
 
 function resolveMovementSpeed(participant) {
@@ -93,12 +104,20 @@ function performDashAction(input) {
     return failure("dash_action_failed", contextValidation.message, contextValidation.payload);
   }
 
-  const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.DASH);
+  const useBonusActionDash = actor.action_available === false &&
+    actor.bonus_action_available === true &&
+    canDashAsBonusAction(combat, participantId);
+  const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.DASH, {
+    action_cost: useBonusActionDash ? "bonus_action" : "action",
+    combat_state: combat
+  });
   if (!availability.ok) {
     return failure("dash_action_failed", availability.error || "action is not available", availability.payload);
   }
 
-  const consumed = consumeParticipantAction(actor, ACTION_TYPES.DASH);
+  const consumed = consumeParticipantAction(actor, ACTION_TYPES.DASH, {
+    action_cost: useBonusActionDash ? "bonus_action" : "action"
+  });
   if (!consumed.ok) {
     return failure("dash_action_failed", consumed.error || "failed to consume action", consumed.payload);
   }
@@ -119,7 +138,8 @@ function performDashAction(input) {
     details: {
       movement_before: movementBefore,
       movement_added: speed,
-      movement_after: movementAfter
+      movement_after: movementAfter,
+      consumed_resource: useBonusActionDash ? "bonus_action" : "action"
     }
   });
   combat.updated_at = new Date().toISOString();
@@ -130,9 +150,11 @@ function performDashAction(input) {
     combat_id: String(combatId),
     participant_id: String(participantId),
     action_available_after: updatedActor.action_available,
+    bonus_action_available_after: updatedActor.bonus_action_available,
     movement_before: movementBefore,
     movement_added: speed,
     movement_after: movementAfter,
+    consumed_resource: useBonusActionDash ? "bonus_action" : "action",
     combat: clone(combat)
   });
 }

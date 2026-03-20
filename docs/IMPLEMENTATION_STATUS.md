@@ -1,6 +1,6 @@
 # GateGrave Implementation Status
 
-Last updated: 2026-03-19
+Last updated: 2026-03-20
 
 This is the working roadmap for the actual repo state.
 
@@ -53,20 +53,24 @@ Current goals in progress:
 5. Keep button-first UX where it removes real player friction
 
 Most recent completed chunk:
-- Combat depth and spell-library work continued on the combat branch without widening into gateway/runtime hotfiles
+- Combat depth and spell-library work continued with one narrow canonical cast-path integration edit
   - persistent battlefield spell effects now use canonical `combat.active_effects`
   - ongoing zones now support obscuration, difficult terrain, on-enter damage, on-enter conditions, and start-of-turn damage/conditions
-  - `darkness` and `moonbeam` now resolve through the same persistent-zone model
-  - the canonical spell library now contains 105 entries total
-  - 46 imported SRD spells are present as canonical content but hidden from current alpha spell selection
+  - `darkness`, `moonbeam`, `stinking_cloud`, `cloudkill`, and `ice_storm` now resolve through the same persistent-zone model
+  - obscuration-zone spells `fog_cloud` and `darkness` are now marked supported in canonical content/status because they already resolve through central heavily obscured combat hooks
+  - `wind_wall` is now supported and alpha-selectable on the canonical combat path
+  - `wall_of_fire` now accepts player-facing `hazard_side` on the canonical `/cast` path and can fall back to target-position placement for runtime/slash flow, while honestly remaining `partial`
+  - the canonical spell library now contains 238 entries total
+  - 132 imported SRD spells are present as canonical content but hidden from current alpha spell selection
   - every spell entry now declares `metadata.runtime_support`
+  - imported spells `chain_lightning`, `mass_cure_wounds`, `heal`, `hold_monster`, `greater_invisibility`, `stoneskin`, `protection_from_energy`, `death_ward`, `stinking_cloud`, `cloudkill`, `spike_growth`, `ice_storm`, `sleet_storm`, `slow`, `haste`, `true_strike`, and `color_spray` are now supported and alpha-selectable through the canonical combat cast path
 
 Next recommended resume point:
-1. Sync this branch cleanly before further work
-2. Continue SRD spell import in content-only slices
+1. Continue resolver-family spell work rather than more bulk import
+2. Take the next focused family as broader control/targeting mechanics (`slow` and similar partial spells)
 3. Keep imported spells marked with honest `supported` / `partial` / `unsupported` support metadata
 4. Keep imported non-alpha spells hidden from class/player selection until the matching resolver slice exists
-5. Only widen combat logic again when a central spell-mechanic class justifies its own focused slice
+5. Only widen combat logic when a central spell-mechanic class justifies its own focused slice
 
 ## Core Architecture
 
@@ -244,9 +248,11 @@ Next recommended resume point:
   - area-template spell content now includes representative SRD shapes for cone, cube, line, sphere, aura, and cylinder-style effects
   - current scaffold entries now include `burning_hands`, `thunderwave`, `fog_cloud`, `shatter`, `fireball`, `lightning_bolt`, and `spirit_guardians`
   - direct combat content entries now also include `inflict_wounds`, `acid_arrow`, `hellish_rebuke`, and `dissonant_whispers`
-  - the canonical spell library now contains 105 total spell entries
-  - 46 imported SRD entries are present as canonical content but hidden from current alpha spell lists via `metadata.alpha_selectable: false`
+  - the canonical spell library now contains 238 total spell entries
+  - 110 imported SRD entries are present as canonical content but hidden from current alpha spell lists via `metadata.alpha_selectable: false`
   - all spell entries now declare `metadata.runtime_support` so future onboarding can be honest about supported vs partial vs unsupported mechanics
+  - imported spells `blight`, `cone_of_cold`, `circle_of_death`, `chain_lightning`, `mass_cure_wounds`, `heal`, `mass_heal`, `greater_restoration`, `remove_curse`, `hold_monster`, `greater_invisibility`, `stoneskin`, `protection_from_energy`, `death_ward`, `stinking_cloud`, `cloudkill`, `spike_growth`, `ice_storm`, `sleet_storm`, `slow`, `haste`, `guardian_of_faith`, `true_strike`, and `color_spray` are now alpha-selectable because they fit the current canonical resolver
+  - unsupported command/domination and wall/barrier families remain hidden until their controlling mechanics exist on the canonical combat path
   - this content is intended to support later map-side targeting/template work without making map state authoritative
 - [ ] Advanced combat AI behavior profiles
 - [ ] Full action economy enforcement across all action types
@@ -420,8 +426,9 @@ Next recommended resume point:
 - [ ] Broaden economy progression beyond starter balancing
 - [~] Add richer shop/craft button UX beyond browse/buy/make
 - [~] Continue SRD spell library import in content-only passes
-  - next recommended pass: additional level 2-3 SRD staples with honest support tagging
-  - do not surface non-alpha-selectable spells in class/player spell lists until their resolver slice exists
+  - broad canonical import pass is now in place through high-level SRD spells
+  - next recommended pass: selectively promote already-supported imported spells into alpha lists
+  - keep non-alpha-selectable spells out of class/player spell lists until their resolver slice exists
 
 ### Later
 
@@ -487,17 +494,38 @@ Next recommended resume point:
   - ongoing spell zones now use `combat.active_effects`
   - zone behavior now covers obscuration, difficult terrain, on-enter damage, on-enter conditions, and start-of-turn damage/conditions
 - [x] Added `darkness` and `moonbeam` through the canonical persistent-zone model
+- [x] Marked `fog_cloud` and `darkness` as supported where canonical combat obscuration hooks already existed
 - [x] Added canonical spell support truth to content
   - all spells now declare `metadata.runtime_support`
   - non-alpha imported SRD spells are hidden from normal spell-list surfaces with `metadata.alpha_selectable: false`
 - [x] Expanded the canonical spell library in a content-safe way
-  - total spell entries: `105`
-  - hidden imported SRD entries: `46`
+  - total spell entries: `238`
+  - hidden imported SRD entries: `108`
+  - newly supported and alpha-selectable in the latest buff/control slice:
+    - `holy_aura`
+    - `foresight`
+    - `mass_heal`
+    - `greater_restoration`
+    - `remove_curse`
+    - `guardian_of_faith`
+    - `wall_of_force`
+    - `confusion`
+  - bounded `command` backend support now exists for `grovel` and `halt` on the canonical combat turn path, but the spell remains hidden and marked `partial` until command-choice surfaces are wired end to end
 
 ## Sync Resume Note
 
 If resuming after sync, the intended next slice is:
-1. Continue SRD spell import in content-only passes
-2. Group imports by mechanic family and assign honest `runtime_support`
-3. Leave imported spells hidden from alpha selection until the corresponding resolver slice is actually implemented
-4. Treat any future combat-system widening as a separate focused slice, not as part of the import pass
+1. Group remaining hidden imported combat spells by mechanic family and pick one focused resolver slice
+2. Directional and forced-position battlefield control advanced with `gust_of_wind` now supported
+3. Self weapon-empower combat slice advanced with `shillelagh` now supported
+4. Self mobility concentration slice advanced with `expeditious_retreat` now supported
+5. HP-gated spell family advanced with `sleep`, `power_word_stun`, and `power_word_kill` now supported
+6. Mental-control and battlefield-removal slice advanced with `hypnotic_pattern`, `calm_emotions`, and `banishment` now supported
+7. Support-buff slice advanced with `beacon_of_hope` and `freedom_of_movement` now supported
+8. Bounded persistent sentry zone slice advanced with `guardian_of_faith` now supported
+9. Barrier slice advanced with `wall_of_force` and `wind_wall` now supported; `wall_of_fire` now has canonical hazard-side slash/runtime support but remains an honest partial
+10. `command` now has bounded backend support for `grovel` and `halt`, but stays hidden until choice/UI surfaces are ready
+11. Leave unsupported imported spells hidden from alpha selection until the corresponding resolver slice is actually implemented
+12. Keep support truth in `metadata.runtime_support`
+13. Treat any future combat-system widening as a separate focused slice, not as part of the import pass
+14. Prefer broader spell-family or combat-UX slices next instead of spending another deep pass on `wall_of_fire`

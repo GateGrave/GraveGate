@@ -8,6 +8,7 @@ const { createSqliteAdapter } = require("../../../database/src/adapters/sqliteAd
 const { InventoryPersistenceBridge } = require("../../../inventory-system/src/inventory.persistence");
 const { createInventoryRecord } = require("../../../inventory-system/src/inventory.schema");
 const {
+  processCombatCastSpellRequest,
   processCombatAttackRequest,
   processCombatHelpRequest,
   processCombatReadyRequest,
@@ -244,6 +245,64 @@ function createCombatReadyForMove(combatId, playerId, options) {
     combat.conditions = JSON.parse(JSON.stringify(cfg.conditions));
   }
   manager.combats.set(combatId, combat);
+  return manager;
+}
+
+function createCombatReadyForSpell(combatId, playerId) {
+  const manager = new CombatManager();
+  manager.createCombat({
+    combat_id: combatId,
+    status: "pending"
+  });
+
+  manager.addParticipant({
+    combat_id: combatId,
+    participant: {
+      participant_id: playerId,
+      name: "Spell Hero",
+      team: "heroes",
+      armor_class: 12,
+      current_hp: 12,
+      max_hp: 12,
+      attack_bonus: 4,
+      damage: 3,
+      position: { x: 0, y: 0 },
+      spellbook: {
+        known_spell_ids: ["wall_of_fire"]
+      },
+      spellcasting_ability: "charisma",
+      spell_attack_bonus: 5,
+      spellsave_dc: 13,
+      stats: {
+        charisma: 16,
+        dexterity: 12,
+        constitution: 12,
+        wisdom: 10
+      }
+    }
+  });
+  manager.addParticipant({
+    combat_id: combatId,
+    participant: {
+      participant_id: "enemy-spell-request-001",
+      name: "Spell Target",
+      team: "monsters",
+      armor_class: 11,
+      current_hp: 12,
+      max_hp: 12,
+      attack_bonus: 2,
+      damage: 3,
+      position: { x: 1, y: 0 },
+      dexterity_save_modifier: 1
+    }
+  });
+
+  startCombat({
+    combatManager: manager,
+    combat_id: combatId,
+    roll_function: (participant) => (participant.participant_id === playerId ? 20 : 1)
+  });
+
   return manager;
 }
 
@@ -1116,6 +1175,284 @@ function runProcessCombatActionRequestTests() {
       return String(entry && entry.condition_type || "") === "restrained" &&
         String(entry && entry.target_actor_id || "") === playerId;
     }), true);
+  }, results);
+
+  runTest("player_cast_request_passes_wall_of_fire_hazard_side_tiles_into_active_effect", () => {
+    const playerId = "player-combat-cast-001";
+    const combatId = "combat-cast-request-001";
+    const manager = createCombatReadyForSpell(combatId, playerId);
+    const spell = {
+      spell_id: "wall_of_fire",
+      name: "Wall of Fire",
+      level: 4,
+      casting_time: "1 action",
+      range: "120 feet",
+      targeting: { type: "line_100ft_5ft" },
+      duration: "concentration, up to 1 minute",
+      concentration: true,
+      attack_or_save: { type: "save", save_ability: "dexterity" },
+      damage: { dice: "5d8", damage_type: "fire" },
+      effect: {
+        damage_ref: "spell_damage_wall_of_fire",
+        targeting: "line",
+        status_hint: "wall_of_fire_zone"
+      }
+    };
+
+    const out = processCombatCastSpellRequest({
+      context: {
+        combatManager: manager,
+        spellContentProvider: createSpellProvider([spell]),
+        spellSavingThrowFn: () => ({ final_total: 20 }),
+        spellDamageRng: () => 0,
+        combatPersistence: {
+          saveCombatSnapshot(input) {
+            return {
+              ok: true,
+              payload: {
+                snapshot: input && input.snapshot ? JSON.parse(JSON.stringify(input.snapshot)) : { snapshot_id: "snapshot-cast-request-001" }
+              }
+            };
+          }
+        }
+      },
+      player_id: playerId,
+      combat_id: combatId,
+      payload: {
+        spell_id: "wall_of_fire",
+        area_tiles: [{ x: 2, y: 2 }, { x: 3, y: 2 }, { x: 4, y: 2 }],
+        hazard_area_tiles: [{ x: 2, y: 3 }, { x: 3, y: 3 }, { x: 4, y: 3 }]
+      }
+    });
+
+    assert.equal(out.ok, true);
+    const activeEffect = out.payload.cast_spell.active_effects_added[0];
+    assert.equal(Boolean(activeEffect), true);
+    assert.deepEqual(activeEffect.modifiers.zone_behavior.on_enter_damage.area_tiles, [{ x: 2, y: 3 }, { x: 3, y: 3 }, { x: 4, y: 3 }]);
+    assert.deepEqual(activeEffect.modifiers.zone_behavior.on_turn_start_damage.area_tiles, [{ x: 2, y: 3 }, { x: 3, y: 3 }, { x: 4, y: 3 }]);
+  }, results);
+
+  runTest("player_cast_request_can_derive_wall_of_fire_hazard_side_from_direction", () => {
+    const playerId = "player-combat-cast-side-001";
+    const combatId = "combat-cast-side-request-001";
+    const manager = createCombatReadyForSpell(combatId, playerId);
+    const spell = {
+      spell_id: "wall_of_fire",
+      name: "Wall of Fire",
+      level: 4,
+      casting_time: "1 action",
+      range: "120 feet",
+      targeting: { type: "line_100ft_5ft" },
+      duration: "concentration, up to 1 minute",
+      concentration: true,
+      attack_or_save: { type: "save", save_ability: "dexterity" },
+      damage: { dice: "5d8", damage_type: "fire" },
+      effect: {
+        damage_ref: "spell_damage_wall_of_fire",
+        targeting: "line",
+        status_hint: "wall_of_fire_zone"
+      }
+    };
+
+    const out = processCombatCastSpellRequest({
+      context: {
+        combatManager: manager,
+        spellContentProvider: createSpellProvider([spell]),
+        spellSavingThrowFn: () => ({ final_total: 20 }),
+        spellDamageRng: () => 0,
+        combatPersistence: {
+          saveCombatSnapshot(input) {
+            return {
+              ok: true,
+              payload: {
+                snapshot: input && input.snapshot ? JSON.parse(JSON.stringify(input.snapshot)) : { snapshot_id: "snapshot-cast-side-request-001" }
+              }
+            };
+          }
+        }
+      },
+      player_id: playerId,
+      combat_id: combatId,
+      payload: {
+        spell_id: "wall_of_fire",
+        area_tiles: [{ x: 2, y: 2 }, { x: 3, y: 2 }, { x: 4, y: 2 }],
+        hazard_side: "north"
+      }
+    });
+
+    assert.equal(out.ok, true);
+    const activeEffect = out.payload.cast_spell.active_effects_added[0];
+    assert.equal(Boolean(activeEffect), true);
+    assert.deepEqual(activeEffect.modifiers.zone_behavior.on_enter_damage.area_tiles, [{ x: 2, y: 1 }, { x: 3, y: 1 }, { x: 4, y: 1 }]);
+    assert.deepEqual(activeEffect.modifiers.zone_behavior.on_turn_start_damage.area_tiles, [{ x: 2, y: 1 }, { x: 3, y: 1 }, { x: 4, y: 1 }]);
+  }, results);
+
+  runTest("player_cast_request_can_fallback_wall_of_fire_area_tiles_from_target_position", () => {
+    const playerId = "player-combat-cast-side-target-001";
+    const targetId = "enemy-spell-request-001";
+    const combatId = "combat-cast-side-target-request-001";
+    const manager = createCombatReadyForSpell(combatId, playerId);
+    const combat = manager.getCombatById(combatId).payload.combat;
+    const target = combat.participants.find((entry) => String(entry && entry.participant_id || "") === targetId);
+    target.position = { x: 2, y: 2 };
+    manager.combats.set(combatId, combat);
+    const spell = {
+      spell_id: "wall_of_fire",
+      name: "Wall of Fire",
+      level: 4,
+      casting_time: "1 action",
+      range: "120 feet",
+      targeting: { type: "line_100ft_5ft" },
+      duration: "concentration, up to 1 minute",
+      concentration: true,
+      attack_or_save: { type: "save", save_ability: "dexterity" },
+      damage: { dice: "5d8", damage_type: "fire" },
+      effect: {
+        damage_ref: "spell_damage_wall_of_fire",
+        targeting: "line",
+        status_hint: "wall_of_fire_zone"
+      }
+    };
+
+    const out = processCombatCastSpellRequest({
+      context: {
+        combatManager: manager,
+        spellContentProvider: createSpellProvider([spell]),
+        spellSavingThrowFn: () => ({ final_total: 20 }),
+        spellDamageRng: () => 0,
+        combatPersistence: {
+          saveCombatSnapshot(input) {
+            return {
+              ok: true,
+              payload: {
+                snapshot: input && input.snapshot ? JSON.parse(JSON.stringify(input.snapshot)) : { snapshot_id: "snapshot-cast-side-target-request-001" }
+              }
+            };
+          }
+        }
+      },
+      player_id: playerId,
+      combat_id: combatId,
+      payload: {
+        spell_id: "wall_of_fire",
+        target_id: targetId,
+        hazard_side: "north"
+      }
+    });
+
+    assert.equal(out.ok, true);
+    const activeEffect = out.payload.cast_spell.active_effects_added[0];
+    assert.equal(Boolean(activeEffect), true);
+    assert.deepEqual(activeEffect.modifiers.area_tiles, [{ x: 2, y: 2 }]);
+    assert.deepEqual(activeEffect.modifiers.zone_behavior.on_enter_damage.area_tiles, [{ x: 2, y: 1 }]);
+  }, results);
+
+  runTest("player_cast_request_resolves_wind_wall_initial_damage_and_registers_barrier", () => {
+    const playerId = "player-combat-cast-wind-001";
+    const combatId = "combat-cast-wind-request-001";
+    const manager = new CombatManager();
+    manager.createCombat({
+      combat_id: combatId,
+      status: "pending"
+    });
+    manager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: playerId,
+        name: "Wind Wall Caster",
+        team: "heroes",
+        armor_class: 12,
+        current_hp: 12,
+        max_hp: 12,
+        attack_bonus: 4,
+        damage: 3,
+        position: { x: 0, y: 0 },
+        spellbook: {
+          known_spell_ids: ["wind_wall"]
+        },
+        spellcasting_ability: "charisma",
+        spell_attack_bonus: 5,
+        spellsave_dc: 13,
+        stats: {
+          charisma: 16,
+          dexterity: 12,
+          constitution: 12,
+          wisdom: 10
+        }
+      }
+    });
+    manager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "enemy-wind-request-001",
+        name: "Wind Wall Target",
+        team: "monsters",
+        armor_class: 11,
+        current_hp: 12,
+        max_hp: 12,
+        attack_bonus: 2,
+        damage: 3,
+        position: { x: 2, y: 0 },
+        strength_save_modifier: 0
+      }
+    });
+    startCombat({
+      combatManager: manager,
+      combat_id: combatId,
+      roll_function: (participant) => (participant.participant_id === playerId ? 20 : 1)
+    });
+
+    const windWall = {
+      spell_id: "wind_wall",
+      name: "Wind Wall",
+      level: 3,
+      casting_time: "1 action",
+      range: "120 feet",
+      targeting: { type: "line_100ft_5ft" },
+      duration: "concentration, up to 1 minute",
+      concentration: true,
+      attack_or_save: { type: "save", save_ability: "strength" },
+      damage: { dice: "3d8", damage_type: "bludgeoning" },
+      effect: {
+        damage_ref: "spell_damage_wind_wall",
+        targeting: "line",
+        status_hint: "wind_wall_barrier"
+      }
+    };
+
+    const out = processCombatCastSpellRequest({
+      context: {
+        combatManager: manager,
+        spellContentProvider: createSpellProvider([windWall]),
+        spellSavingThrowFn: () => ({ final_total: 4 }),
+        spellDamageRng: () => 0,
+        combatPersistence: {
+          saveCombatSnapshot(input) {
+            return {
+              ok: true,
+              payload: {
+                snapshot: input && input.snapshot ? JSON.parse(JSON.stringify(input.snapshot)) : { snapshot_id: "snapshot-cast-wind-request-001" }
+              }
+            };
+          }
+        }
+      },
+      player_id: playerId,
+      combat_id: combatId,
+      payload: {
+        spell_id: "wind_wall",
+        target_id: "enemy-wind-request-001",
+        area_tiles: [{ x: 2, y: 0 }, { x: 3, y: 0 }, { x: 4, y: 0 }]
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.cast_spell.saved, false);
+    assert.equal(out.payload.cast_spell.damage_result.damage_type, "bludgeoning");
+    const activeEffect = out.payload.cast_spell.active_effects_added[0];
+    assert.equal(Boolean(activeEffect), true);
+    assert.equal(activeEffect.modifiers.zone_behavior.protection_rules.blocks_ranged_attacks_across_tiles, true);
+    assert.equal(activeEffect.modifiers.zone_behavior.protection_rules.blocks_spell_attacks_across_tiles, true);
   }, results);
 
   runTest("no_opportunity_attack_if_reactor_has_no_reaction", () => {

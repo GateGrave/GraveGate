@@ -50,7 +50,11 @@ function initializeParticipantTurnState(participant) {
     movement_remaining:
       Number.isFinite(participant && participant.movement_remaining)
         ? Number(participant.movement_remaining)
-        : (Number.isFinite(movementSpeed) ? movementSpeed : 30)
+        : (Number.isFinite(movementSpeed) ? movementSpeed : 30),
+    hasted_action_available:
+      participant && typeof participant.hasted_action_available === "boolean"
+        ? participant.hasted_action_available
+        : false
   })));
 }
 

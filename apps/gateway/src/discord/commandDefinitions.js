@@ -659,6 +659,18 @@ const commandDefinitions = [
     )
     .addStringOption((option) =>
       option
+        .setName("hazard_side")
+        .setDescription("Optional hazardous side for wall_of_fire")
+        .setRequired(false)
+        .addChoices(
+          { name: "North", value: "north" },
+          { name: "South", value: "south" },
+          { name: "East", value: "east" },
+          { name: "West", value: "west" }
+        )
+    )
+    .addStringOption((option) =>
+      option
         .setName("session_id")
         .setDescription("Optional session identifier")
         .setRequired(false)

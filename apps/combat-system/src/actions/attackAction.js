@@ -17,7 +17,8 @@ const { applyDamageToCombatState } = require("../damage/apply-damage-to-combat-s
 const { DAMAGE_TYPES, isSupportedDamageType, normalizeDamageType } = require("../damage/damage-types");
 const {
   rollConditionDiceModifier,
-  resolveTargetingProtectionOutcome
+  resolveTargetingProtectionOutcome,
+  resolveSavingThrowOutcome
 } = require("../spells/spellcastingHelpers");
 const { gridDistanceFeet } = require("../validation/validation-helpers");
 const { validateHarmfulTargetingRestriction } = require("./hostileTargetingRules");
@@ -59,12 +60,58 @@ function findParticipantById(participants, participantId) {
   return participants.find((p) => String(p.participant_id) === String(participantId)) || null;
 }
 
+function conditionAppliesAgainstTarget(condition, targetId) {
+  const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
+  const listedTargets = Array.isArray(metadata.applies_against_actor_ids)
+    ? metadata.applies_against_actor_ids.map((entry) => String(entry || "").trim()).filter(Boolean)
+    : [];
+  if (listedTargets.length <= 0) {
+    return true;
+  }
+  return listedTargets.includes(String(targetId || "").trim());
+}
+
 function toStringOrNull(value) {
   if (typeof value !== "string") {
     return null;
   }
   const trimmed = value.trim();
   return trimmed || null;
+}
+
+function weaponProfileMatchesCondition(weaponProfile, metadata) {
+  const profile = weaponProfile && typeof weaponProfile === "object" ? weaponProfile : {};
+  const requiredItemIds = Array.isArray(metadata && metadata.requires_weapon_item_ids)
+    ? metadata.requires_weapon_item_ids.map((entry) => String(entry || "").trim().toLowerCase()).filter(Boolean)
+    : [];
+  const itemId = String(profile.item_id || "").trim().toLowerCase();
+  if (requiredItemIds.length > 0 && itemId) {
+    return requiredItemIds.includes(itemId);
+  }
+  const weaponName = String(profile.item_name || profile.name || profile.weapon_name || "").trim().toLowerCase();
+  return weaponName === "club" || weaponName === "quarterstaff";
+}
+
+function resolveWeaponEmpowermentCondition(combat, attacker) {
+  const readiness = attacker && attacker.readiness && typeof attacker.readiness === "object"
+    ? attacker.readiness
+    : {};
+  const weaponProfile = readiness.weapon_profile && typeof readiness.weapon_profile === "object"
+    ? readiness.weapon_profile
+    : {};
+  const activeConditions = getActiveConditionsForParticipant(combat, attacker && attacker.participant_id);
+  for (let index = 0; index < activeConditions.length; index += 1) {
+    const condition = activeConditions[index];
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
+    if (!metadata.override_attack_bonus_source && !metadata.override_damage_formula && !metadata.override_damage_type) {
+      continue;
+    }
+    if (!weaponProfileMatchesCondition(weaponProfile, metadata)) {
+      continue;
+    }
+    return metadata;
+  }
+  return null;
 }
 
 function participantHasFeat(participant, featId) {
@@ -185,10 +232,15 @@ function resolveAttackDamageProfile(attacker, input) {
   const attackerType = normalizeDamageType(attacker && attacker.damage_type);
   const weaponFormula = toStringOrNull(weapon.damage_dice);
   const weaponType = normalizeDamageType(weapon.damage_type);
+  const empowerment = input && input.combat
+    ? resolveWeaponEmpowermentCondition(input.combat, attacker)
+    : null;
+  const empoweredFormula = toStringOrNull(empowerment && empowerment.override_damage_formula);
+  const empoweredType = normalizeDamageType(empowerment && empowerment.override_damage_type);
   const fallbackDamage = Number.isFinite(Number(attacker && attacker.damage)) ? Math.max(0, Math.floor(Number(attacker.damage))) : 0;
 
-  const damageFormula = explicitFormula || attackerFormula || weaponFormula || "0";
-  const damageType = explicitType || attackerType || weaponType || DAMAGE_TYPES.BLUDGEONING;
+  const damageFormula = explicitFormula || empoweredFormula || attackerFormula || weaponFormula || "0";
+  const damageType = explicitType || empoweredType || attackerType || weaponType || DAMAGE_TYPES.BLUDGEONING;
 
   return {
     damage_formula: damageFormula,
@@ -303,15 +355,19 @@ function resolveAttackRoll(input) {
   const targetIsHeavilyObscured = participantIsHeavilyObscured(combat, target);
   const attackerHasConditionDisadvantage = attackerConditions.some((condition) => {
     const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
-    return metadata.has_attack_disadvantage === true;
+    return metadata.has_attack_disadvantage === true &&
+      conditionAppliesAgainstTarget(condition, target && target.participant_id);
   });
   const attackerHasConditionAdvantage = attackerConditions.some((condition) => {
     const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
-    return metadata.has_attack_advantage === true;
+    return metadata.has_attack_advantage === true &&
+      conditionAppliesAgainstTarget(condition, target && target.participant_id);
   });
   const consumedAttackerCondition = attackerConditions.find((condition) => {
     const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
-    return metadata.consume_on_attack === true && (metadata.has_attack_disadvantage === true || metadata.has_attack_advantage === true);
+    return metadata.consume_on_attack === true &&
+      conditionAppliesAgainstTarget(condition, target && target.participant_id) &&
+      (metadata.has_attack_disadvantage === true || metadata.has_attack_advantage === true);
   }) || null;
   const attackerHasHelpedAttack = attackerConditions.some((condition) => {
     return String(condition && condition.condition_type || "") === "helped_attack";
@@ -445,6 +501,12 @@ function resolveAttackAgainstCombatState(input) {
       current_hp: targetHp
     });
   }
+  if (participantHasCondition(combat, targetId, "banished")) {
+    return failure("attack_action_failed", "cannot attack a banished target", {
+      combat_id: String(combat.combat_id || ""),
+      target_id: String(targetId)
+    });
+  }
   const hostileTargeting = validateHarmfulTargetingRestriction(combat, attackerId, targetId, {
     condition_type: "charmed",
     error_message: "charmed participants cannot make harmful attacks against the charmer"
@@ -484,7 +546,9 @@ function resolveAttackAgainstCombatState(input) {
     }
   }
   if (!reactionMode) {
-    const availability = validateParticipantActionAvailability(attacker, ACTION_TYPES.ATTACK);
+    const availability = validateParticipantActionAvailability(attacker, ACTION_TYPES.ATTACK, {
+      combat_state: combat
+    });
     if (!availability.ok) {
       return failure("attack_action_failed", availability.error, availability.payload);
     }
@@ -509,6 +573,7 @@ function resolveAttackAgainstCombatState(input) {
     source_participant: refreshedAttacker,
     target_participant: refreshedTarget,
     protection_kind: "attack",
+    attack_mode: rangeProfile.attack_mode,
     saving_throw_fn: data.targeting_save_fn,
     bonus_rng: data.targeting_save_bonus_rng
   });
@@ -538,7 +603,14 @@ function resolveAttackAgainstCombatState(input) {
   }
   const attackRoll = attackRollResult.final_roll;
 
-  const attackBonus = Number.isFinite(refreshedAttacker.attack_bonus) ? refreshedAttacker.attack_bonus : 0;
+  const weaponEmpowerment = resolveWeaponEmpowermentCondition(updatedCombat, refreshedAttacker);
+  const overrideAttackBonusSource = String(weaponEmpowerment && weaponEmpowerment.override_attack_bonus_source || "").trim().toLowerCase();
+  const attackBonus = overrideAttackBonusSource === "spell_attack_bonus" &&
+    Number.isFinite(Number(refreshedAttacker.spell_attack_bonus))
+    ? Number(refreshedAttacker.spell_attack_bonus)
+    : Number.isFinite(refreshedAttacker.attack_bonus)
+      ? refreshedAttacker.attack_bonus
+      : 0;
   const conditionBonus = rollConditionDiceModifier({
     combat_state: updatedCombat,
     participant_id: attackerId,
@@ -585,6 +657,7 @@ function resolveAttackAgainstCombatState(input) {
   let damageResult = null;
   let bonusDamageResults = [];
   let reactiveDamageResults = [];
+  let reactiveConditionResults = [];
   let concentrationResult = null;
   const meleeAttack = isMeleeAttack(attacker, target);
   if (hit) {
@@ -664,6 +737,20 @@ function resolveAttackAgainstCombatState(input) {
     }
     updatedCombat = clone(reactiveDamageOut.payload.next_state);
     reactiveDamageResults = clone(reactiveDamageOut.payload.reactive_damage_results || []);
+
+    const reactiveConditionOut = resolveReactiveConditionEffects({
+      combat: updatedCombat,
+      attacker_id: attackerId,
+      target_id: targetId,
+      attack_was_melee: meleeAttack,
+      condition_save_fn: data.condition_save_fn,
+      condition_bonus_rng: data.condition_bonus_rng
+    });
+    if (!reactiveConditionOut.ok) {
+      return reactiveConditionOut;
+    }
+    updatedCombat = clone(reactiveConditionOut.payload.next_state);
+    reactiveConditionResults = clone(reactiveConditionOut.payload.reactive_condition_results || []);
   }
   const mobileProtection = applyMobileOpportunityAttackProtection(updatedCombat, attacker, target, meleeAttack);
   if (!mobileProtection.ok) {
@@ -689,6 +776,9 @@ function resolveAttackAgainstCombatState(input) {
 
   const finalTarget = findParticipantById(updatedCombat.participants || [], targetId);
   const finalTargetHp = Number.isFinite(finalTarget && finalTarget.current_hp) ? finalTarget.current_hp : 0;
+  const finalDamageType = hit
+    ? resolveAttackDamageProfile(refreshedAttacker, Object.assign({}, data, { combat: updatedCombat })).damage_type
+    : null;
 
   updatedCombat.event_log = Array.isArray(updatedCombat.event_log) ? updatedCombat.event_log : [];
   updatedCombat.event_log.push({
@@ -708,12 +798,13 @@ function resolveAttackAgainstCombatState(input) {
     attack_mode: rangeProfile.attack_mode,
     max_range_feet: rangeProfile.max_range_feet,
     distance_feet: rangeProfile.distance_feet,
-    damage_type: hit ? resolveAttackDamageProfile(attacker, data).damage_type : null,
+    damage_type: finalDamageType,
     hit,
     damage_dealt: damageDealt,
     damage_result: clone(damageResult),
     bonus_damage_results: clone(bonusDamageResults),
     reactive_damage_results: clone(reactiveDamageResults),
+    reactive_condition_results: clone(reactiveConditionResults),
     target_hp_after: finalTargetHp,
     reaction_mode: reactionMode,
     consumed_target_condition_type: attackRollResult.consumed_target_condition_type || null,
@@ -738,11 +829,12 @@ function resolveAttackAgainstCombatState(input) {
     attack_mode: rangeProfile.attack_mode,
     max_range_feet: rangeProfile.max_range_feet,
     distance_feet: rangeProfile.distance_feet,
-    damage_type: hit ? resolveAttackDamageProfile(attacker, data).damage_type : null,
+    damage_type: finalDamageType,
     damage_dealt: damageDealt,
     damage_result: clone(damageResult),
     bonus_damage_results: clone(bonusDamageResults),
     reactive_damage_results: clone(reactiveDamageResults),
+    reactive_condition_results: clone(reactiveConditionResults),
     target_hp_after: finalTargetHp,
     concentration_result: clone(concentrationResult),
     combat: clone(updatedCombat)
@@ -872,6 +964,131 @@ function resolveReactiveDamageEffects(input) {
   return success("attack_reactive_damage_resolved", {
     next_state: nextCombat,
     reactive_damage_results: reactiveDamageResults
+  });
+}
+
+function appendLinkedConditionToSourceConcentration(combat, sourceParticipantId, sourceSpellId, conditionId) {
+  const nextCombat = clone(combat);
+  const participants = Array.isArray(nextCombat.participants) ? nextCombat.participants : [];
+  const participantIndex = participants.findIndex((entry) => {
+    return String(entry && entry.participant_id || "") === String(sourceParticipantId || "");
+  });
+  if (participantIndex === -1) {
+    return nextCombat;
+  }
+
+  const participant = participants[participantIndex];
+  const concentration = participant && participant.concentration && typeof participant.concentration === "object"
+    ? participant.concentration
+    : null;
+  if (!concentration || concentration.is_concentrating !== true) {
+    return nextCombat;
+  }
+  if (sourceSpellId && String(concentration.source_spell_id || "") !== String(sourceSpellId || "")) {
+    return nextCombat;
+  }
+
+  const linkedConditionIds = Array.isArray(concentration.linked_condition_ids)
+    ? concentration.linked_condition_ids.slice()
+    : [];
+  if (!linkedConditionIds.includes(String(conditionId || ""))) {
+    linkedConditionIds.push(String(conditionId || ""));
+  }
+  participant.concentration = Object.assign({}, concentration, {
+    linked_condition_ids: linkedConditionIds
+  });
+  participants[participantIndex] = participant;
+  return nextCombat;
+}
+
+function resolveReactiveConditionEffects(input) {
+  const combat = clone(input.combat);
+  const attacker = findParticipantById(combat.participants || [], input.attacker_id);
+  const target = findParticipantById(combat.participants || [], input.target_id);
+  if (!attacker || !target || input.attack_was_melee !== true) {
+    return success("attack_reactive_conditions_skipped", {
+      next_state: combat,
+      reactive_condition_results: []
+    });
+  }
+
+  let nextCombat = combat;
+  const targetConditions = getActiveConditionsForParticipant(nextCombat, input.target_id);
+  const reactiveConditionResults = [];
+
+  for (let index = 0; index < targetConditions.length; index += 1) {
+    const sourceCondition = targetConditions[index];
+    const metadata = sourceCondition && sourceCondition.metadata && typeof sourceCondition.metadata === "object"
+      ? sourceCondition.metadata
+      : {};
+    const reactiveConditionType = String(metadata.retaliatory_melee_hit_condition_type || "").trim().toLowerCase();
+    const saveAbility = String(metadata.retaliatory_melee_hit_save_ability || "").trim().toLowerCase();
+    const saveDc = Number(metadata.retaliatory_melee_hit_save_dc);
+    if (!reactiveConditionType || !saveAbility || !Number.isFinite(saveDc)) {
+      continue;
+    }
+
+    const saveOut = resolveSavingThrowOutcome({
+      combat_state: nextCombat,
+      participant: attacker,
+      save_ability: saveAbility,
+      dc: saveDc,
+      saving_throw_fn: input.condition_save_fn,
+      bonus_rng: input.condition_bonus_rng
+    });
+    if (!saveOut.ok) {
+      return failure("attack_action_failed", saveOut.error || "failed to resolve reactive condition save");
+    }
+    if (saveOut.payload.success) {
+      reactiveConditionResults.push({
+        source_condition_id: sourceCondition.condition_id || null,
+        source_condition_type: sourceCondition.condition_type || null,
+        condition_applied: false,
+        save_result: clone(saveOut.payload)
+      });
+      continue;
+    }
+
+    const applied = applyConditionToCombatState(nextCombat, {
+      condition_type: reactiveConditionType,
+      source_actor_id: String(target.participant_id || ""),
+      target_actor_id: String(attacker.participant_id || ""),
+      applied_at_round: Number.isFinite(Number(nextCombat.round)) ? Number(nextCombat.round) : 1,
+      expiration_trigger: String(metadata.retaliatory_melee_hit_condition_expiration_trigger || "manual"),
+      metadata: Object.assign({
+        source: "reactive_melee_hit_condition",
+        source_condition_id: sourceCondition.condition_id || null,
+        source_spell_id: metadata.source_spell_id || null
+      }, reactiveConditionType === "blinded" ? {
+        attackers_have_advantage: true,
+        has_attack_disadvantage: true
+      } : {})
+    });
+    if (!applied.ok) {
+      return failure("attack_action_failed", applied.error || "failed to apply reactive condition");
+    }
+
+    nextCombat = clone(applied.next_state);
+    if (applied.condition && applied.condition.condition_id) {
+      nextCombat = appendLinkedConditionToSourceConcentration(
+        nextCombat,
+        target.participant_id,
+        metadata.source_spell_id || null,
+        applied.condition.condition_id
+      );
+    }
+    reactiveConditionResults.push({
+      source_condition_id: sourceCondition.condition_id || null,
+      source_condition_type: sourceCondition.condition_type || null,
+      condition_applied: true,
+      applied_condition: clone(applied.condition),
+      save_result: clone(saveOut.payload)
+    });
+  }
+
+  return success("attack_reactive_conditions_resolved", {
+    next_state: nextCombat,
+    reactive_condition_results: reactiveConditionResults
   });
 }
 

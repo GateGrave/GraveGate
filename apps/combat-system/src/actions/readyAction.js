@@ -108,7 +108,9 @@ function performReadyAction(input) {
     return failure("ready_action_failed", contextValidation.message, contextValidation.payload);
   }
 
-  const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.READY);
+  const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.READY, {
+    combat_state: combat
+  });
   if (!availability.ok) {
     return failure("ready_action_failed", availability.error || "action is not available", availability.payload);
   }

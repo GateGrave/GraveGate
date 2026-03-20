@@ -155,17 +155,76 @@ function runCharacterRulesHooksTests() {
     const hasAlarm = wizardSpellsOut.payload.spells.some((entry) => {
       return entry && String(entry.spell_id) === "alarm";
     });
-    assert.equal(hasAlarm, false);
+      assert.equal(hasAlarm, true);
+    const hasConeOfCold = wizardSpellsOut.payload.spells.some((entry) => {
+      return entry && String(entry.spell_id) === "cone_of_cold";
+    });
+    assert.equal(hasConeOfCold, true);
   }, results);
 
   runTest("non_alpha_spell_library_entries_remain_addressable_but_hidden_from_alpha_lists", () => {
     const spellOut = getSpellData("alarm");
     assert.equal(spellOut.ok, true);
-    assert.equal(spellOut.payload.spell_data.metadata.alpha_selectable, false);
+      assert.equal(spellOut.payload.spell_data.metadata.alpha_selectable, true);
+    const counterspellOut = getSpellData("counterspell");
+    assert.equal(counterspellOut.ok, true);
+    assert.equal(counterspellOut.payload.spell_data.metadata.runtime_support.combat_resolution, "unsupported");
 
     const allSpellsOut = listAvailableSpells();
     assert.equal(allSpellsOut.ok, true);
-    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "alarm"), false);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "alarm"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "counterspell"), false);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "expeditious_retreat"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "blight"), true);
+      assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "chain_lightning"), true);
+      assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "mass_cure_wounds"), true);
+      assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "heal"), true);
+      assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "mass_heal"), true);
+      assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "greater_restoration"), true);
+      assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "remove_curse"), true);
+      assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "hold_monster"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "greater_invisibility"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "stoneskin"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "spike_growth"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "protection_from_energy"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "death_ward"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "slow"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "haste"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "gust_of_wind"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "shillelagh"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "sleet_storm"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "stinking_cloud"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "cloudkill"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "ice_storm"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "true_strike"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "color_spray"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "sleep"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "power_word_stun"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "power_word_kill"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "hypnotic_pattern"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "calm_emotions"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "banishment"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "beacon_of_hope"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "freedom_of_movement"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "holy_aura"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "foresight"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "disintegrate"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "harm"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "feeblemind"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "sunburst"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "insect_plague"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "incendiary_cloud"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "fire_storm"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "flame_strike"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "meteor_swarm"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "flesh_to_stone"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "globe_of_invulnerability"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "guardian_of_faith"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "wall_of_force"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "confusion"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "wind_wall"), false);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "wall_of_fire"), false);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "command"), false);
   }, results);
 
   runTest("spell_metadata_survives_character_persistence_reload", () => {
