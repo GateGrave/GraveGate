@@ -155,7 +155,7 @@ function runCharacterRulesHooksTests() {
     const hasAlarm = wizardSpellsOut.payload.spells.some((entry) => {
       return entry && String(entry.spell_id) === "alarm";
     });
-      assert.equal(hasAlarm, true);
+    assert.equal(hasAlarm, false);
     const hasConeOfCold = wizardSpellsOut.payload.spells.some((entry) => {
       return entry && String(entry.spell_id) === "cone_of_cold";
     });
@@ -165,24 +165,33 @@ function runCharacterRulesHooksTests() {
   runTest("non_alpha_spell_library_entries_remain_addressable_but_hidden_from_alpha_lists", () => {
     const spellOut = getSpellData("alarm");
     assert.equal(spellOut.ok, true);
-      assert.equal(spellOut.payload.spell_data.metadata.alpha_selectable, true);
+    assert.equal(spellOut.payload.spell_data.metadata.alpha_selectable, false);
     const counterspellOut = getSpellData("counterspell");
     assert.equal(counterspellOut.ok, true);
     assert.equal(counterspellOut.payload.spell_data.metadata.runtime_support.combat_resolution, "unsupported");
 
     const allSpellsOut = listAvailableSpells();
     assert.equal(allSpellsOut.ok, true);
-    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "alarm"), true);
+    [
+      "alarm",
+      "guidance",
+      "dancing_lights",
+      "levitate",
+      "animate_dead",
+      "forbiddance"
+    ].forEach((spellId) => {
+      assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === spellId), false);
+    });
     assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "counterspell"), false);
     assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "expeditious_retreat"), true);
     assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "blight"), true);
-      assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "chain_lightning"), true);
-      assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "mass_cure_wounds"), true);
-      assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "heal"), true);
-      assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "mass_heal"), true);
-      assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "greater_restoration"), true);
-      assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "remove_curse"), true);
-      assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "hold_monster"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "chain_lightning"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "mass_cure_wounds"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "heal"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "mass_heal"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "greater_restoration"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "remove_curse"), true);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "hold_monster"), true);
     assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "greater_invisibility"), true);
     assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "stoneskin"), true);
     assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "spike_growth"), true);
@@ -222,7 +231,7 @@ function runCharacterRulesHooksTests() {
     assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "guardian_of_faith"), true);
     assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "wall_of_force"), true);
     assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "confusion"), true);
-    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "wind_wall"), false);
+    assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "wind_wall"), true);
     assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "wall_of_fire"), false);
     assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === "command"), false);
   }, results);

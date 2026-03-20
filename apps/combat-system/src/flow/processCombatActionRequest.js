@@ -187,6 +187,10 @@ function finalizeCombatMutation(input) {
     combat_id: combatId,
     ai_attack_roll_fn: context.aiMonsterAttackRollFn,
     ai_damage_roll_fn: context.aiMonsterDamageRollFn,
+    confusion_roll_fn: context.confusionTurnRollFn,
+    targeting_save_fn: context.targetingSaveFn,
+    targeting_save_bonus_rng: context.targetingSaveBonusRng,
+    concentration_save_rng: context.concentrationSaveRng,
     opportunity_attack_roll_fn: context.opportunityAttackAttackRollFn,
     opportunity_damage_roll_fn: context.opportunityAttackDamageRollFn
   });

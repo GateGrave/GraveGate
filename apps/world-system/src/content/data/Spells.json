@@ -2963,7 +2963,7 @@
           "wizard"
         ],
         "notes": [
-          "Imported into canonical spell library and promoted after persistent zone action-blocking support landed."
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
         ],
         "runtime_support": {
           "combat_resolution": "supported",
@@ -3008,7 +3008,7 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage1",
         "class_refs": [
           "bard",
@@ -3105,7 +3105,7 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage1",
         "class_refs": [
           "cleric",
@@ -3263,7 +3263,7 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage1",
         "class_refs": [
           "bard",
@@ -3315,7 +3315,7 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage1",
         "class_refs": [
           "bard",
@@ -3368,7 +3368,7 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage1",
         "class_refs": [
           "bard",
@@ -3418,7 +3418,7 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage1",
         "class_refs": [
           "druid"
@@ -3516,7 +3516,7 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage1",
         "class_refs": [
           "cleric"
@@ -3617,7 +3617,7 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage1",
         "class_refs": [
           "ranger",
@@ -3728,7 +3728,7 @@
           "wizard"
         ],
         "notes": [
-          "Imported into canonical spell library and promoted once bounded hostile-zone sentry parity landed on the canonical combat path."
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
         ],
         "runtime_support": {
           "combat_resolution": "supported",
@@ -3823,7 +3823,7 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage1",
         "class_refs": [
           "bard",
@@ -3874,7 +3874,7 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage1",
         "class_refs": [
           "cleric",
@@ -4590,7 +4590,7 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage1",
         "class_refs": [
           "wizard"
@@ -4951,7 +4951,7 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage1",
         "class_refs": [
           "sorcerer",
@@ -5314,7 +5314,7 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage2",
         "class_refs": [
           "cleric",
@@ -9954,7 +9954,7 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage5",
         "class_refs": [
           "cleric",
@@ -10114,7 +10114,7 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage5",
         "class_refs": [
           "bard",
@@ -10122,7 +10122,7 @@
           "druid"
         ],
         "notes": [
-          "Supported on the canonical combat path with damage-driven hit point maximum reduction."
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
         ],
         "runtime_support": {
           "combat_resolution": "partial",
@@ -10217,13 +10217,13 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage5",
         "class_refs": [
           "cleric"
         ],
         "notes": [
-          "Supported on the canonical combat path with spellcasting lock and combat-relevant mental save penalties."
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
         ],
         "runtime_support": {
           "combat_resolution": "partial",

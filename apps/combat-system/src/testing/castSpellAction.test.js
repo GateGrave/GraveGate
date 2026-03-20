@@ -739,7 +739,8 @@ function runCastSpellActionTests() {
 
     const out = processCombatCastSpellRequest({
       context: createCombatContext(manager, [spell], {
-        spellSavingThrowFn: () => ({ final_total: 4 })
+        spellSavingThrowFn: () => ({ final_total: 4 }),
+        confusionTurnRollFn: () => ({ final_total: 2 })
       }),
       player_id: casterId,
       combat_id: combatId,

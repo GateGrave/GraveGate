@@ -71,7 +71,12 @@ function progressCombatAfterResolvedTurn(input) {
   if (!skipInitialTurnAdvance) {
     const firstAdvance = nextTurn({
       combatManager,
-      combat_id: String(combatId)
+      combat_id: String(combatId),
+      confusion_roll_fn: data.confusion_roll_fn,
+      attack_roll_fn: data.ai_attack_roll_fn,
+      targeting_save_fn: data.targeting_save_fn,
+      targeting_save_bonus_rng: data.targeting_save_bonus_rng,
+      concentration_save_rng: data.concentration_save_rng
     });
     if (!firstAdvance.ok) {
       return failure("combat_progression_failed", firstAdvance.error || "failed to advance turn", firstAdvance.payload);
@@ -134,7 +139,12 @@ function progressCombatAfterResolvedTurn(input) {
 
     const advanced = nextTurn({
       combatManager,
-      combat_id: String(combatId)
+      combat_id: String(combatId),
+      confusion_roll_fn: data.confusion_roll_fn,
+      attack_roll_fn: data.ai_attack_roll_fn,
+      targeting_save_fn: data.targeting_save_fn,
+      targeting_save_bonus_rng: data.targeting_save_bonus_rng,
+      concentration_save_rng: data.concentration_save_rng
     });
     if (!advanced.ok) {
       return failure("combat_progression_failed", advanced.error || "failed to advance turn after AI action", advanced.payload);
@@ -189,6 +199,10 @@ function progressCombatFromCurrentTurn(input) {
     ai_damage_roll_fn: data.ai_damage_roll_fn,
     opportunity_attack_roll_fn: data.opportunity_attack_roll_fn,
     opportunity_damage_roll_fn: data.opportunity_damage_roll_fn,
+    confusion_roll_fn: data.confusion_roll_fn,
+    targeting_save_fn: data.targeting_save_fn,
+    targeting_save_bonus_rng: data.targeting_save_bonus_rng,
+    concentration_save_rng: data.concentration_save_rng,
     skip_initial_turn_advance: true
   });
 }

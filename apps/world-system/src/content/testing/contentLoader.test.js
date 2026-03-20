@@ -239,11 +239,30 @@ function runContentLoaderTests() {
     assert.equal(Boolean(byId.guidance), true);
     assert.equal(Boolean(byId.counterspell), true);
     assert.equal(Boolean(byId.fly), true);
-      assert.equal(byId.alarm.metadata.alpha_selectable, true);
-    assert.equal(byId.guidance.metadata.alpha_selectable, true);
+    assert.equal(byId.alarm.metadata.alpha_selectable, false);
+    assert.equal(byId.guidance.metadata.alpha_selectable, false);
     assert.equal(byId.counterspell.metadata.alpha_selectable, false);
     assert.equal(byId.alarm.metadata.runtime_support.combat_resolution, "partial");
     assert.equal(byId.counterspell.metadata.runtime_support.combat_resolution, "unsupported");
+    [
+      "dancing_lights",
+      "message",
+      "minor_illusion",
+      "prestidigitation",
+      "produce_flame",
+      "spare_the_dying",
+      "comprehend_languages",
+      "create_or_destroy_water",
+      "arcane_lock",
+      "levitate",
+      "animate_dead",
+      "create_undead",
+      "find_the_path",
+      "forbiddance"
+    ].forEach((spellId) => {
+      assert.equal(Boolean(byId[spellId]), true);
+      assert.equal(byId[spellId].metadata.alpha_selectable, false);
+    });
     assert.equal(byId.blight.metadata.alpha_selectable, true);
     assert.equal(byId.cone_of_cold.metadata.alpha_selectable, true);
     assert.equal(byId.circle_of_death.metadata.alpha_selectable, true);
