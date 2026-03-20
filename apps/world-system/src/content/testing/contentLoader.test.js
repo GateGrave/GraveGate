@@ -257,6 +257,7 @@ function runContentLoaderTests() {
       "levitate",
       "animate_dead",
       "create_undead",
+      "eyebite",
       "find_the_path",
       "forbiddance"
     ].forEach((spellId) => {
@@ -328,6 +329,8 @@ function runContentLoaderTests() {
     assert.equal(byId.banishment.metadata.runtime_support.combat_resolution, "supported");
     assert.equal(byId.beacon_of_hope.metadata.alpha_selectable, true);
     assert.equal(byId.beacon_of_hope.metadata.runtime_support.combat_resolution, "supported");
+    assert.equal(byId.eyebite.metadata.alpha_selectable, false);
+    assert.equal(byId.eyebite.metadata.runtime_support.combat_resolution, "unsupported");
     assert.equal(byId.freedom_of_movement.metadata.alpha_selectable, true);
     assert.equal(byId.freedom_of_movement.metadata.runtime_support.combat_resolution, "supported");
     assert.equal(byId.holy_aura.metadata.alpha_selectable, true);
@@ -368,6 +371,10 @@ function runContentLoaderTests() {
     assert.equal(byId.wall_of_fire.metadata.runtime_support.combat_resolution, "partial");
     assert.equal(byId.command.metadata.alpha_selectable, false);
     assert.equal(byId.command.metadata.runtime_support.combat_resolution, "partial");
+    assert.equal("healing" in byId.thaumaturgy, false);
+    assert.equal("healing" in byId.sanctuary, false);
+    assert.equal("healing" in byId.spare_the_dying, false);
+    assert.equal("healing" in byId.beacon_of_hope, false);
   }, results);
 
   runTest("starter_feats_include_minimum_progression_slice", () => {

@@ -225,6 +225,8 @@ function activateConfusionTurnBehavior(combat, participantId, input) {
       attacker_id: participantId,
       target_id: selected.participant_id,
       attack_roll_fn: input && typeof input.attack_roll_fn === "function" ? input.attack_roll_fn : null,
+      damage_roll_fn: input && typeof input.damage_roll_fn === "function" ? input.damage_roll_fn : null,
+      damage_roll_rng: input && typeof input.damage_rng === "function" ? input.damage_rng : null,
       targeting_save_fn: input && typeof input.targeting_save_fn === "function" ? input.targeting_save_fn : null,
       targeting_save_bonus_rng: input && typeof input.targeting_save_bonus_rng === "function" ? input.targeting_save_bonus_rng : null,
       concentration_save_rng: input && typeof input.concentration_save_rng === "function" ? input.concentration_save_rng : null

@@ -1388,10 +1388,6 @@
         "type": "none"
       },
       "damage": null,
-      "healing": {
-        "amount": 700,
-        "healing_type": "healing"
-      },
       "class_refs": [
         "cleric"
       ],
@@ -1926,10 +1922,6 @@
         "type": "none"
       },
       "damage": null,
-      "healing": {
-        "amount": 700,
-        "healing_type": "healing"
-      },
       "class_refs": [
         "cleric"
       ],
@@ -3016,7 +3008,7 @@
           "wizard"
         ],
         "notes": [
-          "Imported into canonical spell library and promoted after persistent zone action-blocking support landed."
+          "Imported into canonical spell library ahead of resolver parity. Hidden from alpha spell selection until supported."
         ],
         "runtime_support": {
           "combat_resolution": "unsupported",
@@ -3058,7 +3050,7 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage1",
         "class_refs": [
           "druid"
@@ -3503,10 +3495,6 @@
         "type": "none"
       },
       "damage": null,
-      "healing": {
-        "amount": 700,
-        "healing_type": "healing"
-      },
       "class_refs": [
         "cleric"
       ],
@@ -5352,10 +5340,6 @@
         "type": "none"
       },
       "damage": null,
-      "healing": {
-        "amount": 700,
-        "healing_type": "healing"
-      },
       "class_refs": [
         "cleric"
       ],
@@ -10061,7 +10045,7 @@
       },
       "metadata": {
         "starter_spell": false,
-        "alpha_selectable": true,
+        "alpha_selectable": false,
         "source": "srd_import_stage5",
         "class_refs": [
           "bard",
@@ -10070,10 +10054,10 @@
           "wizard"
         ],
         "notes": [
-          "Supported in combat through canonical single-target foresight boons for attack advantage, hostile attack disadvantage, and all-save advantage."
+          "Imported content only. Hidden from alpha selection until canonical eyebite mode resolution exists on the combat path."
         ],
         "runtime_support": {
-          "combat_resolution": "supported",
+          "combat_resolution": "unsupported",
           "content_scope": "combat",
           "resolver_tags": [
             "resolution:save",

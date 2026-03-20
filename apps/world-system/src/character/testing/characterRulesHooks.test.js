@@ -178,6 +178,7 @@ function runCharacterRulesHooksTests() {
       "dancing_lights",
       "levitate",
       "animate_dead",
+      "eyebite",
       "forbiddance"
     ].forEach((spellId) => {
       assert.equal(allSpellsOut.payload.spells.some((entry) => String(entry.spell_id) === spellId), false);

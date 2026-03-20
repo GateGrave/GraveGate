@@ -1630,6 +1630,34 @@ function runCastSpellActionTests() {
     assert.equal(updatedCombat.conditions.some((entry) => entry.condition_type === "sanctuary" && entry.target_actor_id === casterId), false);
   }, results);
 
+  runTest("real_content_sanctuary_applies_protection_without_healing_the_target", () => {
+    const casterId = "caster-spell-real-sanctuary-001";
+    const combatId = "combat-spell-real-sanctuary-001";
+    const manager = createCombatReadyForSpell(combatId, casterId, {
+      known_spell_ids: ["sanctuary"]
+    });
+    const combat = manager.getCombatById(combatId).payload.combat;
+    const ally = combat.participants.find((entry) => entry.participant_id === "ally-unrelated-001");
+    ally.current_hp = 4;
+    combat.turn_index = combat.initiative_order.indexOf(casterId);
+    manager.combats.set(combatId, combat);
+
+    const castOut = performCastSpellAction({
+      combatManager: manager,
+      combat_id: combatId,
+      caster_id: casterId,
+      target_id: "ally-unrelated-001",
+      target_ids: ["ally-unrelated-001"],
+      spell: getSpellEntry("sanctuary")
+    });
+
+    assert.equal(castOut.ok, true);
+    const updatedCombat = castOut.payload.combat;
+    const updatedAlly = updatedCombat.participants.find((entry) => entry.participant_id === "ally-unrelated-001");
+    assert.equal(updatedAlly.current_hp, 4);
+    assert.equal(castOut.payload.applied_conditions.some((entry) => entry.condition_type === "sanctuary" && entry.target_actor_id === "ally-unrelated-001"), true);
+  }, results);
+
   runTest("aid_increases_current_and_max_hitpoints_and_applies_condition", () => {
     const casterId = "caster-spell-aid-001";
     const combatId = "combat-spell-aid-001";

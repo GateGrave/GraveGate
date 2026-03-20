@@ -74,6 +74,7 @@ function progressCombatAfterResolvedTurn(input) {
       combat_id: String(combatId),
       confusion_roll_fn: data.confusion_roll_fn,
       attack_roll_fn: data.ai_attack_roll_fn,
+      damage_roll_fn: data.ai_damage_roll_fn,
       targeting_save_fn: data.targeting_save_fn,
       targeting_save_bonus_rng: data.targeting_save_bonus_rng,
       concentration_save_rng: data.concentration_save_rng
@@ -142,6 +143,7 @@ function progressCombatAfterResolvedTurn(input) {
       combat_id: String(combatId),
       confusion_roll_fn: data.confusion_roll_fn,
       attack_roll_fn: data.ai_attack_roll_fn,
+      damage_roll_fn: data.ai_damage_roll_fn,
       targeting_save_fn: data.targeting_save_fn,
       targeting_save_bonus_rng: data.targeting_save_bonus_rng,
       concentration_save_rng: data.concentration_save_rng

@@ -342,6 +342,40 @@ function runNextTurnTests() {
     assert.equal(out.payload.combat.event_log.some((entry) => entry.event_type === "attack_action" && entry.attacker_id === "p2"), true);
   }, results);
 
+  runTest("confusion_roll_seven_uses_deterministic_damage_hook_for_adjacent_melee_attack", () => {
+    const manager = createBaseCombat();
+    const combat = manager.getCombatById("combat-next-001").payload.combat;
+    combat.participants[1].position = { x: 1, y: 0 };
+    combat.participants[0].position = { x: 0, y: 0 };
+    combat.conditions = [{
+      condition_id: "condition-confusion-004",
+      condition_type: "confusion",
+      source_actor_id: "p1",
+      target_actor_id: "p2",
+      expiration_trigger: "manual",
+      metadata: {
+        status_hint: "confusion",
+        blocks_reaction: true,
+        end_of_turn_save_ability: "wisdom",
+        end_of_turn_save_dc: 13
+      }
+    }];
+    manager.combats.set("combat-next-001", combat);
+
+    const out = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001",
+      confusion_roll_fn: () => ({ final_total: 7 }),
+      attack_roll_fn: () => 18,
+      damage_roll_fn: () => 3
+    });
+
+    assert.equal(out.ok, true);
+    const updatedCombat = out.payload.combat;
+    const p1 = updatedCombat.participants.find((entry) => entry.participant_id === "p1");
+    assert.equal(p1.current_hp, 7);
+  }, results);
+
   runTest("speed_reduced_applies_on_target_turn_until_source_turn", () => {
     const manager = createBaseCombat();
     const found = manager.getCombatById("combat-next-001");
