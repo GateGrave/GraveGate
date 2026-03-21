@@ -117,6 +117,57 @@ function runMonsterAiTests() {
     assert.deepEqual(monster.position, { x: 3, y: 3 });
   }, results);
 
+  runTest("ai_turn_waits_when_condition_blocks_action_and_movement", () => {
+    const manager = createCombat({
+      first_actor_id: "monster-001"
+    });
+    const combat = manager.getCombatById("combat-monster-ai-001").payload.combat;
+    combat.conditions = [{
+      condition_id: "condition-confusion-no-action-001",
+      condition_type: "confusion_no_action",
+      source_actor_id: "hero-001",
+      target_actor_id: "monster-001",
+      expiration_trigger: "end_of_turn",
+      metadata: {
+        source: "confusion_turn_behavior",
+        status_hint: "confusion",
+        blocks_action: true,
+        blocks_bonus_action: true,
+        blocks_move: true,
+        set_movement_remaining_to_zero: true
+      }
+    }];
+    manager.combats.set("combat-monster-ai-001", combat);
+
+    const out = resolveMonsterAiTurn({
+      combatManager: manager,
+      combat_id: "combat-monster-ai-001"
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.action_type, "wait");
+    assert.equal(out.payload.reason, "confusion_no_action");
+  }, results);
+
+  runTest("ai_turn_waits_when_action_was_already_spent", () => {
+    const manager = createCombat({
+      first_actor_id: "monster-001"
+    });
+    const combat = manager.getCombatById("combat-monster-ai-001").payload.combat;
+    const monster = combat.participants.find((entry) => entry.participant_id === "monster-001");
+    monster.action_available = false;
+    manager.combats.set("combat-monster-ai-001", combat);
+
+    const out = resolveMonsterAiTurn({
+      combatManager: manager,
+      combat_id: "combat-monster-ai-001"
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.action_type, "wait");
+    assert.equal(out.payload.reason, "action_unavailable");
+  }, results);
+
   runTest("progress_after_player_turn_advances_to_ai_then_back_to_player", () => {
     const manager = createCombat({
       first_actor_id: "hero-001"

@@ -2247,6 +2247,44 @@ function summarizeSpellResolution(data) {
   return resolutionType;
 }
 
+function summarizeActiveEffectPlacement(effect) {
+  const safe = effect && typeof effect === "object" ? effect : {};
+  const modifiers = safe.modifiers && typeof safe.modifiers === "object" ? safe.modifiers : {};
+  const zoneBehavior = modifiers.zone_behavior && typeof modifiers.zone_behavior === "object" ? modifiers.zone_behavior : {};
+  const areaTiles = Array.isArray(modifiers.area_tiles) ? modifiers.area_tiles : [];
+  const tileCount = areaTiles.length;
+  const details = [];
+
+  if (tileCount > 0) {
+    details.push(`${tileCount} tile${tileCount === 1 ? "" : "s"}`);
+  }
+  if (zoneBehavior.protection_rules) {
+    details.push("barrier active");
+  }
+  if (zoneBehavior.on_enter_damage || zoneBehavior.on_turn_start_damage || zoneBehavior.on_traverse_damage_per_tile) {
+    details.push("hazard active");
+  }
+  if (zoneBehavior.terrain_kind === "difficult") {
+    details.push("difficult terrain");
+  }
+
+  return details.length > 0 ? details.join(" | ") : "persistent effect placed";
+}
+
+function summarizeActiveEffectLines(data) {
+  const effects = Array.isArray(data && data.active_effects_added) ? data.active_effects_added : [];
+  return effects.map((effect) => {
+    const modifiers = effect && effect.modifiers && typeof effect.modifiers === "object" ? effect.modifiers : {};
+    const spellId = cleanText(modifiers.spell_id, data && data.spell_id || "effect");
+    const lines = [`Placed ${humanizeIdentifier(spellId, spellId)}: ${summarizeActiveEffectPlacement(effect)}`];
+    const hazardSide = cleanText(data && data.hazard_side, "");
+    if (hazardSide && spellId === "wall_of_fire") {
+      lines.push(`Hazard Side: ${humanizeIdentifier(hazardSide, hazardSide)}`);
+    }
+    return lines.join(" | ");
+  });
+}
+
 function getTradeById(data, tradeId) {
   const trades = Array.isArray(data && data.trades) ? data.trades : [];
   const target = cleanText(tradeId, "");
@@ -3244,6 +3282,7 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
     if (targetLines.length === 0 && lostConditions) {
       stateLines.push(`Conditions Lost: ${lostConditions}`);
     }
+    stateLines.push(...summarizeActiveEffectLines(data));
     stateLines.push(...summarizeConcentrationUpdate(data));
 
     return buildCombatFeedReply({

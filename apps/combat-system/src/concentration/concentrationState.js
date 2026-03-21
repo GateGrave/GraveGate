@@ -3,6 +3,7 @@
 const { resolveConcentrationSave } = require("./resolve-concentration-save");
 const { getConcentrationDC } = require("./check-concentration");
 const { computeSavingThrowModifier, rollConditionDiceModifier } = require("../spells/spellcastingHelpers");
+const { applyConditionToCombatState } = require("../conditions/conditionHelpers");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -49,8 +50,11 @@ function participantHasFeatFlag(participant, flagKey) {
 }
 
 function applyRestorations(combatState, restorations) {
-  const nextCombat = clone(combatState);
+  let nextCombat = clone(combatState);
   const list = Array.isArray(restorations) ? restorations : [];
+  const activeParticipantId = Array.isArray(nextCombat.initiative_order)
+    ? nextCombat.initiative_order[nextCombat.turn_index] || null
+    : null;
   for (let index = 0; index < list.length; index += 1) {
     const entry = list[index] && typeof list[index] === "object" ? list[index] : null;
     if (!entry) {
@@ -67,6 +71,47 @@ function applyRestorations(combatState, restorations) {
       nextCombat.participants[participantIndex] = Object.assign({}, participant, {
         armor_class: currentArmorClass + delta
       });
+      continue;
+    }
+    if (String(entry.type || "") === "apply_condition") {
+      const targetActorId = String(entry.target_actor_id || "").trim();
+      const currentTurnRemaining = Number(entry.current_turn_remaining_triggers);
+      const offTurnRemaining = Number(entry.off_turn_remaining_triggers);
+      let duration = entry.duration && typeof entry.duration === "object"
+        ? clone(entry.duration)
+        : {};
+      if (Number.isFinite(currentTurnRemaining) || Number.isFinite(offTurnRemaining)) {
+        const remainingTriggers = String(activeParticipantId || "") === targetActorId &&
+          Number.isFinite(currentTurnRemaining)
+          ? Math.max(1, Math.floor(currentTurnRemaining))
+          : Number.isFinite(offTurnRemaining)
+            ? Math.max(1, Math.floor(offTurnRemaining))
+            : null;
+        if (remainingTriggers !== null) {
+          duration.remaining_triggers = remainingTriggers;
+        }
+      }
+      const applied = applyConditionToCombatState(nextCombat, {
+        condition_type: entry.condition_type,
+        source_actor_id: entry.source_actor_id || null,
+        target_actor_id: targetActorId || null,
+        expiration_trigger: entry.expiration_trigger || "manual",
+        duration,
+        metadata: entry.metadata && typeof entry.metadata === "object" ? clone(entry.metadata) : {}
+      });
+      if (applied.ok) {
+        nextCombat = clone(applied.next_state);
+      }
+      const participantIndex = findParticipantIndex(nextCombat, targetActorId);
+      if (participantIndex !== -1) {
+        const participant = nextCombat.participants[participantIndex];
+        nextCombat.participants[participantIndex] = Object.assign({}, participant, {
+          movement_remaining: entry.zero_movement_on_current_turn === true && String(activeParticipantId || "") === targetActorId
+            ? 0
+            : participant.movement_remaining,
+          hasted_action_available: entry.clear_hasted_action === true ? false : participant.hasted_action_available
+        });
+      }
     }
   }
   return nextCombat;

@@ -84,6 +84,72 @@ function runDashActionTests() {
     assert.equal(out.error, "it is not the participant's turn");
   }, results);
 
+  runTest("dash_can_consume_hasted_action_when_normal_action_is_spent", () => {
+    const manager = createActiveCombatForDashTests();
+    const combat = manager.getCombatById("combat-dash-001").payload.combat;
+    const actor = combat.participants.find((entry) => entry.participant_id === "p1");
+    actor.action_available = false;
+    actor.hasted_action_available = true;
+    combat.conditions = [{
+      condition_id: "condition-haste-dash-001",
+      condition_type: "haste",
+      source_actor_id: "p2",
+      target_actor_id: "p1",
+      expiration_trigger: "manual",
+      metadata: {
+        grants_hasted_action: true
+      }
+    }];
+    manager.combats.set("combat-dash-001", combat);
+
+    const out = performDashAction({
+      combatManager: manager,
+      combat_id: "combat-dash-001",
+      participant_id: "p1"
+    });
+
+    assert.equal(out.ok, true);
+    const updatedCombat = manager.getCombatById("combat-dash-001").payload.combat;
+    const updatedActor = updatedCombat.participants.find((entry) => entry.participant_id === "p1");
+    assert.equal(updatedActor.action_available, false);
+    assert.equal(updatedActor.hasted_action_available, false);
+    assert.equal(updatedActor.movement_remaining, 40);
+  }, results);
+
+  runTest("dash_can_consume_bonus_action_under_expeditious_retreat", () => {
+    const manager = createActiveCombatForDashTests();
+    const combat = manager.getCombatById("combat-dash-001").payload.combat;
+    const actor = combat.participants.find((entry) => entry.participant_id === "p1");
+    actor.action_available = false;
+    actor.bonus_action_available = true;
+    combat.conditions = [{
+      condition_id: "condition-expeditious-retreat-001",
+      condition_type: "expeditious_retreat",
+      source_actor_id: "p1",
+      target_actor_id: "p1",
+      expiration_trigger: "manual",
+      metadata: {
+        allow_dash_as_bonus_action: true,
+        source_spell_id: "expeditious_retreat"
+      }
+    }];
+    manager.combats.set("combat-dash-001", combat);
+
+    const out = performDashAction({
+      combatManager: manager,
+      combat_id: "combat-dash-001",
+      participant_id: "p1"
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.consumed_resource, "bonus_action");
+    const updatedCombat = manager.getCombatById("combat-dash-001").payload.combat;
+    const updatedActor = updatedCombat.participants.find((entry) => entry.participant_id === "p1");
+    assert.equal(updatedActor.action_available, false);
+    assert.equal(updatedActor.bonus_action_available, false);
+    assert.equal(updatedActor.movement_remaining, 40);
+  }, results);
+
   const passed = results.filter((x) => x.ok).length;
   const failed = results.length - passed;
   return {

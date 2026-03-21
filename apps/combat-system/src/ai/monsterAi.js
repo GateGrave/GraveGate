@@ -2,7 +2,7 @@
 
 const { performAttackAction } = require("../actions/attackAction");
 const { performMoveAction } = require("../actions/moveAction");
-const { participantHasCondition } = require("../conditions/conditionHelpers");
+const { participantHasCondition, getActiveConditionsForParticipant } = require("../conditions/conditionHelpers");
 const { resolveOpportunityAttacksForMove } = require("../flow/opportunityAttackFlow");
 const { resolveReadiedAttacksForMove } = require("../flow/readyActionFlow");
 
@@ -191,6 +191,40 @@ function appendAiWaitEvent(combatManager, combatId, actorId, reason) {
   combatManager.combats.set(String(combatId), combat);
 }
 
+function normalizeAiWaitReasonFromError(error) {
+  const message = String(error || "").trim().toLowerCase();
+  if (message === "action is not available") {
+    return "action_unavailable";
+  }
+  if (message === "action is blocked by an active condition") {
+    return "condition_blocked";
+  }
+  if (message === "movement is blocked by an active condition" || message === "insufficient movement remaining") {
+    return "movement_blocked";
+  }
+  return null;
+}
+
+function resolveBlockedAiTurnReason(combat, actor) {
+  if (!combat || !actor) {
+    return null;
+  }
+  const activeConditions = getActiveConditionsForParticipant(combat, actor.participant_id);
+  for (let index = 0; index < activeConditions.length; index += 1) {
+    const condition = activeConditions[index];
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object"
+      ? condition.metadata
+      : {};
+    if (metadata.blocks_action === true && (metadata.blocks_move === true || metadata.set_movement_remaining_to_zero === true)) {
+      return String(condition && condition.condition_type || "") || "condition_blocked";
+    }
+  }
+  if (actor.action_available === false) {
+    return "action_unavailable";
+  }
+  return null;
+}
+
 function resolveMonsterAiTurn(input) {
   const data = input || {};
   const combatManager = data.combatManager;
@@ -246,6 +280,16 @@ function resolveMonsterAiTurn(input) {
       reason
     });
   }
+  const blockedTurnReason = resolveBlockedAiTurnReason(combat, actor);
+  if (blockedTurnReason) {
+    appendAiWaitEvent(combatManager, combatId, actor.participant_id, blockedTurnReason);
+    return success("monster_ai_turn_resolved", {
+      combat_id: String(combatId),
+      actor_id: String(actor.participant_id || ""),
+      action_type: "wait",
+      reason: blockedTurnReason
+    });
+  }
 
   const target = chooseBestHostileTarget(combat, actor);
   if (!target) {
@@ -268,6 +312,17 @@ function resolveMonsterAiTurn(input) {
       damage_roll_fn: data.damage_roll_fn
     });
     if (!attacked.ok) {
+      const waitReason = normalizeAiWaitReasonFromError(attacked.error);
+      if (waitReason) {
+        appendAiWaitEvent(combatManager, combatId, actor.participant_id, waitReason);
+        return success("monster_ai_turn_resolved", {
+          combat_id: String(combatId),
+          actor_id: String(actor.participant_id || ""),
+          target_id: String(target.participant_id || ""),
+          action_type: "wait",
+          reason: waitReason
+        });
+      }
       return failure("monster_ai_turn_failed", attacked.error || "failed to resolve AI attack", attacked.payload);
     }
     return success("monster_ai_turn_resolved", {
@@ -288,6 +343,17 @@ function resolveMonsterAiTurn(input) {
       target_position: candidates[index]
     });
     if (!attempted.ok) {
+      const waitReason = normalizeAiWaitReasonFromError(attempted.error);
+      if (waitReason) {
+        appendAiWaitEvent(combatManager, combatId, actor.participant_id, waitReason);
+        return success("monster_ai_turn_resolved", {
+          combat_id: String(combatId),
+          actor_id: String(actor.participant_id || ""),
+          target_id: String(target.participant_id || ""),
+          action_type: "wait",
+          reason: waitReason
+        });
+      }
       continue;
     }
 

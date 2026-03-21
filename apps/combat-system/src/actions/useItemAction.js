@@ -229,6 +229,7 @@ function useItemAction(input) {
     return failure("use_item_action_failed", contextValidation.message, contextValidation.payload);
   }
   const availability = validateParticipantActionAvailability(actor, ACTION_TYPES.USE_ITEM, {
+    combat_state: combat,
     action_cost: actionCost
   });
   if (!availability.ok) {

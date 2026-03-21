@@ -225,6 +225,24 @@ function getParticipantIncapacitationType(combatState, participantId) {
   if (participantHasCondition(combatState, participantId, "paralyzed")) {
     return "paralyzed";
   }
+  if (participantHasCondition(combatState, participantId, "unconscious")) {
+    return "unconscious";
+  }
+  if (participantHasCondition(combatState, participantId, "incapacitated")) {
+    return "incapacitated";
+  }
+  if (participantHasCondition(combatState, participantId, "banished")) {
+    return "banished";
+  }
+  if (participantHasCondition(combatState, participantId, "maze")) {
+    return "maze";
+  }
+  if (participantHasCondition(combatState, participantId, "resilient_sphere")) {
+    return "resilient_sphere";
+  }
+  if (participantHasCondition(combatState, participantId, "petrified")) {
+    return "petrified";
+  }
   return null;
 }
 

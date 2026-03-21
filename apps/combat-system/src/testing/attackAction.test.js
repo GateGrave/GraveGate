@@ -3,6 +3,7 @@
 const assert = require("assert");
 const { CombatManager } = require("../core/combatManager");
 const { performAttackAction } = require("../actions/attackAction");
+const { clearParticipantConcentration } = require("../concentration/concentrationState");
 
 function runTest(name, fn, results) {
   try {
@@ -305,6 +306,38 @@ function runAttackActionTests() {
     assert.equal(updatedTarget.temporary_hitpoints, 0);
   }, results);
 
+  runTest("damage_removes_sleep_condition_from_target", () => {
+    const manager = createActiveCombatForAttackTests();
+    const found = manager.getCombatById("combat-attack-001");
+    const combat = found.payload.combat;
+    combat.conditions = [{
+      condition_id: "condition-sleep-001",
+      condition_type: "unconscious",
+      source_actor_id: "attacker-001",
+      target_actor_id: "target-001",
+      expiration_trigger: "manual",
+      metadata: {
+        wakes_on_damage: true,
+        source_spell_id: "sleep"
+      }
+    }];
+    manager.combats.set("combat-attack-001", combat);
+
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "attacker-001",
+      target_id: "target-001",
+      attack_roll_fn: () => 20,
+      damage_roll_fn: () => 4
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(Array.isArray(out.payload.damage_result.removed_condition_ids), true);
+    assert.equal(out.payload.damage_result.removed_condition_ids.includes("condition-sleep-001"), true);
+    assert.equal(out.payload.combat.conditions.some((entry) => String(entry && entry.condition_id || "") === "condition-sleep-001"), false);
+  }, results);
+
   runTest("weapon_profile_damage_type_is_used_when_attacker_damage_type_is_missing", () => {
     const manager = createActiveCombatForAttackTests();
     const found = manager.getCombatById("combat-attack-001");
@@ -334,6 +367,57 @@ function runAttackActionTests() {
     assert.equal(out.payload.damage_type, "piercing");
     assert.equal(out.payload.damage_dealt, 3);
     assert.equal(out.payload.target_hp_after, 13);
+  }, results);
+
+  runTest("shillelagh_condition_uses_spell_attack_bonus_and_d8_bludgeoning_damage_for_club", () => {
+    const manager = createActiveCombatForAttackTests();
+    const found = manager.getCombatById("combat-attack-001");
+    const combat = found.payload.combat;
+    const attacker = combat.participants.find((p) => p.participant_id === "attacker-001");
+    attacker.attack_bonus = 1;
+    attacker.spell_attack_bonus = 7;
+    attacker.readiness = {
+      weapon_profile: {
+        item_id: "item_club",
+        item_name: "Club",
+        weapon: {
+          damage_dice: "1d4",
+          damage_type: "bludgeoning",
+          properties: ["light"]
+        }
+      }
+    };
+    combat.conditions = [{
+      condition_id: "condition-shillelagh-001",
+      condition_type: "shillelagh",
+      source_actor_id: "attacker-001",
+      target_actor_id: "attacker-001",
+      expiration_trigger: "manual",
+      metadata: {
+        override_attack_bonus_source: "spell_attack_bonus",
+        override_damage_formula: "1d8",
+        override_damage_type: "bludgeoning",
+        requires_weapon_item_ids: ["item_club", "item_quarterstaff"],
+        source_spell_id: "shillelagh"
+      }
+    }];
+    manager.combats.set("combat-attack-001", combat);
+
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "attacker-001",
+      target_id: "target-001",
+      attack_roll_fn: () => 5,
+      damage_roll_fn: () => 8
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.hit, true);
+    assert.equal(out.payload.attack_bonus, 7);
+    assert.equal(out.payload.damage_type, "bludgeoning");
+    assert.equal(out.payload.damage_dealt, 8);
+    assert.equal(out.payload.target_hp_after, 8);
   }, results);
 
   runTest("mobile_melee_attack_applies_targeted_opportunity_attack_immunity", () => {
@@ -1046,6 +1130,41 @@ function runAttackActionTests() {
     assert.equal(out.error, "target is already defeated");
   }, results);
 
+  runTest("cannot_attack_a_banished_target", () => {
+    const manager = createActiveCombatForAttackTests();
+    const found = manager.getCombatById("combat-attack-001");
+    const combat = found.payload.combat;
+    combat.conditions = (combat.conditions || []).concat([{
+      condition_id: "condition-banished-attack-001",
+      condition_type: "banished",
+      source_actor_id: "attacker-001",
+      target_actor_id: "target-001",
+      expiration_trigger: "manual",
+      metadata: {
+        blocks_action: true,
+        blocks_bonus_action: true,
+        blocks_reaction: true,
+        blocks_move: true,
+        blocks_attack_targeting: true,
+        blocks_harmful_spell_targeting: true,
+        untargetable: true
+      }
+    }]);
+    manager.combats.set("combat-attack-001", combat);
+
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "attacker-001",
+      target_id: "target-001",
+      attack_roll_fn: () => 20,
+      damage_roll_fn: () => 9
+    });
+
+    assert.equal(out.ok, false);
+    assert.equal(out.error, "cannot attack a banished target");
+  }, results);
+
   runTest("ended_combat_rejects_attack_actions", () => {
     const manager = createActiveCombatForAttackTests();
     const found = manager.getCombatById("combat-attack-001");
@@ -1195,6 +1314,103 @@ function runAttackActionTests() {
       return String(entry && entry.condition_type || "") === "helped_attack" &&
         String(entry && entry.target_actor_id || "") === "attacker-001";
     }), false);
+  }, results);
+
+  runTest("target_scoped_true_strike_advantage_applies_only_to_configured_target_and_is_consumed", () => {
+    const manager = createActiveCombatForAttackTests();
+    const combat = manager.getCombatById("combat-attack-001").payload.combat;
+    combat.participants.push({
+      participant_id: "target-002",
+      name: "Orc",
+      team: "B",
+      armor_class: 12,
+      current_hp: 16,
+      max_hp: 16,
+      attack_bonus: 2,
+      damage: 4,
+      position: { x: 1, y: 1 }
+    });
+    combat.conditions = [{
+      condition_id: "condition-true-strike-advantage-001",
+      condition_type: "true_strike_advantage",
+      source_actor_id: "attacker-001",
+      target_actor_id: "attacker-001",
+      expiration_trigger: "start_of_source_turn",
+      duration: {
+        remaining_triggers: 1
+      },
+      metadata: {
+        has_attack_advantage: true,
+        consume_on_attack: true,
+        applies_against_actor_ids: ["target-001"]
+      }
+    }];
+    manager.combats.set("combat-attack-001", combat);
+
+    let rollCount = 0;
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "attacker-001",
+      target_id: "target-001",
+      attack_roll_fn: () => {
+        rollCount += 1;
+        return rollCount === 1 ? 3 : 17;
+      },
+      damage_roll_fn: () => 4
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.attack_roll_mode, "advantage");
+    assert.equal(rollCount, 2);
+    const updated = manager.getCombatById("combat-attack-001").payload.combat;
+    assert.equal(updated.conditions.some((entry) => String(entry && entry.condition_type || "") === "true_strike_advantage"), false);
+  }, results);
+
+  runTest("target_scoped_true_strike_advantage_does_not_apply_to_other_targets", () => {
+    const manager = createActiveCombatForAttackTests();
+    const combat = manager.getCombatById("combat-attack-001").payload.combat;
+    combat.participants.push({
+      participant_id: "target-002",
+      name: "Orc",
+      team: "B",
+      armor_class: 12,
+      current_hp: 16,
+      max_hp: 16,
+      attack_bonus: 2,
+      damage: 4,
+      position: { x: 1, y: 1 }
+    });
+    combat.conditions = [{
+      condition_id: "condition-true-strike-advantage-002",
+      condition_type: "true_strike_advantage",
+      source_actor_id: "attacker-001",
+      target_actor_id: "attacker-001",
+      expiration_trigger: "start_of_source_turn",
+      duration: {
+        remaining_triggers: 1
+      },
+      metadata: {
+        has_attack_advantage: true,
+        consume_on_attack: true,
+        applies_against_actor_ids: ["target-001"]
+      }
+    }];
+    manager.combats.set("combat-attack-001", combat);
+
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "attacker-001",
+      target_id: "target-002",
+      attack_roll_fn: () => 12,
+      damage_roll_fn: () => 4
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.attack_roll_mode, "normal");
+    const updated = manager.getCombatById("combat-attack-001").payload.combat;
+    assert.equal(updated.conditions.some((entry) => String(entry && entry.condition_id || "") === "condition-true-strike-advantage-002"), true);
   }, results);
 
   runTest("blinded_attacker_has_disadvantage_and_blinded_target_grants_advantage", () => {
@@ -1365,6 +1581,214 @@ function runAttackActionTests() {
 
     assert.equal(out.ok, false);
     assert.equal(out.error, "charmed participants cannot make harmful attacks against the charmer");
+  }, results);
+
+  runTest("holy_aura_can_blind_melee_attacker_on_failed_reactive_save", () => {
+    const manager = createActiveCombatForAttackTests();
+    const combat = manager.getCombatById("combat-attack-001").payload.combat;
+    combat.participants.push({
+      participant_id: "caster-001",
+      name: "Cleric",
+      team: "A",
+      armor_class: 15,
+      current_hp: 18,
+      max_hp: 18,
+      attack_bonus: 4,
+      damage: 5,
+      position: { x: 0, y: 1 }
+    });
+    combat.conditions = [
+      {
+        condition_id: "condition-holy-aura-target-001",
+        condition_type: "holy_aura",
+        source_actor_id: "caster-001",
+        target_actor_id: "target-001",
+        expiration_trigger: "manual",
+        metadata: {
+          attackers_have_disadvantage: true,
+          save_advantage_all: true,
+          retaliatory_melee_hit_save_ability: "constitution",
+          retaliatory_melee_hit_save_dc: 18,
+          retaliatory_melee_hit_condition_type: "blinded",
+          retaliatory_melee_hit_condition_expiration_trigger: "end_of_turn",
+          source_spell_id: "holy_aura"
+        }
+      }
+    ];
+    combat.participants[2].concentration = {
+      is_concentrating: true,
+      source_spell_id: "holy_aura",
+      linked_condition_ids: []
+    };
+    manager.combats.set("combat-attack-001", combat);
+
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "attacker-001",
+      target_id: "target-001",
+      attack_roll_fn: () => 19,
+      damage_roll_fn: () => 3,
+      concentration_save_rng: () => 19,
+      condition_save_fn: ({ disadvantage, advantage }) => {
+        assert.equal(advantage, false);
+        assert.equal(disadvantage, false);
+        return { final_total: 7 };
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(Array.isArray(out.payload.reactive_condition_results), true);
+    assert.equal(out.payload.reactive_condition_results.length, 1);
+    assert.equal(out.payload.reactive_condition_results[0].condition_applied, true);
+    const updated = manager.getCombatById("combat-attack-001").payload.combat;
+    const blinded = (updated.conditions || []).find((condition) => {
+      return String(condition && condition.condition_type || "") === "blinded" &&
+        String(condition && condition.target_actor_id || "") === "attacker-001";
+    });
+    assert.equal(Boolean(blinded), true);
+    const concentrationState = updated.participants.find((entry) => entry.participant_id === "caster-001").concentration;
+    assert.equal(Array.isArray(concentrationState.linked_condition_ids), true);
+    assert.equal(concentrationState.linked_condition_ids.includes(String(blinded.condition_id)), true);
+    const cleared = clearParticipantConcentration(updated, "caster-001", "test_cleanup");
+    assert.equal(cleared.ok, true);
+    assert.equal(cleared.next_state.conditions.some((condition) => String(condition && condition.condition_id || "") === String(blinded.condition_id)), false);
+  }, results);
+
+  runTest("resilient_sphere_target_cannot_be_attacked", () => {
+    const manager = createActiveCombatForAttackTests();
+    const combat = manager.getCombatById("combat-attack-001").payload.combat;
+    combat.conditions = [
+      {
+        condition_id: "condition-resilient-sphere-target-001",
+        condition_type: "resilient_sphere",
+        source_actor_id: "caster-001",
+        target_actor_id: "target-001",
+        expiration_trigger: "manual",
+        metadata: {
+          blocks_attack_targeting: true,
+          blocks_harmful_spell_targeting: true,
+          untargetable: true
+        }
+      }
+    ];
+    manager.combats.set("combat-attack-001", combat);
+
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "attacker-001",
+      target_id: "target-001",
+      attack_roll_fn: () => 19,
+      damage_roll_fn: () => 4
+    });
+
+    assert.equal(out.ok, false);
+    assert.equal(out.error, "target is protected from hostile attacks");
+  }, results);
+
+  runTest("wall_of_force_blocks_ranged_attack_across_barrier_tiles", () => {
+    const manager = createActiveCombatForAttackTests();
+    const combat = manager.getCombatById("combat-attack-001").payload.combat;
+    const attacker = combat.participants.find((p) => p.participant_id === "attacker-001");
+    const target = combat.participants.find((p) => p.participant_id === "target-001");
+    attacker.position = { x: 0, y: 0 };
+    target.position = { x: 4, y: 0 };
+    attacker.readiness = {
+      weapon_profile: {
+        weapon_class: "simple_ranged",
+        weapon: {
+          damage_dice: "1d6",
+          damage_type: "piercing",
+          range: {
+            normal: 80,
+            long: 320
+          }
+        }
+      }
+    };
+    combat.active_effects = [{
+      effect_id: "effect-wall-force-attack-001",
+      type: "spell_active_wall_of_force",
+      source: { participant_id: "attacker-ally-001", event_id: null },
+      target: { participant_id: "attacker-ally-001" },
+      duration: { remaining_turns: 10, max_turns: 10 },
+      tick_timing: "none",
+      stacking_rules: { mode: "refresh", max_stacks: 1 },
+      modifiers: {
+        spell_id: "wall_of_force",
+        area_tiles: [{ x: 2, y: 0 }],
+        zone_behavior: {
+          protection_rules: {
+            blocks_hostile_attacks_across_tiles: true
+          }
+        }
+      }
+    }];
+    manager.combats.set("combat-attack-001", combat);
+
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "attacker-001",
+      target_id: "target-001"
+    });
+
+    assert.equal(out.ok, false);
+    assert.equal(out.error, "target is protected from hostile attacks");
+    assert.equal(out.payload.gate_result.block_reason, "attack_barrier");
+  }, results);
+
+  runTest("wind_wall_blocks_ranged_attack_across_barrier_tiles", () => {
+    const manager = createActiveCombatForAttackTests();
+    const combat = manager.getCombatById("combat-attack-001").payload.combat;
+    const attacker = combat.participants.find((p) => p.participant_id === "attacker-001");
+    const target = combat.participants.find((p) => p.participant_id === "target-001");
+    attacker.position = { x: 0, y: 0 };
+    target.position = { x: 4, y: 0 };
+    attacker.readiness = {
+      weapon_profile: {
+        weapon_class: "simple_ranged",
+        weapon: {
+          damage_dice: "1d6",
+          damage_type: "piercing",
+          range: {
+            normal: 80,
+            long: 320
+          }
+        }
+      }
+    };
+    combat.active_effects = [{
+      effect_id: "effect-wind-wall-attack-001",
+      type: "spell_active_wind_wall",
+      source: { participant_id: "attacker-ally-001", event_id: null },
+      target: { participant_id: "attacker-ally-001" },
+      duration: { remaining_turns: 10, max_turns: 10 },
+      tick_timing: "none",
+      stacking_rules: { mode: "refresh", max_stacks: 1 },
+      modifiers: {
+        spell_id: "wind_wall",
+        area_tiles: [{ x: 2, y: 0 }],
+        zone_behavior: {
+          protection_rules: {
+            blocks_ranged_attacks_across_tiles: true
+          }
+        }
+      }
+    }];
+    manager.combats.set("combat-attack-001", combat);
+
+    const out = performAttackAction({
+      combatManager: manager,
+      combat_id: "combat-attack-001",
+      attacker_id: "attacker-001",
+      target_id: "target-001"
+    });
+
+    assert.equal(out.ok, false);
+    assert.equal(out.error, "target is protected from hostile attacks");
+    assert.equal(out.payload.gate_result.block_reason, "ranged_attack_barrier");
   }, results);
 
   const passed = results.filter((x) => x.ok).length;

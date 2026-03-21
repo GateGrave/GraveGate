@@ -158,6 +158,55 @@ function runConcentrationStateTests() {
     assert.deepEqual(out.concentration_result.save_result.roll.raw_dice[0].rolls, [4, 16]);
   }, results);
 
+  runTest("clearing_haste_concentration_applies_lethargy_to_target", () => {
+    const combat = createCombatState();
+    combat.initiative_order = ["caster-001", "ally-001"];
+    combat.turn_index = 0;
+    combat.participants[1].movement_remaining = 30;
+    combat.participants[1].hasted_action_available = true;
+    combat.participants[0].concentration = {
+      is_concentrating: true,
+      source_spell_id: "haste",
+      target_actor_id: "ally-001",
+      linked_condition_ids: ["condition-haste-001"],
+      linked_restorations: [{
+        type: "apply_condition",
+        target_actor_id: "ally-001",
+        source_actor_id: "caster-001",
+        condition_type: "haste_lethargy",
+        expiration_trigger: "end_of_turn",
+        current_turn_remaining_triggers: 2,
+        off_turn_remaining_triggers: 1,
+        zero_movement_on_current_turn: true,
+        clear_hasted_action: true,
+        metadata: {
+          blocks_action: true,
+          blocks_bonus_action: true,
+          blocks_move: true
+        }
+      }],
+      started_at_round: 1,
+      broken_reason: null
+    };
+    combat.conditions = [{
+      condition_id: "condition-haste-001",
+      condition_type: "haste",
+      source_actor_id: "caster-001",
+      target_actor_id: "ally-001",
+      expiration_trigger: "manual",
+      metadata: {
+        grants_hasted_action: true
+      }
+    }];
+
+    const cleared = clearParticipantConcentration(combat, "caster-001", "failed_save");
+    assert.equal(cleared.ok, true);
+    const lethargy = cleared.next_state.conditions.find((entry) => entry.condition_type === "haste_lethargy");
+    assert.equal(Boolean(lethargy), true);
+    assert.equal(lethargy.duration.remaining_triggers, 1);
+    assert.equal(cleared.next_state.participants[1].hasted_action_available, false);
+  }, results);
+
   const passed = results.filter((entry) => entry.ok).length;
   const failed = results.length - passed;
   return {

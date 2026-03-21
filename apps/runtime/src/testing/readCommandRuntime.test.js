@@ -2769,6 +2769,92 @@ async function runReadCommandRuntimeTests() {
     assert.equal(snapshots.payload.snapshots.length >= 1, true);
   }, results);
 
+  await runTest("wall_of_fire_cast_runtime_flow_surfaces_hazard_side_and_active_effects", async () => {
+    const adapter = createInMemoryAdapter();
+    const combatManager = new CombatManager();
+    const combatPersistence = new CombatPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({ combatManager, combatPersistence });
+    const playerId = "player-runtime-wall-fire-001";
+    const combatId = "combat-runtime-wall-fire-001";
+    createActiveCombat(combatManager, combatId, playerId, "enemy-runtime-wall-fire-001");
+
+    const combat = combatManager.getCombatById(combatId).payload.combat;
+    const caster = combat.participants.find((entry) => entry.participant_id === playerId);
+    const target = combat.participants.find((entry) => entry.participant_id === "enemy-runtime-wall-fire-001");
+    caster.spellbook = {
+      known_spell_ids: ["wall_of_fire"]
+    };
+    caster.spellsave_dc = 13;
+    caster.spell_attack_bonus = 5;
+    target.position = { x: 2, y: 2 };
+    combatManager.combats.set(combatId, combat);
+
+    const event = mapInteractionOrThrow(createInteraction("cast", [
+      { name: "spell_id", value: "wall_of_fire" },
+      { name: "target_id", value: "enemy-runtime-wall-fire-001" },
+      { name: "hazard_side", value: "north" },
+      { name: "combat_id", value: combatId }
+    ], playerId));
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    assert.equal(out.ok, true);
+    const response = findResponse(out, "cast");
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.ok, true);
+    assert.equal(response.payload.data.combat_id, combatId);
+    assert.equal(response.payload.data.spell_id, "wall_of_fire");
+    assert.equal(response.payload.data.hazard_side, "north");
+    assert.equal(Array.isArray(response.payload.data.active_effects_added), true);
+    assert.equal(response.payload.data.active_effects_added.length, 1);
+    assert.deepEqual(
+      response.payload.data.active_effects_added[0].modifiers.zone_behavior.on_enter_damage.area_tiles,
+      [{ x: 2, y: 1 }]
+    );
+  }, results);
+
+  await runTest("fog_cloud_cast_runtime_flow_surfaces_persistent_obscuration_effect", async () => {
+    const adapter = createInMemoryAdapter();
+    const combatManager = new CombatManager();
+    const combatPersistence = new CombatPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({ combatManager, combatPersistence });
+    const playerId = "player-runtime-fog-cloud-001";
+    const combatId = "combat-runtime-fog-cloud-001";
+    createActiveCombat(combatManager, combatId, playerId, "enemy-runtime-fog-cloud-001");
+
+    const combat = combatManager.getCombatById(combatId).payload.combat;
+    const caster = combat.participants.find((entry) => entry.participant_id === playerId);
+    caster.spellbook = {
+      known_spell_ids: ["fog_cloud"]
+    };
+    caster.spellsave_dc = 13;
+    caster.spell_attack_bonus = 5;
+    combatManager.combats.set(combatId, combat);
+
+    const event = createEvent(EVENT_TYPES.PLAYER_CAST_SPELL, {
+      command_name: "cast",
+      spell_id: "fog_cloud",
+      area_tiles: [{ x: 2, y: 2 }, { x: 3, y: 2 }],
+      request_id: "fog-cloud-runtime-request-001"
+    }, {
+      source: "gateway.discord",
+      target_system: "combat_system",
+      player_id: playerId,
+      combat_id: combatId
+    });
+
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    assert.equal(out.ok, true);
+    const response = findResponse(out, "cast");
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.ok, true);
+    assert.equal(response.payload.data.spell_id, "fog_cloud");
+    assert.equal(Array.isArray(response.payload.data.active_effects_added), true);
+    assert.equal(response.payload.data.active_effects_added.length, 1);
+    assert.equal(
+      response.payload.data.active_effects_added[0].modifiers.utility_ref,
+      "spell_fog_cloud_heavily_obscured"
+    );
+  }, results);
+
   await runTest("combat_read_runtime_flow_resolves_active_combat_from_session", async () => {
     const adapter = createInMemoryAdapter();
     const sessionPersistence = new SessionPersistenceBridge({ adapter });

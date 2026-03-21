@@ -1,6 +1,7 @@
 "use strict";
 
 const { rollDeathSave } = require("../dice");
+const { getActiveConditionsForParticipant } = require("../conditions/conditionHelpers");
 const { LIFE_STATES, createDefaultDeathSaves } = require("./death-downed-model");
 
 function findParticipantIndex(combatState, participantId) {
@@ -154,8 +155,19 @@ function resolveDeathSave(combatState, participantId, options) {
     };
   }
 
+  const activeConditions = getActiveConditionsForParticipant(combatState, participantId);
+  const deathSaveAdvantage = activeConditions.some((condition) => {
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
+    return metadata.death_save_advantage === true;
+  });
+  const deathSaveDisadvantage = activeConditions.some((condition) => {
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
+    return metadata.death_save_disadvantage === true;
+  });
   const roll = rollDeathSave({
-    rng: options?.rng
+    rng: options?.rng,
+    advantage: deathSaveAdvantage,
+    disadvantage: deathSaveDisadvantage
   });
 
   const d20Roll = roll.raw_dice[0]?.kept_rolls?.[0] || 0;

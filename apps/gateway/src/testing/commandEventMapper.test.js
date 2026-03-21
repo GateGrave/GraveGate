@@ -572,6 +572,24 @@ function runCommandEventMapperTests() {
     assert.deepEqual(out.payload.event.payload.target_ids, ["ally-001", "ally-002", "ally-003"]);
   }, results);
 
+  runTest("cast_command_maps_hazard_side_for_wall_spells", () => {
+    const out = mapSlashCommandToGatewayEvent(
+      createInteraction("cast", {
+        options: {
+          data: [
+            { name: "spell_id", value: "wall_of_fire" },
+            { name: "hazard_side", value: "north" },
+            { name: "combat_id", value: "combat-209" }
+          ]
+        }
+      })
+    );
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.event.payload.spell_id, "wall_of_fire");
+    assert.equal(out.payload.event.payload.hazard_side, "north");
+  }, results);
+
   runTest("use_command_maps_to_canonical_event_shape", () => {
     const out = mapSlashCommandToGatewayEvent(
       createInteraction("use", {

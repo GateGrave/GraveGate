@@ -151,7 +151,9 @@ function performShoveAction(input) {
     return failure("shove_action_failed", "target is out of shove range");
   }
 
-  const availability = validateParticipantActionAvailability(attacker, ACTION_TYPES.SHOVE);
+  const availability = validateParticipantActionAvailability(attacker, ACTION_TYPES.SHOVE, {
+    combat_state: combat
+  });
   if (!availability.ok) {
     return failure("shove_action_failed", availability.error || "action is not available", availability.payload);
   }

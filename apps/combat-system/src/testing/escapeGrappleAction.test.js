@@ -94,6 +94,29 @@ function runEscapeGrappleActionTests() {
     assert.equal(out.error, "participant is not grappled");
   }, results);
 
+  runTest("freedom_of_movement_makes_escape_grapple_auto_succeed", () => {
+    const manager = createActiveCombatForEscapeTests();
+    const combat = manager.getCombatById("combat-escape-001").payload.combat;
+    combat.conditions.push({
+      condition_id: "condition-escape-fof-001",
+      condition_type: "freedom_of_movement",
+      target_actor_id: "p1",
+      expiration_trigger: "manual",
+      metadata: {
+        escape_grapple_auto_success: true
+      }
+    });
+    manager.combats.set("combat-escape-001", combat);
+    const out = performEscapeGrappleAction({
+      combatManager: manager,
+      combat_id: "combat-escape-001",
+      participant_id: "p1"
+    });
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.escaped, true);
+    assert.equal(out.payload.contested_check.auto_success, true);
+  }, results);
+
   const passed = results.filter((x) => x.ok).length;
   const failed = results.length - passed;
   return {

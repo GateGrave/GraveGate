@@ -2935,6 +2935,86 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(interaction._replyCalls[0].content.includes("Conditions Gained: Mage Armor"), true);
   }, results);
 
+  await runTest("gateway_formats_wall_of_fire_hazard_side_and_persistent_effect_summary", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "cast",
+                  ok: true,
+                  data: {
+                    spell_id: "wall_of_fire",
+                    spell_name: "Wall of Fire",
+                    caster_id: "caster-001",
+                    target_id: "enemy-001",
+                    hazard_side: "north",
+                    active_effects_added: [
+                      {
+                        modifiers: {
+                          spell_id: "wall_of_fire",
+                          area_tiles: [{ x: 2, y: 2 }],
+                          zone_behavior: {
+                            on_enter_damage: {
+                              area_tiles: [{ x: 2, y: 1 }]
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    combat_summary: {
+                      combat_id: "combat-gateway-wall-fire-001",
+                      round: 3,
+                      active_participant_id: "enemy-001",
+                      participants: [
+                        { participant_id: "caster-001", current_hp: 12, max_hp: 12 },
+                        { participant_id: "enemy-001", current_hp: 8, max_hp: 8 }
+                      ]
+                    },
+                    resolution_type: "save",
+                    damage_type: "fire",
+                    hit: null,
+                    saved: null,
+                    damage_result: null,
+                    healing_result: null,
+                    defense_result: null,
+                    applied_conditions: [],
+                    active_participant_id: "enemy-001",
+                    ai_turns: [],
+                    combat_completed: false,
+                    winner_team: null
+                  },
+                  error: null
+                }
+              }
+            ],
+            events_processed: [event],
+            final_state: {}
+          },
+          error: null
+        };
+      }
+    };
+
+    const interaction = createInteraction("cast", [
+      { name: "spell_id", value: "wall_of_fire" },
+      { name: "target_id", value: "enemy-001" },
+      { name: "hazard_side", value: "north" },
+      { name: "combat_id", value: "combat-gateway-wall-fire-001" }
+    ], "player-gateway-wall-fire-001");
+    const out = await handleGatewayInteraction(interaction, runtime);
+
+    assert.equal(out.ok, true);
+    assert.equal(interaction._replyCalls.length, 1);
+    assert.equal(String(interaction._replyCalls[0].content).includes("Placed Wall Of Fire: 1 tile | hazard active"), true);
+    assert.equal(String(interaction._replyCalls[0].content).includes("Hazard Side: North"), true);
+  }, results);
+
   await runTest("gateway_formats_combat_status_command_and_refresh_button", async () => {
     let calls = 0;
     const runtime = {
