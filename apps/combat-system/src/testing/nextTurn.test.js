@@ -306,6 +306,77 @@ function runNextTurnTests() {
     assert.equal(updatedCombat.conditions.some((entry) => entry.target_actor_id === "p2" && entry.condition_type === "confusion_wandered"), true);
   }, results);
 
+  runTest("confusion_wander_still_takes_start_of_turn_zone_effects_before_moving", () => {
+    const manager = createBaseCombat();
+    const combat = manager.getCombatById("combat-next-001").payload.combat;
+    combat.participants[1].position = { x: 2, y: 2 };
+    combat.participants[1].movement_speed = 10;
+    combat.conditions = [{
+      condition_id: "condition-confusion-zone-001",
+      condition_type: "confusion",
+      source_actor_id: "p1",
+      target_actor_id: "p2",
+      expiration_trigger: "manual",
+      metadata: {
+        status_hint: "confusion",
+        blocks_reaction: true,
+        end_of_turn_save_ability: "wisdom",
+        end_of_turn_save_dc: 13
+      }
+    }];
+    combat.active_effects = [{
+      effect_id: "effect-moonbeam-confusion-start-001",
+      type: "spell_active_moonbeam",
+      source: {
+        participant_id: "p1"
+      },
+      target: {
+        participant_id: "p1"
+      },
+      duration: {
+        remaining_turns: 10,
+        max_turns: 10
+      },
+      tick_timing: "none",
+      stacking_rules: {
+        mode: "refresh",
+        max_stacks: 1
+      },
+      modifiers: {
+        spell_id: "moonbeam",
+        area_tiles: [{ x: 2, y: 2 }],
+        zone_behavior: {
+          on_turn_start_damage: {
+            save_ability: "constitution",
+            save_dc: 14,
+            damage_formula: "2d10",
+            damage_type: "radiant",
+            save_result: "half_damage_on_success"
+          }
+        }
+      }
+    }];
+    manager.combats.set("combat-next-001", combat);
+
+    const beforeHp = combat.participants[1].current_hp;
+    const out = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001",
+      confusion_roll_fn: () => ({ final_total: 1 }),
+      saving_throw_fn: () => ({ final_total: 4 }),
+      damage_rng: () => 0
+    });
+
+    assert.equal(out.ok, true);
+    const updatedCombat = out.payload.combat;
+    const p2 = updatedCombat.participants.find((entry) => entry.participant_id === "p2");
+    const turnEvent = updatedCombat.event_log.find((entry) => entry.event_type === "turn_advanced");
+    assert.equal(p2.current_hp < beforeHp, true);
+    assert.equal(p2.position.x !== 2 || p2.position.y !== 2, true);
+    assert.equal(turnEvent.details.active_effect_results.length, 1);
+    assert.equal(turnEvent.details.confusion_turn_result.outcome, "wander_randomly");
+  }, results);
+
   runTest("confusion_roll_seven_makes_random_adjacent_melee_attack", () => {
     const manager = createBaseCombat();
     const combat = manager.getCombatById("combat-next-001").payload.combat;

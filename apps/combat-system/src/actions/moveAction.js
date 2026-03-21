@@ -265,14 +265,35 @@ function enumerateMovementTiles(fromPosition, toPosition) {
   return tiles;
 }
 
-function resolveZoneMovementCostFeet(baseCostFeet, areaEffects) {
+function areaEffectsIncludeDifficultTerrain(areaEffects) {
   const effects = Array.isArray(areaEffects) ? areaEffects : [];
-  const hasDifficultZone = effects.some((effect) => {
+  return effects.some((effect) => {
     const modifiers = effect && effect.modifiers && typeof effect.modifiers === "object" ? effect.modifiers : {};
     const zoneBehavior = modifiers.zone_behavior && typeof modifiers.zone_behavior === "object" ? modifiers.zone_behavior : {};
     return zoneBehavior.terrain_kind === "difficult";
   });
-  return hasDifficultZone ? Math.max(baseCostFeet, 10) : baseCostFeet;
+}
+
+function resolveZoneMovementCostFeet(combat, fromPosition, traversedTiles) {
+  const tiles = Array.isArray(traversedTiles) ? traversedTiles : [];
+  let previous = normalizePosition(fromPosition);
+  if (!previous || tiles.length <= 0) {
+    return 0;
+  }
+  let totalCostFeet = 0;
+  for (let index = 0; index < tiles.length; index += 1) {
+    const tile = normalizePosition(tiles[index]);
+    if (!tile) {
+      continue;
+    }
+    const stepCostFeet = normalizeMoveCostFeet(previous, tile);
+    const areaEffectsAtTile = getSharedActiveAreaEffectsAtPosition(combat, tile);
+    totalCostFeet += areaEffectsIncludeDifficultTerrain(areaEffectsAtTile)
+      ? stepCostFeet * 2
+      : stepCostFeet;
+    previous = tile;
+  }
+  return totalCostFeet;
 }
 
 function participantHasMovementFreedom(combat, participantId) {
@@ -649,7 +670,7 @@ function performMoveAction(input) {
   const baseMoveCostFeet = normalizeMoveCostFeet(previousPosition, targetPosition);
   const moveCostFeet = movementFreedom
     ? baseMoveCostFeet
-    : resolveZoneMovementCostFeet(baseMoveCostFeet, areaEffectsAtDestination);
+    : resolveZoneMovementCostFeet(combat, previousPosition, traversedTiles);
   const consumedMovement = consumeParticipantAction(actor, ACTION_TYPES.MOVE, {
     move_cost_feet: moveCostFeet
   });

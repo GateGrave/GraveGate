@@ -3329,6 +3329,52 @@ function resolvePowerWordKillEffect(input) {
     });
   }
 
+  const deathWardCondition = (Array.isArray(combat.conditions) ? combat.conditions : []).find((condition) => {
+    if (String(condition && condition.target_actor_id || "") !== targetId) {
+      return false;
+    }
+    if (String(condition && condition.condition_type || "") !== "death_ward") {
+      return false;
+    }
+    const metadata = condition && condition.metadata && typeof condition.metadata === "object" ? condition.metadata : {};
+    return metadata.prevent_defeat_once === true;
+  });
+  if (deathWardCondition) {
+    const removed = removeConditionFromCombatState(combat, deathWardCondition.condition_id);
+    const nextCombat = removed.ok ? clone(removed.next_state) : clone(combat);
+    const participantIndex = nextCombat.participants.findIndex((entry) => String(entry.participant_id || "") === targetId);
+    if (participantIndex >= 0) {
+      nextCombat.participants[participantIndex] = {
+        ...nextCombat.participants[participantIndex],
+        current_hp: 1,
+        unconscious: false,
+        life_state: "alive"
+      };
+      nextCombat.updated_at = new Date().toISOString();
+    }
+    const vitalityResult = {
+      vitality_ref: "power_word_kill_hp_gate",
+      current_hp: currentHp,
+      hp_threshold: hpThreshold,
+      killed: false,
+      prevented: true,
+      prevented_by: "death_ward",
+      hp_after: 1,
+      target_life_state: "alive"
+    };
+    return success("spell_power_word_kill_prevented", {
+      next_combat: nextCombat,
+      target_result: {
+        target_id: targetId,
+        affected: true,
+        current_hp: currentHp,
+        hp_threshold: hpThreshold,
+        vitality_result: clone(vitalityResult)
+      },
+      vitality_result: vitalityResult
+    });
+  }
+
   const dead = markCharacterDead(combat, targetId);
   if (!dead.ok) {
     return failure("cast_spell_action_failed", dead.error || "failed to resolve power word kill");

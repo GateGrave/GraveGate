@@ -200,6 +200,13 @@ function activateConfusionTurnBehavior(combat, participantId, input) {
       confusion_result: null
     };
   }
+  const participantHp = Number.isFinite(Number(participant.current_hp)) ? Number(participant.current_hp) : 0;
+  if (participantHp <= 0) {
+    return {
+      combat: nextCombat,
+      confusion_result: null
+    };
+  }
 
   const roll = rollConfusionTurnBehavior(input);
   const total = Number(roll && roll.final_total);
@@ -1128,6 +1135,10 @@ function nextTurn(input) {
   }
   const commandActivation = activatePendingCommandConditions(combatState, selectedParticipant.participant_id);
   combatState = clone(commandActivation.combat || combatState);
+  const startOfTurnBoons = applyStartOfTurnConditionBoons(combatState, selectedParticipant.participant_id);
+  combatState = clone(startOfTurnBoons.combat || combatState);
+  const startOfTurnActiveEffects = resolveStartOfTurnActiveEffects(combatState, selectedParticipant.participant_id, data);
+  combatState = clone(startOfTurnActiveEffects.combat || combatState);
   const confusionActivation = activateConfusionTurnBehavior(combatState, selectedParticipant.participant_id, data);
   combatState = clone(confusionActivation.combat || combatState);
   const refreshedSelectedParticipant = findParticipantById(combatState.participants, selectedParticipant.participant_id);
@@ -1139,10 +1150,6 @@ function nextTurn(input) {
       return String(condition && condition.condition_type || "") === "haste";
     });
   }
-  const startOfTurnBoons = applyStartOfTurnConditionBoons(combatState, selectedParticipant.participant_id);
-  combatState = clone(startOfTurnBoons.combat || combatState);
-  const startOfTurnActiveEffects = resolveStartOfTurnActiveEffects(combatState, selectedParticipant.participant_id, data);
-  combatState = clone(startOfTurnActiveEffects.combat || combatState);
   const expiredSourceTurn = expireConditionsForTrigger(combatState, {
     source_actor_id: selectedParticipant.participant_id,
     expiration_trigger: "start_of_source_turn"

@@ -445,6 +445,40 @@ function runMoveActionTests() {
     assert.equal(actor.movement_remaining, 20);
   }, results);
 
+  runTest("moving_through_difficult_terrain_tiles_charges_full_path_cost", () => {
+    const manager = createActiveCombatForMoveTests();
+    const combat = manager.getCombatById("combat-move-001").payload.combat;
+    combat.active_effects = [{
+      effect_id: "effect-grease-zone-path-001",
+      type: "spell_active_grease",
+      source: { participant_id: "p2", event_id: null },
+      target: { participant_id: "p2" },
+      duration: { remaining_turns: 10, max_turns: 10 },
+      tick_timing: "none",
+      stacking_rules: { mode: "refresh", max_stacks: 1 },
+      modifiers: {
+        spell_id: "grease",
+        area_tiles: [{ x: 1, y: 0 }, { x: 2, y: 0 }],
+        zone_behavior: {
+          terrain_kind: "difficult"
+        }
+      }
+    }];
+    manager.combats.set("combat-move-001", combat);
+
+    const out = performMoveAction({
+      combatManager: manager,
+      combat_id: "combat-move-001",
+      participant_id: "p1",
+      target_position: { x: 4, y: 0 }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.movement_cost_feet, 30);
+    const actor = out.payload.combat.participants.find((entry) => entry.participant_id === "p1");
+    assert.equal(actor.movement_remaining, 0);
+  }, results);
+
   runTest("entering_web_zone_failed_save_applies_restrained_condition", () => {
     const manager = createActiveCombatForMoveTests();
     const combat = manager.getCombatById("combat-move-001").payload.combat;

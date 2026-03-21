@@ -657,6 +657,66 @@ function runCastSpellActionTests() {
     assert.equal(String(target.life_state || "").toLowerCase(), "dead");
   }, results);
 
+  runTest("power_word_kill_triggers_death_ward_and_leaves_target_at_one_hp", () => {
+    const casterId = "caster-spell-power-word-kill-ward-001";
+    const combatId = "combat-spell-power-word-kill-ward-001";
+    const manager = createCombatReadyForSpell(combatId, casterId, {
+      known_spell_ids: ["power_word_kill"],
+      extraParticipants: [{
+        participant_id: "enemy-spell-pwk-ward-001",
+        team: "monsters",
+        current_hp: 60,
+        max_hp: 60,
+        armor_class: 12,
+        position: { x: 2, y: 0 }
+      }]
+    });
+    const spell = {
+      spell_id: "power_word_kill",
+      name: "Power Word Kill",
+      casting_time: "1 action",
+      range: "60 feet",
+      targeting: { type: "single_target" },
+      attack_or_save: { type: "none" },
+      effect: { status_hint: "power_word_kill_hp_gate", targeting: "single" }
+    };
+    const combat = manager.getCombatById(combatId).payload.combat;
+    combat.conditions.push({
+      condition_id: "condition-death-ward-power-word-kill-001",
+      condition_type: "death_ward",
+      source_actor_id: casterId,
+      target_actor_id: "enemy-spell-pwk-ward-001",
+      expiration_trigger: "manual",
+      metadata: {
+        source: "spell_status_hint",
+        status_hint: "death_ward",
+        prevent_defeat_once: true,
+        source_spell_id: "death_ward"
+      }
+    });
+    manager.combats.set(combatId, combat);
+
+    const out = processCombatCastSpellRequest({
+      context: createCombatContext(manager, [spell]),
+      player_id: casterId,
+      combat_id: combatId,
+      payload: {
+        spell_id: "power_word_kill",
+        target_id: "enemy-spell-pwk-ward-001"
+      }
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.cast_spell.vitality_result.killed, false);
+    assert.equal(out.payload.cast_spell.vitality_result.prevented, true);
+    assert.equal(out.payload.cast_spell.vitality_result.prevented_by, "death_ward");
+    const updatedCombat = manager.getCombatById(combatId).payload.combat;
+    const target = updatedCombat.participants.find((entry) => entry.participant_id === "enemy-spell-pwk-ward-001");
+    assert.equal(target.current_hp, 1);
+    assert.notEqual(String(target.life_state || "").toLowerCase(), "dead");
+    assert.equal(updatedCombat.conditions.some((entry) => entry.condition_type === "death_ward" && entry.target_actor_id === "enemy-spell-pwk-ward-001"), false);
+  }, results);
+
   runTest("command_applies_pending_grovel_condition_on_failed_save", () => {
     const casterId = "caster-spell-command-001";
     const combatId = "combat-spell-command-001";
