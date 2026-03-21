@@ -1815,6 +1815,89 @@ function runProcessCombatActionRequestTests() {
     assert.equal(hero.current_hp, 7);
   }, results);
 
+  runTest("player_attack_request_threads_confusion_direction_rng_through_turn_finalization", () => {
+    const playerId = "player-combat-attack-confusion-direction-001";
+    const combatId = "combat-attack-confusion-direction-001";
+    const manager = new CombatManager();
+    manager.createCombat({
+      combat_id: combatId,
+      status: "pending"
+    });
+    manager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: playerId,
+        name: "Hero",
+        team: "heroes",
+        armor_class: 12,
+        current_hp: 10,
+        max_hp: 10,
+        attack_bonus: 4,
+        damage: 1,
+        position: { x: 3, y: 4 },
+        metadata: { owner_player_id: playerId }
+      }
+    });
+    manager.addParticipant({
+      combat_id: combatId,
+      participant: {
+        participant_id: "monster-confusion-direction-001",
+        name: "Monster",
+        team: "monsters",
+        armor_class: 10,
+        current_hp: 10,
+        max_hp: 10,
+        attack_bonus: 3,
+        damage: 3,
+        movement_speed: 10,
+        position: { x: 4, y: 4 }
+      }
+    });
+    startCombat({
+      combatManager: manager,
+      combat_id: combatId,
+      roll_function: (participant) => (participant.participant_id === playerId ? 20 : 1)
+    });
+    const loaded = manager.getCombatById(combatId);
+    const combat = loaded.payload.combat;
+    combat.conditions = [{
+      condition_id: "condition-process-request-confusion-direction-001",
+      condition_type: "confusion",
+      source_actor_id: playerId,
+      target_actor_id: "monster-confusion-direction-001",
+      expiration_trigger: "manual",
+      metadata: {
+        status_hint: "confusion",
+        blocks_reaction: true,
+        end_of_turn_save_ability: "wisdom",
+        end_of_turn_save_dc: 13
+      }
+    }];
+    manager.combats.set(combatId, combat);
+
+    const out = processCombatAttackRequest({
+      context: {
+        combatManager: manager,
+        attackRollFn: () => 18,
+        aiMonsterAttackRollFn: () => 18,
+        aiMonsterDamageRollFn: () => 3,
+        confusionTurnRollFn: () => ({ final_total: 1 }),
+        confusionDirectionRng: () => 2
+      },
+      player_id: playerId,
+      combat_id: combatId,
+      payload: {
+        target_id: "monster-confusion-direction-001"
+      }
+    });
+
+    assert.equal(out.ok, true);
+    const updatedCombat = manager.getCombatById(combatId).payload.combat;
+    const monster = updatedCombat.participants.find((entry) => entry.participant_id === "monster-confusion-direction-001");
+    assert.deepEqual(monster.position, { x: 6, y: 4 });
+    assert.equal(updatedCombat.initiative_order[updatedCombat.turn_index], playerId);
+  }, results);
+
   const passed = results.filter((x) => x.ok).length;
   const failed = results.length - passed;
 

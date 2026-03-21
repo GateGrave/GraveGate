@@ -189,6 +189,7 @@ function finalizeCombatMutation(input) {
     ai_damage_roll_fn: context.aiMonsterDamageRollFn,
     confusion_roll_fn: context.confusionTurnRollFn,
     confusion_target_rng: context.confusionTargetRng,
+    confusion_direction_rng: context.confusionDirectionRng,
     targeting_save_fn: context.targetingSaveFn,
     targeting_save_bonus_rng: context.targetingSaveBonusRng,
     concentration_save_rng: context.concentrationSaveRng,

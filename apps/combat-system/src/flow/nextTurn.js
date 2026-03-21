@@ -129,6 +129,25 @@ function selectConfusionTargetIndex(adjacentTargets, participant, roll, input) {
   return Math.floor(Math.random() * adjacentTargets.length);
 }
 
+function selectConfusionDirectionIndex(participant, roll, input) {
+  const rngFn = input && typeof input.confusion_direction_rng === "function"
+    ? input.confusion_direction_rng
+    : null;
+  if (rngFn) {
+    const rolled = Number(rngFn({
+      participant,
+      roll
+    }));
+    if (Number.isFinite(rolled)) {
+      if (rolled >= 0 && rolled < 1) {
+        return Math.max(0, Math.min(7, Math.floor(rolled * 8)));
+      }
+      return Math.abs(Math.floor(rolled)) % 8;
+    }
+  }
+  return Math.floor(Math.random() * 8);
+}
+
 function resolveRandomDirectionPosition(combat, participantId, origin, tiles, directionIndex) {
   const directions = [
     { x: 0, y: -1 },
@@ -293,7 +312,7 @@ function activateConfusionTurnBehavior(combat, participantId, input) {
       : Number.isFinite(Number(participant.movement_speed))
         ? Number(participant.movement_speed)
         : 30;
-    const directionIndex = (Number(total) + Number(participant.position.x) + Number(participant.position.y)) % 8;
+    const directionIndex = selectConfusionDirectionIndex(participant, roll, input);
     const randomMove = resolveRandomDirectionPosition(nextCombat, participantId, participant.position, Math.max(0, Math.floor(movementRemaining / 5)), directionIndex);
     if (participantIndex >= 0) {
       nextCombat.participants[participantIndex] = Object.assign({}, nextCombat.participants[participantIndex], {

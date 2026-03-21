@@ -306,6 +306,40 @@ function runNextTurnTests() {
     assert.equal(updatedCombat.conditions.some((entry) => entry.target_actor_id === "p2" && entry.condition_type === "confusion_wandered"), true);
   }, results);
 
+  runTest("confusion_wander_can_use_direction_rng_hook", () => {
+    const manager = createBaseCombat();
+    const combat = manager.getCombatById("combat-next-001").payload.combat;
+    combat.participants[1].position = { x: 4, y: 4 };
+    combat.participants[1].movement_speed = 10;
+    combat.conditions = [{
+      condition_id: "condition-confusion-direction-001",
+      condition_type: "confusion",
+      source_actor_id: "p1",
+      target_actor_id: "p2",
+      expiration_trigger: "manual",
+      metadata: {
+        status_hint: "confusion",
+        blocks_reaction: true,
+        end_of_turn_save_ability: "wisdom",
+        end_of_turn_save_dc: 13
+      }
+    }];
+    manager.combats.set("combat-next-001", combat);
+
+    const out = nextTurn({
+      combatManager: manager,
+      combat_id: "combat-next-001",
+      confusion_roll_fn: () => ({ final_total: 1 }),
+      confusion_direction_rng: () => 2
+    });
+
+    assert.equal(out.ok, true);
+    const updatedCombat = out.payload.combat;
+    const p2 = updatedCombat.participants.find((entry) => entry.participant_id === "p2");
+    assert.deepEqual(p2.position, { x: 6, y: 4 });
+    assert.equal(p2.movement_remaining, 0);
+  }, results);
+
   runTest("confusion_wander_still_takes_start_of_turn_zone_effects_before_moving", () => {
     const manager = createBaseCombat();
     const combat = manager.getCombatById("combat-next-001").payload.combat;
