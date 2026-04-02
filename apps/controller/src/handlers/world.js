@@ -2,6 +2,7 @@
 
 const { EVENT_TYPES } = require("../../../../packages/shared-types");
 const { handleWorldEventByType } = require("../../../world-system/src");
+const { resolveActiveCharacterForPlayer } = require("../../../world-system/src/account/resolveActiveCharacter");
 const { getRemainingFeatSlots, isFeatSlotAvailable } = require("../../../world-system/src/character/rules/featRules");
 const { deriveSavingThrowState } = require("../../../world-system/src/character/rules/saveRules");
 const { createGatewayResponseEvent, createRuntimeDispatchEvent } = require("./shared");
@@ -14,13 +15,11 @@ function loadCharactersForStart(context) {
     }
 
     const persistenceCharacters = Array.isArray(listed.payload.characters) ? listed.payload.characters : [];
-    if (persistenceCharacters.length > 0) {
-      return {
-        ok: true,
-        characters: persistenceCharacters,
-        source: "characterPersistence"
-      };
-    }
+    return {
+      ok: true,
+      characters: persistenceCharacters,
+      source: "characterPersistence"
+    };
   }
 
   if (context.characterRepository && typeof context.characterRepository.listStoredCharacters === "function") {
@@ -215,8 +214,80 @@ function resolveEffectiveSpellSaveDc(character) {
   return base + (Number.isFinite(Number(itemEffects.spell_save_dc_bonus)) ? Number(itemEffects.spell_save_dc_bonus) : 0);
 }
 
+function resolveActivePlayerCharacter(context, playerId) {
+  const resolved = resolveActiveCharacterForPlayer(context, playerId);
+  if (!resolved.ok) {
+    return null;
+  }
+  return resolved.payload && resolved.payload.character ? resolved.payload.character : null;
+}
+
+function summarizeCharacterRoster(context, playerId, activeCharacterId) {
+  const safePlayerId = String(playerId || "").trim();
+  const safeActiveCharacterId = String(activeCharacterId || "").trim();
+  const accountService = context && context.accountService;
+  let characters = [];
+
+  if (accountService && typeof accountService.getAccountByDiscordUserId === "function" && typeof accountService.listCharactersForAccount === "function") {
+    const accountOut = accountService.getAccountByDiscordUserId(safePlayerId);
+    if (accountOut.ok && accountOut.payload && accountOut.payload.account && accountOut.payload.account.account_id) {
+      const listed = accountService.listCharactersForAccount(String(accountOut.payload.account.account_id));
+      if (listed.ok) {
+        characters = Array.isArray(listed.payload && listed.payload.characters) ? listed.payload.characters : [];
+      }
+    }
+  }
+
+  if (characters.length === 0) {
+    const loaded = loadCharactersForStart(context);
+    if (loaded.ok) {
+      const all = Array.isArray(loaded.characters) ? loaded.characters : [];
+      characters = all.filter((entry) => String(entry && entry.player_id || "") === safePlayerId);
+    }
+  }
+
+  return characters
+    .map((entry) => ({
+      character_id: entry && entry.character_id ? String(entry.character_id) : null,
+      name: entry && entry.name ? String(entry.name) : (entry && entry.character_id ? String(entry.character_id) : "Unknown"),
+      race: entry && entry.race ? String(entry.race) : null,
+      class: entry && entry.class ? String(entry.class) : null,
+      level: Number.isFinite(Number(entry && entry.level)) ? Number(entry.level) : 1,
+      is_active: String(entry && entry.character_id || "") === safeActiveCharacterId
+    }))
+    .filter((entry) => entry.character_id);
+}
+
+function summarizeCharacterSlotStatus(context, playerId) {
+  const safePlayerId = String(playerId || "").trim();
+  const accountService = context && context.accountService;
+  let characterCount = 0;
+  let maxSlots = 3;
+
+  if (accountService && typeof accountService.getAccountByDiscordUserId === "function" && typeof accountService.listCharactersForAccount === "function") {
+    const accountOut = accountService.getAccountByDiscordUserId(safePlayerId);
+    if (accountOut.ok && accountOut.payload && accountOut.payload.account && accountOut.payload.account.account_id) {
+      const account = accountOut.payload.account;
+      maxSlots = Number.isFinite(Number(account.max_character_slots)) ? Number(account.max_character_slots) : 3;
+      const listed = accountService.listCharactersForAccount(String(account.account_id));
+      if (listed.ok) {
+        characterCount = Array.isArray(listed.payload && listed.payload.characters) ? listed.payload.characters.length : 0;
+      }
+    }
+  }
+
+  return {
+    used_slots: characterCount,
+    remaining_slots: Math.max(0, maxSlots - characterCount),
+    max_character_slots: maxSlots
+  };
+}
+
 function handleWorldEvent(event, context) {
   if (event.event_type === EVENT_TYPES.PLAYER_START_REQUESTED) {
+    return [createRuntimeDispatchEvent(event, EVENT_TYPES.RUNTIME_WORLD_COMMAND_REQUESTED, "world_system")];
+  }
+  if (event.event_type === EVENT_TYPES.PLAYER_SET_ACTIVE_CHARACTER_REQUESTED) {
     return [createRuntimeDispatchEvent(event, EVENT_TYPES.RUNTIME_WORLD_COMMAND_REQUESTED, "world_system")];
   }
   if (event.event_type === EVENT_TYPES.PLAYER_ADMIN_REQUESTED) {
@@ -248,8 +319,7 @@ function handleWorldEvent(event, context) {
     }
 
     const playerId = event.player_id;
-    const characters = loadedCharacters.characters;
-    const found = characters.find((character) => String(character.player_id || "") === String(playerId || ""));
+    const found = resolveActivePlayerCharacter(context, playerId);
 
     if (!found) {
       return [
@@ -262,6 +332,9 @@ function handleWorldEvent(event, context) {
     return [
       createGatewayResponseEvent(event, "profile", {
         profile_found: true,
+        active_character_id: found.character_id || null,
+        character_roster: summarizeCharacterRoster(context, playerId, found.character_id || null),
+        slot_status: summarizeCharacterSlotStatus(context, playerId),
         character: {
           character_id: found.character_id || null,
           player_id: found.player_id || null,
@@ -330,11 +403,10 @@ function handleWorldEvent(event, context) {
 
     const playerId = event.player_id;
     const inventories = Array.isArray(listed.payload.inventories) ? listed.payload.inventories : [];
-    const found = inventories.find((inventory) => String(inventory.owner_id || "") === String(playerId || ""));
-    const loadedCharacters = loadCharactersForStart(context);
-    const playerCharacter = loadedCharacters.ok
-      ? loadedCharacters.characters.find((character) => String(character.player_id || "") === String(playerId || ""))
-      : null;
+    const playerCharacter = resolveActivePlayerCharacter(context, playerId);
+    const found = playerCharacter && playerCharacter.inventory_id
+      ? inventories.find((inventory) => String(inventory.inventory_id || "") === String(playerCharacter.inventory_id || ""))
+      : inventories.find((inventory) => String(inventory.owner_id || "") === String(playerId || ""));
 
     if (!found) {
       return [
@@ -347,6 +419,18 @@ function handleWorldEvent(event, context) {
       return [
         createGatewayResponseEvent(event, "inventory", {
           inventory_found: true,
+          active_character_id: playerCharacter && playerCharacter.character_id ? playerCharacter.character_id : null,
+          character_roster: summarizeCharacterRoster(
+            context,
+            playerId,
+            playerCharacter && playerCharacter.character_id ? playerCharacter.character_id : null
+          ),
+          slot_status: summarizeCharacterSlotStatus(context, playerId),
+          character: playerCharacter ? {
+            character_id: playerCharacter.character_id || null,
+            name: playerCharacter.name || null,
+            level: Number.isFinite(Number(playerCharacter.level)) ? Number(playerCharacter.level) : 1
+          } : null,
           inventory: summarizeInventory(found, playerCharacter)
         }, true, null)
       ];

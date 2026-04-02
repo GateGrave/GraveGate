@@ -26,15 +26,26 @@ function createContext(options) {
   const cfg = options || {};
   const characterMap = new Map();
   const inventoryMap = new Map();
+  const accountId = cfg.account_id || null;
 
   const character = createCharacterRecord({
     character_id: cfg.character_id || "char-equip-consistency-001",
+    account_id: accountId || undefined,
     player_id: cfg.player_id || "player-equip-consistency-001",
     name: "Consistency Hero",
     inventory_id: cfg.inventory_id || "inv-equip-consistency-001",
     equipment: cfg.equipment || {}
   });
   characterMap.set(String(character.character_id), clone(character));
+
+  const additionalCharacters = Array.isArray(cfg.additional_characters) ? cfg.additional_characters : [];
+  additionalCharacters.forEach((entry) => {
+    const extraCharacter = createCharacterRecord({
+      account_id: accountId || entry.account_id || undefined,
+      ...entry
+    });
+    characterMap.set(String(extraCharacter.character_id), clone(extraCharacter));
+  });
 
   const inventory = createInventoryRecord({
     inventory_id: cfg.inventory_id || "inv-equip-consistency-001",
@@ -53,6 +64,12 @@ function createContext(options) {
     stackable_items: Array.isArray(cfg.stackable_items) ? clone(cfg.stackable_items) : []
   });
   inventoryMap.set(String(inventory.inventory_id), clone(inventory));
+
+  const additionalInventories = Array.isArray(cfg.additional_inventories) ? cfg.additional_inventories : [];
+  additionalInventories.forEach((entry) => {
+    const extraInventory = createInventoryRecord(entry);
+    inventoryMap.set(String(extraInventory.inventory_id), clone(extraInventory));
+  });
 
   return {
     characterPersistence: {
@@ -105,7 +122,26 @@ function createContext(options) {
       getInventory(inventoryId) {
         return inventoryMap.get(String(inventoryId)) || null;
       }
-    }
+    },
+    accountService: cfg.account_id || cfg.active_character_id
+      ? {
+        getAccountByDiscordUserId(discordUserId) {
+          if (String(discordUserId || "") !== String(cfg.player_id || "player-equip-consistency-001")) {
+            return { ok: false, error: "account not found" };
+          }
+          return {
+            ok: true,
+            payload: {
+              account: {
+                account_id: String(accountId || "account-equip-consistency-001"),
+                discord_user_id: String(cfg.player_id || "player-equip-consistency-001"),
+                active_character_id: cfg.active_character_id || null
+              }
+            }
+          };
+        }
+      }
+      : null
   };
 }
 
@@ -443,6 +479,254 @@ function runProcessEquipmentRequestConsistencyTests() {
     const savedInventory = context.inventoryPersistence.getInventory("inv-equip-consistency-001");
     assert.equal(savedInventory.equipment_items[0].metadata.equipped, false);
     assert.equal(savedInventory.equipment_items[0].metadata.equipped_slot, undefined);
+  }, results);
+
+  runTest("equip_request_targets_account_active_character_inventory", () => {
+    const context = createContext({
+      player_id: "player-equip-active-001",
+      character_id: "char-equip-inactive-001",
+      inventory_id: "inv-equip-inactive-001",
+      account_id: "account-equip-active-001",
+      active_character_id: "char-equip-active-001",
+      equipment_items: [],
+      additional_characters: [{
+        character_id: "char-equip-active-001",
+        account_id: "account-equip-active-001",
+        player_id: "player-equip-active-001",
+        name: "Active Equip Hero",
+        inventory_id: "inv-equip-active-001",
+        equipment: {}
+      }],
+      additional_inventories: [{
+        inventory_id: "inv-equip-active-001",
+        owner_type: "player",
+        owner_id: "player-equip-active-001",
+        equipment_items: [{
+          item_id: "item-active-equip-001",
+          quantity: 1,
+          owner_player_id: "player-equip-active-001",
+          metadata: {}
+        }]
+      }]
+    });
+
+    const out = processEquipRequest({
+      context,
+      player_id: "player-equip-active-001",
+      item_id: "item-active-equip-001",
+      slot: "main_hand"
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.character.character_id, "char-equip-active-001");
+    assert.equal(context.characterPersistence.getCharacter("char-equip-active-001").equipment.main_hand, "item-active-equip-001");
+    assert.deepEqual(context.characterPersistence.getCharacter("char-equip-inactive-001").equipment, {});
+  }, results);
+
+  runTest("unequip_request_targets_account_active_character_inventory", () => {
+    const context = createContext({
+      player_id: "player-unequip-active-001",
+      character_id: "char-unequip-inactive-001",
+      inventory_id: "inv-unequip-inactive-001",
+      account_id: "account-unequip-active-001",
+      active_character_id: "char-unequip-active-001",
+      equipment: {},
+      equipment_items: [],
+      additional_characters: [{
+        character_id: "char-unequip-active-001",
+        account_id: "account-unequip-active-001",
+        player_id: "player-unequip-active-001",
+        name: "Active Unequip Hero",
+        inventory_id: "inv-unequip-active-001",
+        equipment: {
+          main_hand: "item-active-unequip-001"
+        }
+      }],
+      additional_inventories: [{
+        inventory_id: "inv-unequip-active-001",
+        owner_type: "player",
+        owner_id: "player-unequip-active-001",
+        equipment_items: [{
+          item_id: "item-active-unequip-001",
+          quantity: 1,
+          owner_player_id: "player-unequip-active-001",
+          metadata: {
+            equipped: true,
+            equipped_slot: "main_hand"
+          }
+        }]
+      }]
+    });
+
+    const out = processUnequipRequest({
+      context,
+      player_id: "player-unequip-active-001",
+      item_id: "item-active-unequip-001",
+      slot: "main_hand"
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.character.character_id, "char-unequip-active-001");
+    assert.equal(context.characterPersistence.getCharacter("char-unequip-active-001").equipment.main_hand, null);
+    assert.deepEqual(context.characterPersistence.getCharacter("char-unequip-inactive-001").equipment, {});
+  }, results);
+
+  runTest("equip_request_falls_back_to_owned_character_when_active_character_id_is_stale", () => {
+    const context = createContext({
+      player_id: "player-equip-stale-001",
+      character_id: "char-equip-stale-inactive-001",
+      inventory_id: "inv-equip-stale-inactive-001",
+      account_id: "account-equip-stale-001",
+      active_character_id: "char-equip-missing-001",
+      equipment_items: [],
+      additional_characters: [{
+        character_id: "char-equip-stale-owned-001",
+        account_id: "account-equip-stale-001",
+        player_id: "player-equip-stale-001",
+        name: "Owned Fallback Equip Hero",
+        inventory_id: "inv-equip-stale-owned-001",
+        equipment: {}
+      }],
+      additional_inventories: [{
+        inventory_id: "inv-equip-stale-owned-001",
+        owner_type: "player",
+        owner_id: "player-equip-stale-001",
+        equipment_items: [{
+          item_id: "item-stale-equip-001",
+          quantity: 1,
+          owner_player_id: "player-equip-stale-001",
+          metadata: {}
+        }]
+      }]
+    });
+    const inactiveCharacter = context.characterPersistence.getCharacter("char-equip-stale-inactive-001");
+    context.characterPersistence.saveCharacter({
+      ...inactiveCharacter,
+      account_id: "account-other-equip-001",
+      player_id: "player-other-equip-001"
+    });
+
+    const out = processEquipRequest({
+      context,
+      player_id: "player-equip-stale-001",
+      item_id: "item-stale-equip-001",
+      slot: "main_hand"
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.character.character_id, "char-equip-stale-owned-001");
+    assert.equal(context.characterPersistence.getCharacter("char-equip-stale-owned-001").equipment.main_hand, "item-stale-equip-001");
+    assert.deepEqual(context.characterPersistence.getCharacter("char-equip-stale-inactive-001").equipment, {});
+  }, results);
+
+  runTest("unequip_request_falls_back_to_owned_character_when_active_character_id_is_stale", () => {
+    const context = createContext({
+      player_id: "player-unequip-stale-001",
+      character_id: "char-unequip-stale-inactive-001",
+      inventory_id: "inv-unequip-stale-inactive-001",
+      account_id: "account-unequip-stale-001",
+      active_character_id: "char-unequip-missing-001",
+      equipment: {},
+      equipment_items: [],
+      additional_characters: [{
+        character_id: "char-unequip-stale-owned-001",
+        account_id: "account-unequip-stale-001",
+        player_id: "player-unequip-stale-001",
+        name: "Owned Fallback Unequip Hero",
+        inventory_id: "inv-unequip-stale-owned-001",
+        equipment: {
+          main_hand: "item-stale-unequip-001"
+        }
+      }],
+      additional_inventories: [{
+        inventory_id: "inv-unequip-stale-owned-001",
+        owner_type: "player",
+        owner_id: "player-unequip-stale-001",
+        equipment_items: [{
+          item_id: "item-stale-unequip-001",
+          quantity: 1,
+          owner_player_id: "player-unequip-stale-001",
+          metadata: {
+            equipped: true,
+            equipped_slot: "main_hand"
+          }
+        }]
+      }]
+    });
+    const inactiveCharacter = context.characterPersistence.getCharacter("char-unequip-stale-inactive-001");
+    context.characterPersistence.saveCharacter({
+      ...inactiveCharacter,
+      account_id: "account-other-unequip-001",
+      player_id: "player-other-unequip-001"
+    });
+
+    const out = processUnequipRequest({
+      context,
+      player_id: "player-unequip-stale-001",
+      item_id: "item-stale-unequip-001",
+      slot: "main_hand"
+    });
+
+    assert.equal(out.ok, true);
+    assert.equal(out.payload.character.character_id, "char-unequip-stale-owned-001");
+    assert.equal(context.characterPersistence.getCharacter("char-unequip-stale-owned-001").equipment.main_hand, null);
+    assert.deepEqual(context.characterPersistence.getCharacter("char-unequip-stale-inactive-001").equipment, {});
+  }, results);
+
+  runTest("equip_request_fails_cleanly_when_player_has_no_character", () => {
+    const context = createContext({
+      player_id: "player-no-character-equip-001"
+    });
+    context.characterPersistence = {
+      listCharacters() {
+        return {
+          ok: true,
+          payload: {
+            characters: []
+          }
+        };
+      }
+    };
+    context.accountService = null;
+
+    const out = processEquipRequest({
+      context,
+      player_id: "player-no-character-equip-001",
+      item_id: "item-equip-consistency-001",
+      slot: "main_hand"
+    });
+
+    assert.equal(out.ok, false);
+    assert.equal(out.event_type, "player_equip_failed");
+    assert.equal(out.error, "character not found for player");
+  }, results);
+
+  runTest("unequip_request_fails_cleanly_when_player_has_no_character", () => {
+    const context = createContext({
+      player_id: "player-no-character-unequip-001"
+    });
+    context.characterPersistence = {
+      listCharacters() {
+        return {
+          ok: true,
+          payload: {
+            characters: []
+          }
+        };
+      }
+    };
+    context.accountService = null;
+
+    const out = processUnequipRequest({
+      context,
+      player_id: "player-no-character-unequip-001",
+      item_id: "item-equip-consistency-001",
+      slot: "main_hand"
+    });
+
+    assert.equal(out.ok, false);
+    assert.equal(out.event_type, "player_unequip_failed");
+    assert.equal(out.error, "character not found for player");
   }, results);
 
   runTest("character_save_failure_rolls_back_inventory_for_equip", () => {

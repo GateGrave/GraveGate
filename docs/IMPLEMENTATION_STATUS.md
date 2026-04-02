@@ -1,6 +1,6 @@
 # GateGrave Implementation Status
 
-Last updated: 2026-03-20
+Last updated: 2026-04-02
 
 This is the working roadmap for the actual repo state.
 
@@ -53,24 +53,37 @@ Current goals in progress:
 5. Keep button-first UX where it removes real player friction
 
 Most recent completed chunk:
-- Combat depth and spell-library work continued with one narrow canonical cast-path integration edit
-  - persistent battlefield spell effects now use canonical `combat.active_effects`
-  - ongoing zones now support obscuration, difficult terrain, on-enter damage, on-enter conditions, and start-of-turn damage/conditions
-  - `darkness`, `moonbeam`, `stinking_cloud`, `cloudkill`, and `ice_storm` now resolve through the same persistent-zone model
-  - obscuration-zone spells `fog_cloud` and `darkness` are now marked supported in canonical content/status because they already resolve through central heavily obscured combat hooks
-  - `wind_wall` is now supported and alpha-selectable on the canonical combat path
-  - `wall_of_fire` now accepts player-facing `hazard_side` on the canonical `/cast` path and can fall back to target-position placement for runtime/slash flow, while honestly remaining `partial`
-  - the canonical spell library now contains 238 entries total
-  - 132 imported SRD spells are present as canonical content but hidden from current alpha spell selection
-  - every spell entry now declares `metadata.runtime_support`
-  - imported spells `chain_lightning`, `mass_cure_wounds`, `heal`, `hold_monster`, `greater_invisibility`, `stoneskin`, `protection_from_energy`, `death_ward`, `stinking_cloud`, `cloudkill`, `spike_growth`, `ice_storm`, `sleet_storm`, `slow`, `haste`, `true_strike`, and `color_spray` are now supported and alpha-selectable through the canonical combat cast path
+- Character/player-state alpha cleanup on the canonical start -> profile -> inventory -> equip flow
+  - `/start` now exposes background selection and persists it truthfully
+  - each newly created character now gets its own inventory and becomes the active character immediately
+  - `/start` now returns honest roster slot status and gives direct handoff buttons into profile and inventory
+  - `/profile`, `/inventory`, and equip/unequip now all resolve through the same active-character/account path
+  - players can switch active character from the profile view instead of relying on admin-only tooling
+  - inventory now supports player-facing active-character switching on the same canonical account path
+  - fresh-account `/profile` and `/inventory` empty states now reply safely
+  - profile and inventory now surface roster and slot-status truth directly in player-facing readback
+  - stale `active_character_id` account state now falls back cleanly to an owned character for reads and equipment actions
+  - repeated character creation is now covered so the newest character stays aligned across profile, inventory, equip, and unequip
+  - `/start` now carries canonical profile plus inventory snapshots so the post-create handoff buttons can open the correct character views without immediate rescue reads
+  - equip/unequip mutations now return canonical inventory snapshot data so the gateway can stay aligned on the same active character without depending on a second rescue read
+  - active-character switches now also return canonical profile plus inventory snapshot data so profile and inventory views can update from the mutation response itself instead of immediately reloading
+  - identify/attune/unattune now also carry canonical profile plus inventory snapshot data so magical-item mutations stay aligned to the same active character state
+  - profile-to-inventory and inventory-back-to-profile handoff now reuse cached canonical snapshots when the active character still matches, reducing avoidable runtime reloads in the supported player flow
+  - inventory refresh and inventory mutations now also refresh the profile-linked inventory snapshot, so profile can reopen the updated inventory state even after the inventory view cache is gone
+  - profile and inventory now both expose a dedicated character hub/roster screen with switch controls and direct handoff into inventory/equipment for multi-character accounts
+  - the gateway character loop now uses shared ensure/load helpers for profile, inventory, and roster views instead of scattered branch-specific recovery paths
+  - `/start` now routes multi-character accounts into Character Hub while keeping first-character handoff simple with direct profile/inventory buttons
+  - Character Hub now explains why it appeared, shows clearer next actions, and supports direct hub -> profile -> inventory/equipment navigation
+  - Character Hub now caches linked profile and inventory snapshots, so hub back/open flows can recover the correct active-character state without immediate rescue reads when the linked snapshot still matches
+  - consumed `/start` wizard controls now fail cleanly after character creation instead of silently rebuilding stale wizard state
+  - `start:complete:*` handoff buttons now route through the profile/hub flow directly instead of falling back into the generic start wizard path
 
 Next recommended resume point:
-1. Continue resolver-family spell work rather than more bulk import
-2. Take the next focused family as broader control/targeting mechanics (`slow` and similar partial spells)
-3. Keep imported spells marked with honest `supported` / `partial` / `unsupported` support metadata
-4. Keep imported non-alpha spells hidden from class/player selection until the matching resolver slice exists
-5. Only widen combat logic when a central spell-mechanic class justifies its own focused slice
+1. Finish the branch truth / smoke / handoff pass for the character-player state slice as one coherent checkpoint
+2. Keep `docs/IMPLEMENTATION_STATUS.md` aligned with the current character-player state truth instead of older combat resume notes
+3. If resuming feature work after this slice, return to the current main-branch combat/dungeon-map usability lane
+4. Keep imported spells marked with honest `supported` / `partial` / `unsupported` support metadata
+5. Keep imported non-alpha spells hidden from class/player selection until the matching resolver slice exists
 
 ## Core Architecture
 
@@ -86,8 +99,20 @@ Next recommended resume point:
 
 - [x] `/start` character creation
 - [x] Button-driven race and gestalt track selection
+- [x] Button-driven background selection in `/start`
 - [x] 5e point-buy start flow
 - [x] `/profile` summary
+- [x] Active-character profile switching
+  - Switch responses now carry a full profile snapshot for the new active character
+- [x] Dedicated character hub / roster viewer
+  - Available from both profile and inventory
+  - Supports active-character switching and direct handoff into inventory/equipment
+  - `/start` can now hand multi-character accounts into the hub directly
+  - Hub now supports direct profile open in addition to back-navigation
+- [x] Newest created character becomes active immediately
+- [x] Fresh-account empty profile state replies safely
+- [x] `/start` completion handoff into profile/inventory
+- [x] Profile roster and slot-status readback
 - [~] Styled character sheet embed
 - [x] Background content loading
 - [x] Gestalt start foundation
@@ -111,9 +136,18 @@ Next recommended resume point:
 
 - [x] Canonical inventory persistence and mutation helpers
 - [x] `/inventory` summary
+- [x] Active-character inventory consistency
+- [x] Equip/unequip stays aligned to created or active character state
+- [x] Fresh-account empty inventory state replies safely
+- [x] Inventory roster and slot-status readback
+- [x] Inventory-side active-character switching
+  - Inventory switches now consume the switched character snapshot directly when runtime provides it
+- [x] Inventory to character-hub navigation
 - [x] Reward-to-inventory grant path
 - [x] Currency on inventory in supported slice
 - [x] Equipment/equip/unequip flow
+  - Equip/unequip replies now carry the same inventory/roster/slot-status snapshot shape as `/inventory`
+- [x] Per-character inventory binding on `/start`
 - [x] Magical item data and support foundations
 - [x] Attuned item gameplay loop
 - [x] Passive magical item effect pipeline
@@ -138,6 +172,11 @@ Next recommended resume point:
 - [~] Inventory screen with richer button UX
   - Magical tab now exposes button-driven identify/attune/unattune/use actions
   - Equipment tab now exposes button-driven equip/unequip actions
+  - Inventory now shows the active character directly in controls/readback and can switch to alternate owned characters
+  - Equipment actions now keep the inventory view coherent from the mutation response itself, including active-character and inventory identity
+  - Profile-to-inventory and inventory-back-to-profile handoff now reuse cached canonical snapshots when the same active character remains in focus
+  - Inventory refresh and inventory mutations now keep the profile-linked inventory snapshot fresh for the same active character
+  - Character Hub can now reopen linked inventory state directly when the roster cache already holds the active character snapshot
 
 ## Combat Foundation
 
@@ -462,6 +501,7 @@ Next recommended resume point:
 - [x] Reduced command friction for identify/attune/unattune during normal play
 - [x] Player-usable crafting and NPC shop loops
 - [x] Styled profile and button-driven inventory viewer
+- [x] Active-character reads now stay aligned across `/start`, `/profile`, `/inventory`, and equip/unequip
 - [x] Player-usable direct trade loop with button actions
 - [x] Trade proposal wizard for common item-for-gold trades
 - [x] Shrine and lore exploration-side consequences on the canonical interact path

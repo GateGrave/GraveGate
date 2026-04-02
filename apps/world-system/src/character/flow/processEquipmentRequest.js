@@ -1,5 +1,6 @@
 "use strict";
 
+const { resolveActiveCharacterForPlayer } = require("../../account/resolveActiveCharacter");
 const { CharacterService } = require("../character.service");
 const { CharacterManager, InMemoryCharacterStore } = require("../character.manager");
 const { updateCharacterEquipment } = require("./updateCharacterEquipment");
@@ -33,30 +34,6 @@ function failure(eventType, message, payload) {
     payload: payload || {},
     error: message
   };
-}
-
-function loadCharacters(context) {
-  if (context.characterPersistence && typeof context.characterPersistence.listCharacters === "function") {
-    const listed = context.characterPersistence.listCharacters();
-    if (!listed.ok) {
-      return failure("equipment_request_failed", listed.error || "failed to load characters from persistence");
-    }
-    return success("equipment_characters_loaded", {
-      characters: Array.isArray(listed.payload.characters) ? listed.payload.characters : []
-    });
-  }
-
-  if (context.characterRepository && typeof context.characterRepository.listStoredCharacters === "function") {
-    const listed = context.characterRepository.listStoredCharacters();
-    if (!listed.ok) {
-      return failure("equipment_request_failed", listed.error || "failed to load characters from repository");
-    }
-    return success("equipment_characters_loaded", {
-      characters: Array.isArray(listed.payload.characters) ? listed.payload.characters : []
-    });
-  }
-
-  return failure("equipment_request_failed", "character persistence/repository is not available");
 }
 
 function saveCharacter(context, character) {
@@ -204,6 +181,22 @@ function validateOwnership(entry, inventory, playerId) {
   return false;
 }
 
+function resolveEquipmentCharacter(context, playerId) {
+  const resolved = resolveActiveCharacterForPlayer(context, playerId);
+  if (!resolved.ok) {
+    return failure("equipment_request_failed", resolved.error || "failed to resolve active character");
+  }
+  const character = resolved.payload && resolved.payload.character ? resolved.payload.character : null;
+  if (!character) {
+    return failure("equipment_request_failed", "character not found for player", {
+      player_id: String(playerId || "")
+    });
+  }
+  return success("equipment_character_resolved", {
+    character: clone(character)
+  });
+}
+
 function processEquipRequest(input) {
   const data = input || {};
   const context = data.context || {};
@@ -221,19 +214,11 @@ function processEquipRequest(input) {
     return failure("player_equip_failed", "slot is required");
   }
 
-  const loadedCharacters = loadCharacters(context);
-  if (!loadedCharacters.ok) {
-    return failure("player_equip_failed", loadedCharacters.error);
+  const resolvedCharacterOut = resolveEquipmentCharacter(context, playerId);
+  if (!resolvedCharacterOut.ok) {
+    return failure("player_equip_failed", resolvedCharacterOut.error, resolvedCharacterOut.payload);
   }
-
-  const character = loadedCharacters.payload.characters.find((candidate) => {
-    return String(candidate.player_id || "") === String(playerId);
-  });
-  if (!character) {
-    return failure("player_equip_failed", "character not found for player", {
-      player_id: String(playerId)
-    });
-  }
+  const character = resolvedCharacterOut.payload.character;
   if (!character.inventory_id) {
     return failure("player_equip_failed", "character has no linked inventory", {
       character_id: character.character_id || null
@@ -370,19 +355,11 @@ function processUnequipRequest(input) {
     return failure("player_unequip_failed", "slot is required");
   }
 
-  const loadedCharacters = loadCharacters(context);
-  if (!loadedCharacters.ok) {
-    return failure("player_unequip_failed", loadedCharacters.error);
+  const resolvedCharacterOut = resolveEquipmentCharacter(context, playerId);
+  if (!resolvedCharacterOut.ok) {
+    return failure("player_unequip_failed", resolvedCharacterOut.error, resolvedCharacterOut.payload);
   }
-
-  const character = loadedCharacters.payload.characters.find((candidate) => {
-    return String(candidate.player_id || "") === String(playerId);
-  });
-  if (!character) {
-    return failure("player_unequip_failed", "character not found for player", {
-      player_id: String(playerId)
-    });
-  }
+  const character = resolvedCharacterOut.payload.character;
   if (!character.inventory_id) {
     return failure("player_unequip_failed", "character has no linked inventory", {
       character_id: character.character_id || null

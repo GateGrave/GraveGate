@@ -206,7 +206,18 @@ async function runGatewayRuntimeIntegrationTests() {
                   ok: true,
                   data: {
                     profile_found: true,
+                    active_character_id: "char-profile-hero-001",
+                    character_roster: [
+                      { character_id: "char-profile-hero-001", name: "Profile Hero", level: 5, is_active: true },
+                      { character_id: "char-profile-alt-001", name: "Profile Mage", level: 4, is_active: false }
+                    ],
+                    slot_status: {
+                      used_slots: 2,
+                      remaining_slots: 1,
+                      max_character_slots: 3
+                    },
                     character: {
+                      character_id: "char-profile-hero-001",
                       name: "Profile Hero",
                       race: "human",
                       class: "fighter",
@@ -292,14 +303,67 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(interaction._replyCalls[0].embeds.length, 1);
     assert.equal(interaction._replyCalls[0].embeds[0].data.title, "Profile Hero | Hunter Record");
     assert.equal(interaction._replyCalls[0].embeds[0].data.description.includes("Lv.5"), true);
+    assert.equal(interaction._replyCalls[0].embeds[0].data.description.includes("Active: Profile Hero"), true);
     assert.equal(Array.isArray(interaction._replyCalls[0].components), true);
-    assert.equal(interaction._replyCalls[0].components.length, 1);
+    assert.equal(interaction._replyCalls[0].components.length, 2);
+    assert.equal(
+      interaction._replyCalls[0].components[0].components.some((button) => button.data && button.data.label === "Active: Profile Hero"),
+      true
+    );
+    assert.equal(
+      interaction._replyCalls[0].components[1].components.some((button) => button.data && String(button.data.label).startsWith("Switch to ")),
+      true
+    );
     assert.equal(interaction._replyCalls[0].embeds[0].data.fields.some((field) => field.name === "Path"), true);
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields.some((field) => field.name === "Roster" && String(field.value).includes(">> Profile Hero")), true);
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields.some((field) => field.name === "Roster Status" && String(field.value).includes("Used Slots: 2")), true);
     assert.equal(interaction._replyCalls[0].embeds[0].data.fields.some((field) => String(field.value).includes("Attunement: 1/3")), true);
     assert.equal(interaction._replyCalls[0].embeds[0].data.fields.some((field) => field.name === "Combat Core" && String(field.value).includes("HP: 38/42 (+5 temp)")), true);
     assert.equal(interaction._replyCalls[0].embeds[0].data.fields.some((field) => field.name === "Saving Throws" && String(field.value).includes("STR +5")), true);
     assert.equal(interaction._replyCalls[0].embeds[0].data.fields.some((field) => field.name === "Origin" && String(field.value).includes("soldier")), true);
     assert.equal(interaction._replyCalls[0].embeds[0].data.fields.some((field) => field.name === "Relic Resonance" && String(field.value).includes("Ring of Protection")), true);
+  }, results);
+
+  await runTest("gateway_profile_empty_state_replies_cleanly_for_player_with_no_characters", async () => {
+    let profileRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+        }
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "profile",
+                  ok: true,
+                  data: {
+                    profile_found: false
+                  },
+                  error: null
+                }
+              }
+            ],
+            events_processed: [event],
+            final_state: {}
+          },
+          error: null
+        };
+      }
+    };
+
+    const interaction = createInteraction("profile", [], "player-gateway-profile-empty-001");
+    const out = await handleGatewayInteraction(interaction, runtime);
+
+    assert.equal(out.ok, true);
+    assert.equal(profileRequests, 1);
+    assert.equal(interaction._replyCalls.length, 1);
+    assert.equal(interaction._replyCalls[0].content, "No character profile found for this player. Run `/start name:<character name>` to create one, then reopen `/profile` or Character Hub.");
+    assert.equal(interaction._replyCalls[0].embeds[0].data.title, "No Character Yet");
   }, results);
 
   await runTest("gateway_routes_feat_command_to_runtime_path", async () => {
@@ -371,6 +435,9 @@ async function runGatewayRuntimeIntegrationTests() {
                     ok: true,
                     data: {
                       profile_found: true,
+                      character_roster: [
+                        { character_id: "char-profile-back-001", name: "Profile Hero", level: 5, is_active: true }
+                      ],
                       character: {
                         name: "Profile Hero",
                         race: "human",
@@ -411,6 +478,11 @@ async function runGatewayRuntimeIntegrationTests() {
                   ok: true,
                   data: {
                     inventory_found: true,
+                    character: {
+                      character_id: "char-profile-back-001",
+                      name: "Profile Hero",
+                      level: 5
+                    },
                     inventory: {
                       inventory_id: "inv-profile-open-001",
                       currency: { gold: 25 },
@@ -460,7 +532,192 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(inventoryRequests, 1);
     assert.equal(button._updateCalls.length, 1);
     assert.equal(button._updateCalls[0].embeds[0].data.title, "Dimensional Pack");
+    assert.equal(String(button._updateCalls[0].embeds[0].data.description).includes("Profile Hero"), true);
     assert.equal(button._updateCalls[0].components.length, 2);
+  }, results);
+
+  await runTest("gateway_profile_button_replies_cleanly_when_inventory_does_not_exist", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_profile_requested") {
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      character_roster: [
+                        { character_id: "char-profile-empty-inventory-001", name: "Profile Hero", level: 5, is_active: true }
+                      ],
+                      character: {
+                        character_id: "char-profile-empty-inventory-001",
+                        name: "Profile Hero",
+                        race: "human",
+                        class: "fighter",
+                        level: 5,
+                        xp: 650,
+                        stats: {
+                          strength: 15,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 10,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "inventory",
+                  ok: true,
+                  data: {
+                    inventory_found: false
+                  },
+                  error: null
+                }
+              }
+            ],
+            events_processed: [event],
+            final_state: {}
+          },
+          error: null
+        };
+      }
+    };
+
+    const interaction = createInteraction("profile", [], "player-gateway-profile-empty-inventory-001");
+    await handleGatewayInteraction(interaction, runtime);
+
+    const button = createButtonInteraction("profile:view:inventory", "player-gateway-profile-empty-inventory-001");
+    const out = await handleGatewayInteraction(button, runtime);
+    assert.equal(out.ok, true);
+    assert.equal(button._replyCalls.length, 1);
+    assert.equal(button._replyCalls[0].content, "No inventory found for this player. Run `/start name:<character name>` first, then reopen `/inventory` or Character Hub.");
+  }, results);
+
+  await runTest("gateway_profile_refresh_button_reloads_profile_view", async () => {
+    let profileRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      character_roster: [
+                        { character_id: "char-profile-001", name: "Profile Hero", level: 5, is_active: true },
+                        { character_id: "char-profile-002", name: "Reserve Hero", level: 3, is_active: false }
+                      ],
+                      character: {
+                        name: profileRequests === 1 ? "Profile Hero" : "Profile Hero Refreshed",
+                        race: "human",
+                        class: "fighter",
+                        level: 5,
+                        xp: 650,
+                        stats: {
+                          strength: 15,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 10,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const interaction = createInteraction("profile", [], "player-gateway-profile-refresh-001");
+    await handleGatewayInteraction(interaction, runtime);
+
+    const refreshButton = createButtonInteraction("profile:view:refresh", "player-gateway-profile-refresh-001");
+    const out = await handleGatewayInteraction(refreshButton, runtime);
+    assert.equal(out.ok, true);
+    assert.equal(profileRequests, 2);
+    assert.equal(refreshButton._updateCalls.length, 1);
+    assert.equal(refreshButton._updateCalls[0].embeds[0].data.title, "Profile Hero Refreshed | Hunter Record");
+  }, results);
+
+  await runTest("gateway_profile_refresh_button_replies_cleanly_when_no_profile_exists", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent() {
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "profile",
+                  ok: true,
+                  data: {
+                    profile_found: false
+                  },
+                  error: null
+                }
+              }
+            ],
+            events_processed: [],
+            final_state: {}
+          },
+          error: null
+        };
+      }
+    };
+
+    const interaction = createInteraction("profile", [], "player-gateway-profile-refresh-empty-001");
+    await handleGatewayInteraction(interaction, runtime);
+
+    const refreshButton = createButtonInteraction("profile:view:refresh", "player-gateway-profile-refresh-empty-001");
+    const out = await handleGatewayInteraction(refreshButton, runtime);
+    assert.equal(out.ok, true);
+    assert.equal(refreshButton._replyCalls.length, 1);
+    assert.equal(refreshButton._replyCalls[0].content, "No character profile found for this player. Run `/start name:<character name>` to create one, then reopen `/profile` or Character Hub.");
   }, results);
 
   await runTest("gateway_inventory_back_button_returns_to_profile_view", async () => {
@@ -518,6 +775,11 @@ async function runGatewayRuntimeIntegrationTests() {
                   ok: true,
                   data: {
                     inventory_found: true,
+                    character: {
+                      character_id: "char-gateway-inventory-001",
+                      name: "Inventory Hero",
+                      level: 5
+                    },
                     inventory: {
                       inventory_id: "inv-profile-back-001",
                       currency: { gold: 25 },
@@ -571,6 +833,2283 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(backButton._updateCalls[0].components.length, 1);
   }, results);
 
+  await runTest("gateway_inventory_button_replies_cleanly_when_no_active_inventory_view_exists", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent() {
+        throw new Error("runtime should not be called without an inventory view");
+      }
+    };
+
+    const button = createButtonInteraction("inventory:view:summary", "player-gateway-inventory-missing-view-001");
+    const out = await handleGatewayInteraction(button, runtime);
+    assert.equal(out.ok, true);
+    assert.equal(button._replyCalls.length, 1);
+    assert.equal(button._replyCalls[0].content, "No active inventory view found. Run /inventory again.");
+  }, results);
+
+  await runTest("gateway_inventory_back_button_reload_falls_back_to_canonical_profile_read", async () => {
+    let profileRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      character_roster: [
+                        { character_id: "char-profile-open-001", name: "Profile Hero", level: 5, is_active: true }
+                      ],
+                      character: {
+                        name: "Fallback Hero",
+                        race: "human",
+                        class: "fighter",
+                        level: 5,
+                        xp: 650,
+                        stats: {
+                          strength: 15,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 10,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "inventory",
+                  ok: true,
+                  data: {
+                    inventory_found: true,
+                    character: {
+                      name: "Fallback Hero",
+                      character_id: "char-fallback-001"
+                    },
+                    inventory: {
+                      inventory_id: "inv-fallback-001",
+                      currency: { gold: 10 },
+                      stackable_count: 1,
+                      equipment_count: 0,
+                      quest_count: 0,
+                      magical_count: 0,
+                      unidentified_count: 0,
+                      attuned_count: 0,
+                      attunement_slots: 3,
+                      equipment_preview: [],
+                      stackable_preview: [{ item_id: "potion", item_name: "Potion", quantity: 1 }],
+                      magical_preview: [],
+                      unidentified_preview: [],
+                      attuned_items: []
+                    }
+                  },
+                  error: null
+                }
+              }
+            ],
+            events_processed: [event],
+            final_state: {}
+          },
+          error: null
+        };
+      }
+    };
+
+    const inventoryInteraction = createInteraction("inventory", [], "player-gateway-profile-fallback-001");
+    await handleGatewayInteraction(inventoryInteraction, runtime);
+
+    const backButton = createButtonInteraction("inventory:view:profile", "player-gateway-profile-fallback-001");
+    const out = await handleGatewayInteraction(backButton, runtime);
+    assert.equal(out.ok, true);
+    assert.equal(profileRequests, 1);
+    assert.equal(backButton._updateCalls.length, 1);
+    assert.equal(backButton._updateCalls[0].embeds[0].data.title, "Fallback Hero | Hunter Record");
+  }, results);
+
+  await runTest("gateway_inventory_back_button_reuses_cached_profile_snapshot_after_direct_profile_and_inventory_commands", async () => {
+    let profileRequests = 0;
+    let inventoryRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      active_character_id: "char-linked-profile-001",
+                      character_roster: [
+                        { character_id: "char-linked-profile-001", name: "Linked Hero", level: 3, is_active: true }
+                      ],
+                      character: {
+                        character_id: "char-linked-profile-001",
+                        name: "Linked Hero",
+                        race: "human",
+                        class: "fighter",
+                        level: 3,
+                        xp: 150,
+                        inventory_id: "inv-linked-profile-001",
+                        stats: {
+                          strength: 14,
+                          dexterity: 12,
+                          constitution: 13,
+                          intelligence: 10,
+                          wisdom: 11,
+                          charisma: 8
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_inventory_requested") {
+          inventoryRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "inventory",
+                    ok: true,
+                    data: {
+                      inventory_found: true,
+                      active_character_id: "char-linked-profile-001",
+                      character_roster: [
+                        { character_id: "char-linked-profile-001", name: "Linked Hero", level: 3, is_active: true }
+                      ],
+                      character: {
+                        character_id: "char-linked-profile-001",
+                        name: "Linked Hero",
+                        level: 3
+                      },
+                      inventory: {
+                        inventory_id: "inv-linked-profile-001",
+                        currency: { gold: 18 },
+                        stackable_count: 1,
+                        equipment_count: 0,
+                        quest_count: 0,
+                        magical_count: 0,
+                        unidentified_count: 0,
+                        attuned_count: 0,
+                        attunement_slots: 3,
+                        equipment_preview: [],
+                        stackable_preview: [{ item_id: "ration", item_name: "Ration", quantity: 2 }],
+                        magical_preview: [],
+                        unidentified_preview: [],
+                        attuned_items: []
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const profileInteraction = createInteraction("profile", [], "player-gateway-profile-linked-back-001");
+    await handleGatewayInteraction(profileInteraction, runtime);
+
+    const inventoryInteraction = createInteraction("inventory", [], "player-gateway-profile-linked-back-001");
+    await handleGatewayInteraction(inventoryInteraction, runtime);
+
+    const backButton = createButtonInteraction("inventory:view:profile", "player-gateway-profile-linked-back-001");
+    const out = await handleGatewayInteraction(backButton, runtime);
+
+    assert.equal(out.ok, true);
+    assert.equal(profileRequests, 1);
+    assert.equal(inventoryRequests, 1);
+    assert.equal(backButton._updateCalls.length, 1);
+    assert.equal(backButton._updateCalls[0].embeds[0].data.title, "Linked Hero | Hunter Record");
+  }, results);
+
+  await runTest("gateway_profile_switch_button_updates_profile_to_new_active_character", async () => {
+    let profileRequests = 0;
+    let switchRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_set_active_character_requested") {
+          switchRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      active_character_updated: true,
+                      active_character_id: "char-profile-b-001",
+                      character_roster: [
+                        { character_id: "char-profile-a-001", name: "Profile Knight", level: 5, is_active: false },
+                        { character_id: "char-profile-b-001", name: "Profile Mage", level: 4, is_active: true }
+                      ],
+                      character: {
+                        character_id: "char-profile-b-001",
+                        name: "Profile Mage",
+                        race: "elf",
+                        class: "wizard",
+                        level: 4,
+                        xp: 400,
+                        stats: {
+                          strength: 8,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 16,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      },
+                      inventory_snapshot: {
+                        inventory_found: true,
+                        active_character_id: "char-profile-b-001",
+                        character_roster: [
+                          { character_id: "char-profile-a-001", name: "Profile Knight", level: 5, is_active: false },
+                          { character_id: "char-profile-b-001", name: "Profile Mage", level: 4, is_active: true }
+                        ],
+                        character: {
+                          character_id: "char-profile-b-001",
+                          name: "Profile Mage",
+                          level: 4
+                        },
+                        inventory: {
+                          inventory_id: "inv-profile-b-001",
+                          currency: { gold: 42 },
+                          stackable_count: 1,
+                          equipment_count: 1,
+                          quest_count: 0,
+                          magical_count: 1,
+                          unidentified_count: 0,
+                          attuned_count: 1,
+                          attunement_slots: 3,
+                          stackable_preview: [{ item_id: "scroll", item_name: "Arcane Scroll", quantity: 2 }],
+                          equipment_preview: [{ item_id: "wand", item_name: "Oak Wand" }],
+                          magical_preview: [{ item_id: "wand", item_name: "Oak Wand", effect_summary: ["Spell DC +1"] }],
+                          unidentified_preview: [],
+                          attuned_items: ["wand"]
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      character_roster: [
+                        { character_id: "char-profile-a-001", name: "Profile Knight", level: 5, is_active: profileRequests === 1 },
+                        { character_id: "char-profile-b-001", name: "Profile Mage", level: 4, is_active: profileRequests > 1 }
+                      ],
+                      character: {
+                        character_id: profileRequests === 1 ? "char-profile-a-001" : "char-profile-b-001",
+                        name: profileRequests === 1 ? "Profile Knight" : "Profile Mage",
+                        race: profileRequests === 1 ? "human" : "elf",
+                        class: profileRequests === 1 ? "fighter" : "wizard",
+                        level: profileRequests === 1 ? 5 : 4,
+                        xp: profileRequests === 1 ? 650 : 400,
+                        stats: {
+                          strength: profileRequests === 1 ? 15 : 8,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: profileRequests === 1 ? 10 : 16,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const interaction = createInteraction("profile", [], "player-gateway-profile-switch-001");
+    await handleGatewayInteraction(interaction, runtime);
+
+    const switchButton = createButtonInteraction("profile:view:switch:char-profile-b-001", "player-gateway-profile-switch-001");
+    const out = await handleGatewayInteraction(switchButton, runtime);
+    assert.equal(out.ok, true);
+    assert.equal(switchRequests, 1);
+    assert.equal(profileRequests, 1);
+    assert.equal(switchButton._updateCalls.length, 1);
+    assert.equal(switchButton._updateCalls[0].embeds[0].data.title, "Profile Mage | Hunter Record");
+    assert.equal(String(switchButton._updateCalls[0].content).includes("Active character switched to Profile Mage."), true);
+    assert.equal(
+      switchButton._updateCalls[0].components[0].components.some((button) => button.data && button.data.label === "Active: Profile Mage"),
+      true
+    );
+  }, results);
+
+  await runTest("gateway_profile_character_hub_opens_roster_view_from_profile", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type !== "player_profile_requested") {
+          throw new Error("unexpected event type " + event.event_type);
+        }
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "profile",
+                  ok: true,
+                  data: {
+                    profile_found: true,
+                    active_character_id: "char-hub-a-001",
+                    character_roster: [
+                      { character_id: "char-hub-a-001", name: "Hub Knight", level: 5, is_active: true },
+                      { character_id: "char-hub-b-001", name: "Hub Mage", level: 4, is_active: false }
+                    ],
+                    slot_status: {
+                      used_slots: 2,
+                      remaining_slots: 1,
+                      max_character_slots: 3
+                    },
+                    character: {
+                      character_id: "char-hub-a-001",
+                      name: "Hub Knight",
+                      race: "human",
+                      class: "fighter",
+                      level: 5,
+                      xp: 650,
+                      inventory_id: "inv-hub-a-001",
+                      stats: {
+                        strength: 15,
+                        dexterity: 12,
+                        constitution: 14,
+                        intelligence: 10,
+                        wisdom: 8,
+                        charisma: 13
+                      }
+                    }
+                  },
+                  error: null
+                }
+              }
+            ],
+            events_processed: [event],
+            final_state: {}
+          },
+          error: null
+        };
+      }
+    };
+
+    const interaction = createInteraction("profile", [], "player-gateway-roster-open-001");
+    await handleGatewayInteraction(interaction, runtime);
+
+    const hubButton = createButtonInteraction("profile:view:roster", "player-gateway-roster-open-001");
+    const out = await handleGatewayInteraction(hubButton, runtime);
+
+    assert.equal(out.ok, true);
+    assert.equal(hubButton._updateCalls.length, 1);
+    assert.equal(hubButton._updateCalls[0].embeds[0].data.title, "Character Roster");
+    assert.equal(
+      hubButton._updateCalls[0].components[0].components.some((button) => button.data && button.data.custom_id === "roster:view:open_inventory"),
+      true
+    );
+  }, results);
+
+  await runTest("gateway_inventory_character_hub_opens_roster_view_from_inventory", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_inventory_requested") {
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "inventory",
+                    ok: true,
+                    data: {
+                      inventory_found: true,
+                      active_character_id: "char-inventory-hub-a-001",
+                      character_roster: [
+                        { character_id: "char-inventory-hub-a-001", name: "Hub Ranger", level: 5, is_active: true },
+                        { character_id: "char-inventory-hub-b-001", name: "Hub Cleric", level: 4, is_active: false }
+                      ],
+                      slot_status: {
+                        used_slots: 2,
+                        remaining_slots: 1,
+                        max_character_slots: 3
+                      },
+                      character: {
+                        character_id: "char-inventory-hub-a-001",
+                        name: "Hub Ranger",
+                        level: 5
+                      },
+                      inventory: {
+                        inventory_id: "inv-inventory-hub-a-001",
+                        currency: { gold: 20 },
+                        stackable_count: 1,
+                        equipment_count: 0,
+                        quest_count: 0,
+                        magical_count: 0,
+                        unidentified_count: 0,
+                        attuned_count: 0,
+                        attunement_slots: 3,
+                        stackable_preview: [{ item_id: "ration", item_name: "Ration", quantity: 2 }],
+                        equipment_preview: [],
+                        magical_preview: [],
+                        unidentified_preview: [],
+                        attuned_items: []
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_profile_requested") {
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      active_character_id: "char-inventory-hub-a-001",
+                      character_roster: [
+                        { character_id: "char-inventory-hub-a-001", name: "Hub Ranger", level: 5, is_active: true },
+                        { character_id: "char-inventory-hub-b-001", name: "Hub Cleric", level: 4, is_active: false }
+                      ],
+                      slot_status: {
+                        used_slots: 2,
+                        remaining_slots: 1,
+                        max_character_slots: 3
+                      },
+                      character: {
+                        character_id: "char-inventory-hub-a-001",
+                        name: "Hub Ranger",
+                        race: "elf",
+                        class: "ranger",
+                        level: 5,
+                        xp: 650,
+                        inventory_id: "inv-inventory-hub-a-001",
+                        stats: {
+                          strength: 12,
+                          dexterity: 16,
+                          constitution: 14,
+                          intelligence: 10,
+                          wisdom: 13,
+                          charisma: 8
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const interaction = createInteraction("inventory", [], "player-gateway-inventory-roster-open-001");
+    await handleGatewayInteraction(interaction, runtime);
+
+    const hubButton = createButtonInteraction("inventory:view:roster", "player-gateway-inventory-roster-open-001");
+    const out = await handleGatewayInteraction(hubButton, runtime);
+
+    assert.equal(out.ok, true);
+    assert.equal(hubButton._updateCalls.length, 1);
+    assert.equal(hubButton._updateCalls[0].embeds[0].data.title, "Character Roster");
+    assert.equal(
+      hubButton._updateCalls[0].components[0].components.some((button) => button.data && button.data.custom_id === "roster:view:inventory"),
+      true
+    );
+  }, results);
+
+  await runTest("gateway_character_hub_switch_and_open_equipment_uses_switched_character_inventory", async () => {
+    let inventoryRequests = 0;
+    let switchRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_profile_requested") {
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      active_character_id: "char-hub-flow-a-001",
+                      character_roster: [
+                        { character_id: "char-hub-flow-a-001", name: "Hub Knight", level: 5, is_active: true },
+                        { character_id: "char-hub-flow-b-001", name: "Hub Mage", level: 4, is_active: false }
+                      ],
+                      slot_status: {
+                        used_slots: 2,
+                        remaining_slots: 1,
+                        max_character_slots: 3
+                      },
+                      character: {
+                        character_id: "char-hub-flow-a-001",
+                        name: "Hub Knight",
+                        race: "human",
+                        class: "fighter",
+                        level: 5,
+                        xp: 650,
+                        inventory_id: "inv-hub-flow-a-001",
+                        stats: {
+                          strength: 15,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 10,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_set_active_character_requested") {
+          switchRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      active_character_updated: true,
+                      active_character_id: "char-hub-flow-b-001",
+                      character_roster: [
+                        { character_id: "char-hub-flow-a-001", name: "Hub Knight", level: 5, is_active: false },
+                        { character_id: "char-hub-flow-b-001", name: "Hub Mage", level: 4, is_active: true }
+                      ],
+                      slot_status: {
+                        used_slots: 2,
+                        remaining_slots: 1,
+                        max_character_slots: 3
+                      },
+                      character: {
+                        character_id: "char-hub-flow-b-001",
+                        name: "Hub Mage",
+                        race: "elf",
+                        class: "wizard",
+                        level: 4,
+                        xp: 400,
+                        inventory_id: "inv-hub-flow-b-001",
+                        stats: {
+                          strength: 8,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 16,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      },
+                      inventory_snapshot: {
+                        inventory_found: true,
+                        active_character_id: "char-hub-flow-b-001",
+                        character_roster: [
+                          { character_id: "char-hub-flow-a-001", name: "Hub Knight", level: 5, is_active: false },
+                          { character_id: "char-hub-flow-b-001", name: "Hub Mage", level: 4, is_active: true }
+                        ],
+                        character: {
+                          character_id: "char-hub-flow-b-001",
+                          name: "Hub Mage",
+                          level: 4
+                        },
+                        inventory: {
+                          inventory_id: "inv-hub-flow-b-001",
+                          currency: { gold: 42 },
+                          stackable_count: 1,
+                          equipment_count: 1,
+                          quest_count: 0,
+                          magical_count: 1,
+                          unidentified_count: 0,
+                          attuned_count: 1,
+                          attunement_slots: 3,
+                          stackable_preview: [{ item_id: "scroll", item_name: "Arcane Scroll", quantity: 2 }],
+                          equipment_preview: [{ item_id: "wand", item_name: "Oak Wand" }],
+                          magical_preview: [{ item_id: "wand", item_name: "Oak Wand", effect_summary: ["Spell DC +1"] }],
+                          unidentified_preview: [],
+                          attuned_items: ["wand"]
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_inventory_requested") {
+          inventoryRequests += 1;
+          throw new Error("inventory reload should not be needed when character hub already has the switched snapshot");
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const interaction = createInteraction("profile", [], "player-gateway-roster-switch-001");
+    await handleGatewayInteraction(interaction, runtime);
+
+    const hubButton = createButtonInteraction("profile:view:roster", "player-gateway-roster-switch-001");
+    await handleGatewayInteraction(hubButton, runtime);
+
+    const switchButton = createButtonInteraction("roster:view:switch:char-hub-flow-b-001", "player-gateway-roster-switch-001");
+    const switchOut = await handleGatewayInteraction(switchButton, runtime);
+    assert.equal(switchOut.ok, true);
+
+    const equipmentButton = createButtonInteraction("roster:view:equipment", "player-gateway-roster-switch-001");
+    const equipmentOut = await handleGatewayInteraction(equipmentButton, runtime);
+    assert.equal(equipmentOut.ok, true);
+    assert.equal(switchRequests, 1);
+    assert.equal(inventoryRequests, 0);
+    assert.equal(equipmentButton._updateCalls.length, 1);
+    assert.equal(String(equipmentButton._updateCalls[0].embeds[0].data.description).includes("Hub Mage"), true);
+  }, results);
+
+  await runTest("gateway_character_hub_back_to_inventory_reuses_cached_inventory_view", async () => {
+    let inventoryRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_inventory_requested") {
+          inventoryRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "inventory",
+                    ok: true,
+                    data: {
+                      inventory_found: true,
+                      active_character_id: "char-roster-back-001",
+                      character_roster: [
+                        { character_id: "char-roster-back-001", name: "Back Hero", level: 3, is_active: true }
+                      ],
+                      slot_status: {
+                        used_slots: 1,
+                        remaining_slots: 2,
+                        max_character_slots: 3
+                      },
+                      character: {
+                        character_id: "char-roster-back-001",
+                        name: "Back Hero",
+                        level: 3
+                      },
+                      inventory: {
+                        inventory_id: "inv-roster-back-001",
+                        currency: { gold: 5 },
+                        stackable_count: 1,
+                        equipment_count: 0,
+                        quest_count: 0,
+                        magical_count: 0,
+                        unidentified_count: 0,
+                        attuned_count: 0,
+                        attunement_slots: 3,
+                        stackable_preview: [{ item_id: "ration", item_name: "Ration", quantity: 1 }],
+                        equipment_preview: [],
+                        magical_preview: [],
+                        unidentified_preview: [],
+                        attuned_items: []
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_profile_requested") {
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      active_character_id: "char-roster-back-001",
+                      character_roster: [
+                        { character_id: "char-roster-back-001", name: "Back Hero", level: 3, is_active: true }
+                      ],
+                      slot_status: {
+                        used_slots: 1,
+                        remaining_slots: 2,
+                        max_character_slots: 3
+                      },
+                      character: {
+                        character_id: "char-roster-back-001",
+                        name: "Back Hero",
+                        race: "human",
+                        class: "fighter",
+                        level: 3,
+                        xp: 150,
+                        inventory_id: "inv-roster-back-001",
+                        stats: {
+                          strength: 14,
+                          dexterity: 12,
+                          constitution: 13,
+                          intelligence: 10,
+                          wisdom: 11,
+                          charisma: 8
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const inventoryInteraction = createInteraction("inventory", [], "player-gateway-roster-back-001");
+    await handleGatewayInteraction(inventoryInteraction, runtime);
+
+    const hubButton = createButtonInteraction("inventory:view:roster", "player-gateway-roster-back-001");
+    await handleGatewayInteraction(hubButton, runtime);
+
+    const backButton = createButtonInteraction("roster:view:inventory", "player-gateway-roster-back-001");
+    const out = await handleGatewayInteraction(backButton, runtime);
+
+    assert.equal(out.ok, true);
+    assert.equal(inventoryRequests, 1);
+    assert.equal(backButton._updateCalls.length, 1);
+    assert.equal(backButton._updateCalls[0].embeds[0].data.title, "Dimensional Pack");
+    assert.equal(String(backButton._updateCalls[0].embeds[0].data.description).includes("Back Hero"), true);
+  }, results);
+
+  await runTest("gateway_profile_switch_then_inventory_open_uses_new_active_character_inventory", async () => {
+    let profileRequests = 0;
+    let switchRequests = 0;
+    let inventoryRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_set_active_character_requested") {
+          switchRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      active_character_updated: true,
+                      active_character_id: "char-profile-b-inv-001"
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+          const usingFirstCharacter = profileRequests === 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      character_roster: [
+                        {
+                          character_id: "char-profile-a-inv-001",
+                          name: "Profile Knight",
+                          level: 5,
+                          is_active: usingFirstCharacter
+                        },
+                        {
+                          character_id: "char-profile-b-inv-001",
+                          name: "Profile Mage",
+                          level: 4,
+                          is_active: !usingFirstCharacter
+                        }
+                      ],
+                      character: {
+                        character_id: usingFirstCharacter ? "char-profile-a-inv-001" : "char-profile-b-inv-001",
+                        name: usingFirstCharacter ? "Profile Knight" : "Profile Mage",
+                        race: usingFirstCharacter ? "human" : "elf",
+                        class: usingFirstCharacter ? "fighter" : "wizard",
+                        level: usingFirstCharacter ? 5 : 4,
+                        xp: usingFirstCharacter ? 650 : 400,
+                        stats: {
+                          strength: usingFirstCharacter ? 15 : 8,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: usingFirstCharacter ? 10 : 16,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_inventory_requested") {
+          inventoryRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "inventory",
+                    ok: true,
+                    data: {
+                      inventory_found: true,
+                      character: {
+                        character_id: "char-profile-b-inv-001",
+                        name: "Profile Mage",
+                        level: 4
+                      },
+                      inventory: {
+                        inventory_id: "inv-profile-mage-001",
+                        currency: { gold: 42 },
+                        stackable_count: 1,
+                        equipment_count: 1,
+                        quest_count: 0,
+                        magical_count: 1,
+                        unidentified_count: 0,
+                        attuned_count: 1,
+                        attunement_slots: 3,
+                        stackable_preview: [
+                          { item_id: "scroll", item_name: "Arcane Scroll", quantity: 2 }
+                        ],
+                        equipment_preview: [
+                          { item_id: "wand", item_name: "Oak Wand" }
+                        ],
+                        magical_preview: [
+                          { item_id: "wand", item_name: "Oak Wand", effect_summary: ["Spell DC +1"] }
+                        ],
+                        unidentified_preview: [],
+                        attuned_items: ["wand"]
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const interaction = createInteraction("profile", [], "player-gateway-profile-switch-inventory-001");
+    await handleGatewayInteraction(interaction, runtime);
+
+    const switchButton = createButtonInteraction("profile:view:switch:char-profile-b-inv-001", "player-gateway-profile-switch-inventory-001");
+    const switchOut = await handleGatewayInteraction(switchButton, runtime);
+    assert.equal(switchOut.ok, true);
+
+    const inventoryButton = createButtonInteraction("profile:view:inventory", "player-gateway-profile-switch-inventory-001");
+    const inventoryOut = await handleGatewayInteraction(inventoryButton, runtime);
+
+    assert.equal(inventoryOut.ok, true);
+    assert.equal(switchRequests, 1);
+    assert.equal(profileRequests, 2);
+    assert.equal(inventoryRequests, 1);
+    assert.equal(inventoryButton._updateCalls.length, 1);
+    assert.equal(inventoryButton._updateCalls[0].embeds[0].data.title, "Dimensional Pack");
+    assert.equal(String(inventoryButton._updateCalls[0].embeds[0].data.description).includes("Profile Mage"), true);
+    assert.equal(String(inventoryButton._updateCalls[0].content).includes("Profile Mage"), true);
+  }, results);
+
+  await runTest("gateway_profile_open_inventory_reuses_cached_inventory_snapshot_after_switch", async () => {
+    let profileRequests = 0;
+    let switchRequests = 0;
+    let inventoryRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_set_active_character_requested") {
+          switchRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      active_character_updated: true,
+                      active_character_id: "char-profile-cached-b-001",
+                      character_roster: [
+                        { character_id: "char-profile-cached-a-001", name: "Profile Knight", level: 5, is_active: false },
+                        { character_id: "char-profile-cached-b-001", name: "Profile Mage", level: 4, is_active: true }
+                      ],
+                      character: {
+                        character_id: "char-profile-cached-b-001",
+                        name: "Profile Mage",
+                        race: "elf",
+                        class: "wizard",
+                        level: 4,
+                        xp: 400,
+                        inventory_id: "inv-profile-cached-mage-001",
+                        stats: {
+                          strength: 8,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 16,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      },
+                      inventory_snapshot: {
+                        inventory_found: true,
+                        active_character_id: "char-profile-cached-b-001",
+                        character_roster: [
+                          { character_id: "char-profile-cached-a-001", name: "Profile Knight", level: 5, is_active: false },
+                          { character_id: "char-profile-cached-b-001", name: "Profile Mage", level: 4, is_active: true }
+                        ],
+                        character: {
+                          character_id: "char-profile-cached-b-001",
+                          name: "Profile Mage",
+                          level: 4
+                        },
+                        inventory: {
+                          inventory_id: "inv-profile-cached-mage-001",
+                          currency: { gold: 42 },
+                          stackable_count: 1,
+                          equipment_count: 1,
+                          quest_count: 0,
+                          magical_count: 1,
+                          unidentified_count: 0,
+                          attuned_count: 1,
+                          attunement_slots: 3,
+                          stackable_preview: [
+                            { item_id: "scroll", item_name: "Arcane Scroll", quantity: 2 }
+                          ],
+                          equipment_preview: [
+                            { item_id: "wand", item_name: "Oak Wand" }
+                          ],
+                          magical_preview: [
+                            { item_id: "wand", item_name: "Oak Wand", effect_summary: ["Spell DC +1"] }
+                          ],
+                          unidentified_preview: [],
+                          attuned_items: ["wand"]
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      active_character_id: "char-profile-cached-a-001",
+                      character_roster: [
+                        { character_id: "char-profile-cached-a-001", name: "Profile Knight", level: 5, is_active: true },
+                        { character_id: "char-profile-cached-b-001", name: "Profile Mage", level: 4, is_active: false }
+                      ],
+                      character: {
+                        character_id: "char-profile-cached-a-001",
+                        name: "Profile Knight",
+                        race: "human",
+                        class: "fighter",
+                        level: 5,
+                        xp: 650,
+                        inventory_id: "inv-profile-cached-knight-001",
+                        stats: {
+                          strength: 15,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 10,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_inventory_requested") {
+          inventoryRequests += 1;
+          throw new Error("inventory reload should not be needed when switch snapshot already cached it");
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const interaction = createInteraction("profile", [], "player-gateway-profile-switch-cached-inventory-001");
+    await handleGatewayInteraction(interaction, runtime);
+
+    const switchButton = createButtonInteraction("profile:view:switch:char-profile-cached-b-001", "player-gateway-profile-switch-cached-inventory-001");
+    const switchOut = await handleGatewayInteraction(switchButton, runtime);
+    assert.equal(switchOut.ok, true);
+
+    const inventoryButton = createButtonInteraction("profile:view:inventory", "player-gateway-profile-switch-cached-inventory-001");
+    const inventoryOut = await handleGatewayInteraction(inventoryButton, runtime);
+
+    assert.equal(inventoryOut.ok, true);
+    assert.equal(switchRequests, 1);
+    assert.equal(profileRequests, 1);
+    assert.equal(inventoryRequests, 0);
+    assert.equal(inventoryButton._updateCalls.length, 1);
+    assert.equal(inventoryButton._updateCalls[0].embeds[0].data.title, "Dimensional Pack");
+    assert.equal(String(inventoryButton._updateCalls[0].embeds[0].data.description).includes("Profile Mage"), true);
+    assert.equal(String(inventoryButton._updateCalls[0].content).includes("Profile Mage"), true);
+  }, results);
+
+  await runTest("gateway_profile_open_inventory_can_recover_from_profile_linked_inventory_snapshot_when_inventory_cache_is_gone", async () => {
+    let profileRequests = 0;
+    let switchRequests = 0;
+    let inventoryRequests = 0;
+    const playerId = "player-gateway-profile-linked-inventory-recovery-001";
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_set_active_character_requested") {
+          switchRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      active_character_updated: true,
+                      active_character_id: "char-profile-linked-b-001",
+                      character_roster: [
+                        { character_id: "char-profile-linked-a-001", name: "Profile Knight", level: 5, is_active: false },
+                        { character_id: "char-profile-linked-b-001", name: "Profile Mage", level: 4, is_active: true }
+                      ],
+                      character: {
+                        character_id: "char-profile-linked-b-001",
+                        name: "Profile Mage",
+                        race: "elf",
+                        class: "wizard",
+                        level: 4,
+                        xp: 400,
+                        inventory_id: "inv-profile-linked-mage-001",
+                        stats: {
+                          strength: 8,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 16,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      },
+                      inventory_snapshot: {
+                        inventory_found: true,
+                        active_character_id: "char-profile-linked-b-001",
+                        character_roster: [
+                          { character_id: "char-profile-linked-a-001", name: "Profile Knight", level: 5, is_active: false },
+                          { character_id: "char-profile-linked-b-001", name: "Profile Mage", level: 4, is_active: true }
+                        ],
+                        character: {
+                          character_id: "char-profile-linked-b-001",
+                          name: "Profile Mage",
+                          level: 4
+                        },
+                        inventory: {
+                          inventory_id: "inv-profile-linked-mage-001",
+                          currency: { gold: 42 },
+                          stackable_count: 1,
+                          equipment_count: 1,
+                          quest_count: 0,
+                          magical_count: 1,
+                          unidentified_count: 0,
+                          attuned_count: 1,
+                          attunement_slots: 3,
+                          stackable_preview: [
+                            { item_id: "scroll", item_name: "Arcane Scroll", quantity: 2 }
+                          ],
+                          equipment_preview: [
+                            { item_id: "wand", item_name: "Oak Wand" }
+                          ],
+                          magical_preview: [
+                            { item_id: "wand", item_name: "Oak Wand", effect_summary: ["Spell DC +1"] }
+                          ],
+                          unidentified_preview: [],
+                          attuned_items: ["wand"]
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      active_character_id: "char-profile-linked-a-001",
+                      character_roster: [
+                        { character_id: "char-profile-linked-a-001", name: "Profile Knight", level: 5, is_active: true },
+                        { character_id: "char-profile-linked-b-001", name: "Profile Mage", level: 4, is_active: false }
+                      ],
+                      character: {
+                        character_id: "char-profile-linked-a-001",
+                        name: "Profile Knight",
+                        race: "human",
+                        class: "fighter",
+                        level: 5,
+                        xp: 650,
+                        inventory_id: "inv-profile-linked-knight-001",
+                        stats: {
+                          strength: 15,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 10,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_inventory_requested") {
+          inventoryRequests += 1;
+          throw new Error("inventory reload should not be needed when linked profile snapshot still has inventory");
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const interaction = createInteraction("profile", [], playerId);
+    await handleGatewayInteraction(interaction, runtime);
+
+    const switchButton = createButtonInteraction("profile:view:switch:char-profile-linked-b-001", playerId);
+    const switchOut = await handleGatewayInteraction(switchButton, runtime);
+    assert.equal(switchOut.ok, true);
+
+    __test.deleteInventoryView(playerId);
+
+    const inventoryButton = createButtonInteraction("profile:view:inventory", playerId);
+    const inventoryOut = await handleGatewayInteraction(inventoryButton, runtime);
+
+    assert.equal(inventoryOut.ok, true);
+    assert.equal(switchRequests, 1);
+    assert.equal(profileRequests, 1);
+    assert.equal(inventoryRequests, 0);
+    assert.equal(inventoryButton._updateCalls.length, 1);
+    assert.equal(inventoryButton._updateCalls[0].embeds[0].data.title, "Dimensional Pack");
+    assert.equal(String(inventoryButton._updateCalls[0].embeds[0].data.description).includes("Profile Mage"), true);
+  }, results);
+
+  await runTest("gateway_inventory_switch_button_updates_inventory_to_new_active_character", async () => {
+    let inventoryRequests = 0;
+    let profileRequests = 0;
+    let switchRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_set_active_character_requested") {
+          switchRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      active_character_updated: true,
+                      active_character_id: "char-inventory-b-001",
+                      character_roster: [
+                        { character_id: "char-inventory-a-001", name: "Inventory Knight", level: 5, is_active: false },
+                        { character_id: "char-inventory-b-001", name: "Inventory Mage", level: 4, is_active: true }
+                      ],
+                      character: {
+                        character_id: "char-inventory-b-001",
+                        name: "Inventory Mage",
+                        race: "elf",
+                        class: "wizard",
+                        level: 4,
+                        xp: 400,
+                        inventory_id: "inv-inventory-b-001",
+                        stats: {
+                          strength: 8,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 16,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      },
+                      inventory_snapshot: {
+                        inventory_found: true,
+                        active_character_id: "char-inventory-b-001",
+                        character_roster: [
+                          { character_id: "char-inventory-a-001", name: "Inventory Knight", level: 5, is_active: false },
+                          { character_id: "char-inventory-b-001", name: "Inventory Mage", level: 4, is_active: true }
+                        ],
+                        character: {
+                          character_id: "char-inventory-b-001",
+                          name: "Inventory Mage",
+                          level: 4
+                        },
+                        inventory: {
+                          inventory_id: "inv-inventory-b-001",
+                          currency: { gold: 42 },
+                          stackable_count: 1,
+                          equipment_count: 1,
+                          quest_count: 0,
+                          magical_count: 1,
+                          unidentified_count: 0,
+                          attuned_count: 1,
+                          attunement_slots: 3,
+                          stackable_preview: [
+                            { item_id: "scroll", item_name: "Arcane Scroll", quantity: 2 }
+                          ],
+                          equipment_preview: [{ item_id: "wand", item_name: "Oak Wand" }],
+                          magical_preview: [{ item_id: "wand", item_name: "Oak Wand", effect_summary: ["Spell DC +1"] }],
+                          unidentified_preview: [],
+                          attuned_items: ["wand"]
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      active_character_id: "char-inventory-b-001",
+                      character_roster: [
+                        { character_id: "char-inventory-a-001", name: "Inventory Knight", level: 5, is_active: false },
+                        { character_id: "char-inventory-b-001", name: "Inventory Mage", level: 4, is_active: true }
+                      ],
+                      character: {
+                        character_id: "char-inventory-b-001",
+                        name: "Inventory Mage",
+                        race: "elf",
+                        class: "wizard",
+                        level: 4,
+                        xp: 400,
+                        inventory_id: "inv-inventory-b-001",
+                        stats: {
+                          strength: 8,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 16,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_inventory_requested") {
+          inventoryRequests += 1;
+          const usingFirstCharacter = inventoryRequests === 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "inventory",
+                    ok: true,
+                    data: {
+                      inventory_found: true,
+                      active_character_id: usingFirstCharacter ? "char-inventory-a-001" : "char-inventory-b-001",
+                      character_roster: [
+                        { character_id: "char-inventory-a-001", name: "Inventory Knight", level: 5, is_active: usingFirstCharacter },
+                        { character_id: "char-inventory-b-001", name: "Inventory Mage", level: 4, is_active: !usingFirstCharacter }
+                      ],
+                      character: {
+                        character_id: usingFirstCharacter ? "char-inventory-a-001" : "char-inventory-b-001",
+                        name: usingFirstCharacter ? "Inventory Knight" : "Inventory Mage",
+                        level: usingFirstCharacter ? 5 : 4
+                      },
+                      inventory: {
+                        inventory_id: usingFirstCharacter ? "inv-inventory-a-001" : "inv-inventory-b-001",
+                        currency: { gold: usingFirstCharacter ? 10 : 42 },
+                        stackable_count: 1,
+                        equipment_count: usingFirstCharacter ? 0 : 1,
+                        quest_count: 0,
+                        magical_count: usingFirstCharacter ? 0 : 1,
+                        unidentified_count: 0,
+                        attuned_count: usingFirstCharacter ? 0 : 1,
+                        attunement_slots: 3,
+                        stackable_preview: [
+                          { item_id: usingFirstCharacter ? "ration" : "scroll", item_name: usingFirstCharacter ? "Ration" : "Arcane Scroll", quantity: 2 }
+                        ],
+                        equipment_preview: usingFirstCharacter ? [] : [{ item_id: "wand", item_name: "Oak Wand" }],
+                        magical_preview: usingFirstCharacter ? [] : [{ item_id: "wand", item_name: "Oak Wand", effect_summary: ["Spell DC +1"] }],
+                        unidentified_preview: [],
+                        attuned_items: usingFirstCharacter ? [] : ["wand"]
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const inventoryInteraction = createInteraction("inventory", [], "player-gateway-inventory-switch-001");
+    await handleGatewayInteraction(inventoryInteraction, runtime);
+    assert.equal(inventoryInteraction._replyCalls.length, 1);
+    assert.equal(String(inventoryInteraction._replyCalls[0].embeds[0].data.description).includes("Inventory Knight"), true);
+
+    const switchButton = createButtonInteraction("inventory:view:switch:char-inventory-b-001", "player-gateway-inventory-switch-001");
+    const out = await handleGatewayInteraction(switchButton, runtime);
+
+    assert.equal(out.ok, true);
+    assert.equal(switchRequests, 1);
+    assert.equal(profileRequests, 0);
+    assert.equal(inventoryRequests, 1);
+    assert.equal(switchButton._updateCalls.length, 1);
+    assert.equal(switchButton._updateCalls[0].embeds[0].data.title, "Dimensional Pack");
+    assert.equal(String(switchButton._updateCalls[0].content).includes("Inventory Mage"), true);
+    assert.equal(String(switchButton._updateCalls[0].embeds[0].data.description).includes("Inventory Mage"), true);
+    assert.equal(
+      switchButton._updateCalls[0].components[0].components.some((button) => button.data && button.data.label === "Active: Inventory Mage"),
+      true
+    );
+    assert.equal(
+      switchButton._updateCalls[0].components.some((row) =>
+        Array.isArray(row.components) &&
+        row.components.some((component) => component.data && String(component.data.label).startsWith("Switch to "))
+      ),
+      true
+    );
+  }, results);
+
+  await runTest("gateway_inventory_refresh_reloads_inventory_for_current_active_character", async () => {
+    let inventoryRequests = 0;
+    let profileRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      active_character_id: "char-refresh-b-001",
+                      character_roster: [
+                        { character_id: "char-refresh-a-001", name: "Refresh Knight", level: 5, is_active: false },
+                        { character_id: "char-refresh-b-001", name: "Refresh Mage", level: 4, is_active: true }
+                      ],
+                      character: {
+                        character_id: "char-refresh-b-001",
+                        name: "Refresh Mage",
+                        race: "elf",
+                        class: "wizard",
+                        level: 4,
+                        xp: 400,
+                        inventory_id: "inv-refresh-b-001",
+                        stats: {
+                          strength: 8,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 16,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_inventory_requested") {
+          inventoryRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "inventory",
+                    ok: true,
+                    data: {
+                      inventory_found: true,
+                      active_character_id: "char-refresh-b-001",
+                      character_roster: [
+                        { character_id: "char-refresh-a-001", name: "Refresh Knight", level: 5, is_active: false },
+                        { character_id: "char-refresh-b-001", name: "Refresh Mage", level: 4, is_active: true }
+                      ],
+                      character: {
+                        character_id: "char-refresh-b-001",
+                        name: "Refresh Mage",
+                        level: 4
+                      },
+                      inventory: {
+                        inventory_id: "inv-refresh-b-001",
+                        currency: { gold: inventoryRequests === 1 ? 5 : 9 },
+                        stackable_count: 1,
+                        equipment_count: 0,
+                        quest_count: 0,
+                        magical_count: 0,
+                        unidentified_count: 0,
+                        attuned_count: 0,
+                        attunement_slots: 3,
+                        stackable_preview: [
+                          {
+                            item_id: inventoryRequests === 1 ? "old_scroll" : "new_scroll",
+                            item_name: inventoryRequests === 1 ? "Old Scroll" : "New Scroll",
+                            quantity: 1
+                          }
+                        ],
+                        equipment_preview: [],
+                        magical_preview: [],
+                        unidentified_preview: [],
+                        attuned_items: []
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const inventoryInteraction = createInteraction("inventory", [], "player-gateway-inventory-refresh-001");
+    await handleGatewayInteraction(inventoryInteraction, runtime);
+    assert.equal(inventoryInteraction._replyCalls.length, 1);
+    assert.equal(String(inventoryInteraction._replyCalls[0].embeds[0].data.description).includes("Refresh Mage"), true);
+
+    const refreshButton = createButtonInteraction("inventory:view:refresh", "player-gateway-inventory-refresh-001");
+    const out = await handleGatewayInteraction(refreshButton, runtime);
+
+    assert.equal(out.ok, true);
+    assert.equal(profileRequests, 1);
+    assert.equal(inventoryRequests, 2);
+    assert.equal(refreshButton._updateCalls.length, 1);
+    assert.equal(String(refreshButton._updateCalls[0].embeds[0].data.description).includes("Refresh Mage"), true);
+    assert.equal(String(refreshButton._updateCalls[0].embeds[0].data.description).includes("Active: Refresh Mage"), true);
+    assert.equal(String(refreshButton._updateCalls[0].content).includes("Refresh Mage"), true);
+    assert.equal(
+      refreshButton._updateCalls[0].embeds[0].data.fields.some((field) => field.name === "Supply Cache" && String(field.value).includes("New Scroll")),
+      true
+    );
+  }, results);
+
+  await runTest("gateway_profile_switch_invalidates_stale_inventory_view_cache", async () => {
+    let profileRequests = 0;
+    let switchRequests = 0;
+    let inventoryRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_set_active_character_requested") {
+          switchRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      active_character_updated: true,
+                      active_character_id: "char-switch-cache-b-001"
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+          const usingFirstCharacter = profileRequests === 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      character_roster: [
+                        { character_id: "char-switch-cache-a-001", name: "Cache Knight", level: 5, is_active: usingFirstCharacter },
+                        { character_id: "char-switch-cache-b-001", name: "Cache Mage", level: 4, is_active: !usingFirstCharacter }
+                      ],
+                      character: {
+                        character_id: usingFirstCharacter ? "char-switch-cache-a-001" : "char-switch-cache-b-001",
+                        name: usingFirstCharacter ? "Cache Knight" : "Cache Mage",
+                        race: usingFirstCharacter ? "human" : "elf",
+                        class: usingFirstCharacter ? "fighter" : "wizard",
+                        level: usingFirstCharacter ? 5 : 4,
+                        xp: usingFirstCharacter ? 650 : 400,
+                        stats: {
+                          strength: usingFirstCharacter ? 15 : 8,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: usingFirstCharacter ? 10 : 16,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_inventory_requested") {
+          inventoryRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "inventory",
+                    ok: true,
+                    data: {
+                      inventory_found: true,
+                      character: {
+                        character_id: "char-switch-cache-a-001",
+                        name: "Cache Knight",
+                        level: 5
+                      },
+                      inventory: {
+                        inventory_id: "inv-switch-cache-a-001",
+                        currency: { gold: 10 },
+                        stackable_count: 1,
+                        equipment_count: 0,
+                        quest_count: 0,
+                        magical_count: 0,
+                        unidentified_count: 0,
+                        attuned_count: 0,
+                        attunement_slots: 3,
+                        stackable_preview: [
+                          { item_id: "ration", item_name: "Ration", quantity: 2 }
+                        ],
+                        equipment_preview: [],
+                        magical_preview: [],
+                        unidentified_preview: [],
+                        attuned_items: []
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const profileInteraction = createInteraction("profile", [], "player-gateway-switch-cache-001");
+    await handleGatewayInteraction(profileInteraction, runtime);
+
+    const openInventory = createButtonInteraction("profile:view:inventory", "player-gateway-switch-cache-001");
+    await handleGatewayInteraction(openInventory, runtime);
+    assert.equal(inventoryRequests, 1);
+
+    const switchButton = createButtonInteraction("profile:view:switch:char-switch-cache-b-001", "player-gateway-switch-cache-001");
+    const switchOut = await handleGatewayInteraction(switchButton, runtime);
+    assert.equal(switchOut.ok, true);
+    assert.equal(switchRequests, 1);
+    assert.equal(profileRequests, 2);
+
+    const staleInventoryTab = createButtonInteraction("inventory:view:equipment", "player-gateway-switch-cache-001");
+    const staleOut = await handleGatewayInteraction(staleInventoryTab, runtime);
+    assert.equal(staleOut.ok, true);
+    assert.equal(staleInventoryTab._replyCalls.length, 1);
+    assert.equal(staleInventoryTab._replyCalls[0].content, "No active inventory view found. Run /inventory again.");
+  }, results);
+
+  await runTest("gateway_direct_profile_command_invalidates_stale_inventory_view_cache", async () => {
+    let profileRequests = 0;
+    let inventoryRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      character_roster: [
+                        { character_id: "char-direct-cache-b-001", name: "Direct Mage", level: 4, is_active: true }
+                      ],
+                      character: {
+                        character_id: "char-direct-cache-b-001",
+                        name: "Direct Mage",
+                        race: "elf",
+                        class: "wizard",
+                        level: 4,
+                        xp: 400,
+                        stats: {
+                          strength: 8,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 16,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_inventory_requested") {
+          inventoryRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "inventory",
+                    ok: true,
+                    data: {
+                      inventory_found: true,
+                      character: {
+                        character_id: "char-direct-cache-a-001",
+                        name: "Direct Knight",
+                        level: 5
+                      },
+                      inventory: {
+                        inventory_id: "inv-direct-cache-a-001",
+                        currency: { gold: 10 },
+                        stackable_count: 1,
+                        equipment_count: 0,
+                        quest_count: 0,
+                        magical_count: 0,
+                        unidentified_count: 0,
+                        attuned_count: 0,
+                        attunement_slots: 3,
+                        stackable_preview: [
+                          { item_id: "ration", item_name: "Ration", quantity: 2 }
+                        ],
+                        equipment_preview: [],
+                        magical_preview: [],
+                        unidentified_preview: [],
+                        attuned_items: []
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const inventoryInteraction = createInteraction("inventory", [], "player-gateway-direct-cache-001");
+    await handleGatewayInteraction(inventoryInteraction, runtime);
+    assert.equal(inventoryRequests, 1);
+
+    const profileInteraction = createInteraction("profile", [], "player-gateway-direct-cache-001");
+    const profileOut = await handleGatewayInteraction(profileInteraction, runtime);
+    assert.equal(profileOut.ok, true);
+    assert.equal(profileRequests, 1);
+    assert.equal(profileInteraction._replyCalls[0].embeds[0].data.title, "Direct Mage | Hunter Record");
+
+    const staleInventoryTab = createButtonInteraction("inventory:view:summary", "player-gateway-direct-cache-001");
+    const staleOut = await handleGatewayInteraction(staleInventoryTab, runtime);
+    assert.equal(staleOut.ok, true);
+    assert.equal(staleInventoryTab._replyCalls.length, 1);
+    assert.equal(staleInventoryTab._replyCalls[0].content, "No active inventory view found. Run /inventory again.");
+  }, results);
+
+  await runTest("gateway_profile_switch_button_replies_cleanly_when_runtime_rejects_unowned_character", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_set_active_character_requested") {
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: false,
+                    data: {},
+                    error: "character is not owned by account"
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_profile_requested") {
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      character_roster: [
+                        { character_id: "char-profile-owned-001", name: "Owned Hero", level: 5, is_active: true }
+                      ],
+                      character: {
+                        character_id: "char-profile-owned-001",
+                        name: "Owned Hero",
+                        race: "human",
+                        class: "fighter",
+                        level: 5,
+                        xp: 650,
+                        stats: {
+                          strength: 15,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 10,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const interaction = createInteraction("profile", [], "player-gateway-profile-switch-fail-001");
+    await handleGatewayInteraction(interaction, runtime);
+
+    const switchButton = createButtonInteraction("profile:view:switch:char-profile-other-001", "player-gateway-profile-switch-fail-001");
+    const out = await handleGatewayInteraction(switchButton, runtime);
+    assert.equal(out.ok, true);
+    assert.equal(switchButton._replyCalls.length, 1);
+    assert.equal(switchButton._replyCalls[0].content, "profile failed: character is not owned by account");
+  }, results);
+
+  await runTest("gateway_profile_switch_button_replies_cleanly_when_character_context_is_missing", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_profile_requested") {
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      character_roster: [
+                        { character_id: "char-profile-owned-002", name: "Owned Hero", level: 5, is_active: true }
+                      ],
+                      character: {
+                        character_id: "char-profile-owned-002",
+                        name: "Owned Hero",
+                        race: "human",
+                        class: "fighter",
+                        level: 5,
+                        xp: 650,
+                        stats: {
+                          strength: 15,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 10,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const interaction = createInteraction("profile", [], "player-gateway-profile-switch-missing-001");
+    await handleGatewayInteraction(interaction, runtime);
+
+    const switchButton = createButtonInteraction("profile:view:switch:", "player-gateway-profile-switch-missing-001");
+    const out = await handleGatewayInteraction(switchButton, runtime);
+    assert.equal(out.ok, true);
+    assert.equal(switchButton._replyCalls.length, 1);
+    assert.equal(switchButton._replyCalls[0].content, "Profile switch action is missing character context.");
+  }, results);
+
+  await runTest("gateway_profile_switch_button_replies_cleanly_when_profile_reload_fails_after_switch", async () => {
+    let profileRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_set_active_character_requested") {
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      active_character_updated: true,
+                      active_character_id: "char-profile-bad-reload-002"
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: profileRequests === 1 ? {
+                      profile_found: true,
+                      character_roster: [
+                        { character_id: "char-profile-bad-reload-001", name: "Owned Hero", level: 5, is_active: true }
+                      ],
+                      character: {
+                        character_id: "char-profile-bad-reload-001",
+                        name: "Owned Hero",
+                        race: "human",
+                        class: "fighter",
+                        level: 5,
+                        xp: 650,
+                        stats: {
+                          strength: 15,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 10,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      }
+                    } : {
+                      profile_found: false
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const interaction = createInteraction("profile", [], "player-gateway-profile-switch-reload-001");
+    await handleGatewayInteraction(interaction, runtime);
+
+    const switchButton = createButtonInteraction("profile:view:switch:char-profile-bad-reload-002", "player-gateway-profile-switch-reload-001");
+    const out = await handleGatewayInteraction(switchButton, runtime);
+    assert.equal(out.ok, true);
+    assert.equal(profileRequests, 2);
+    assert.equal(switchButton._replyCalls.length, 1);
+    assert.equal(switchButton._replyCalls[0].content, "No character profile found for this player. Run `/start name:<character name>` to create one, then reopen `/profile` or Character Hub.");
+  }, results);
+
+  await runTest("gateway_profile_button_replies_cleanly_for_unknown_profile_action", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent() {
+        throw new Error("runtime should not be called for unknown profile action");
+      }
+    };
+
+    const button = createButtonInteraction("profile:view:unknown", "player-gateway-profile-unknown-001");
+    const out = await handleGatewayInteraction(button, runtime);
+    assert.equal(out.ok, true);
+    assert.equal(button._replyCalls.length, 1);
+    assert.equal(button._replyCalls[0].content, "Unknown profile action.");
+  }, results);
+
   await runTest("gateway_routes_inventory_command_to_runtime_path_with_summary", async () => {
     let receivedEvent = null;
     const runtime = {
@@ -588,6 +3127,21 @@ async function runGatewayRuntimeIntegrationTests() {
                   ok: true,
                   data: {
                     inventory_found: true,
+                    active_character_id: "char-profile-open-001",
+                    character_roster: [
+                      { character_id: "char-profile-open-001", name: "Profile Hero", level: 5, is_active: true },
+                      { character_id: "char-profile-open-002", name: "Reserve Hero", level: 3, is_active: false }
+                    ],
+                    slot_status: {
+                      used_slots: 2,
+                      remaining_slots: 1,
+                      max_character_slots: 3
+                    },
+                    character: {
+                      character_id: "char-profile-open-001",
+                      name: "Profile Hero",
+                      level: 5
+                    },
                     inventory: {
                       inventory_id: "inv-gateway-profile-001",
                       currency: { gold: 42 },
@@ -628,11 +3182,55 @@ async function runGatewayRuntimeIntegrationTests() {
     assert.equal(Array.isArray(interaction._replyCalls[0].embeds), true);
     assert.equal(interaction._replyCalls[0].embeds.length, 1);
     assert.equal(Array.isArray(interaction._replyCalls[0].components), true);
-    assert.equal(interaction._replyCalls[0].components.length, 2);
+    assert.equal(interaction._replyCalls[0].components.length, 3);
     assert.equal(interaction._replyCalls[0].embeds[0].data.title, "Dimensional Pack");
+    assert.equal(String(interaction._replyCalls[0].embeds[0].data.description).includes("Profile Hero"), true);
+    assert.equal(String(interaction._replyCalls[0].embeds[0].data.description).includes("Active: Profile Hero"), true);
+    assert.equal(
+      interaction._replyCalls[0].components[0].components.some((button) => button.data && button.data.label === "Active: Profile Hero"),
+      true
+    );
     assert.equal(interaction._replyCalls[0].embeds[0].data.fields.some((field) => String(field.value).includes("Gold: 42")), true);
+    assert.equal(interaction._replyCalls[0].embeds[0].data.fields.some((field) => field.name === "Roster Status" && String(field.value).includes("Used Slots: 2")), true);
     assert.equal(interaction._replyCalls[0].embeds[0].data.fields.some((field) => String(field.value).includes("Attuned: 1/3")), true);
     assert.equal(interaction._replyCalls[0].embeds[0].data.fields.some((field) => String(field.value).includes("Ring of Protection")), true);
+  }, results);
+
+  await runTest("gateway_inventory_empty_state_replies_cleanly_for_player_with_no_characters", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "inventory",
+                  ok: true,
+                  data: {
+                    inventory_found: false
+                  },
+                  error: null
+                }
+              }
+            ],
+            events_processed: [event],
+            final_state: {}
+          },
+          error: null
+        };
+      }
+    };
+
+    const interaction = createInteraction("inventory", [], "player-gateway-inventory-empty-001");
+    const out = await handleGatewayInteraction(interaction, runtime);
+
+    assert.equal(out.ok, true);
+    assert.equal(interaction._replyCalls.length, 1);
+    assert.equal(interaction._replyCalls[0].content, "No inventory found for this player. Run `/start name:<character name>` first, then reopen `/inventory` or Character Hub.");
+    assert.equal(interaction._replyCalls[0].embeds[0].data.title, "No Inventory Yet");
   }, results);
 
   await runTest("gateway_inventory_buttons_switch_between_summary_and_magical_tabs", async () => {
@@ -652,6 +3250,15 @@ async function runGatewayRuntimeIntegrationTests() {
                   ok: true,
                   data: {
                     inventory_found: true,
+                    active_character_id: "char-gateway-tabs-001",
+                    character_roster: [
+                      { character_id: "char-gateway-tabs-001", name: "Tab Hero", level: 3, is_active: true }
+                    ],
+                    character: {
+                      character_id: "char-gateway-tabs-001",
+                      name: "Tab Hero",
+                      level: 3
+                    },
                     inventory: {
                       inventory_id: "inv-gateway-tabs-001",
                       currency: { gold: 12 },
@@ -707,6 +3314,7 @@ async function runGatewayRuntimeIntegrationTests() {
 
   await runTest("gateway_inventory_magical_actions_use_button_driven_identify_attune_and_use_flow", async () => {
     const receivedEvents = [];
+    let profileRequests = 0;
     const runtime = {
       processGatewayReadCommandEvent(event) {
         receivedEvents.push(event);
@@ -722,6 +3330,16 @@ async function runGatewayRuntimeIntegrationTests() {
                     response_type: "use",
                     ok: true,
                     data: {
+                      inventory_found: true,
+                      active_character_id: "char-gateway-magical-actions-001",
+                      character_roster: [
+                        { character_id: "char-gateway-magical-actions-001", name: "Mystic Hero", level: 3, is_active: true }
+                      ],
+                      character: {
+                        character_id: "char-gateway-magical-actions-001",
+                        name: "Mystic Hero",
+                        level: 3
+                      },
                       use_status: "consumed",
                       item_id: "item_potion_of_heroism",
                       inventory_id: "inv-gateway-magical-actions-001",
@@ -753,6 +3371,7 @@ async function runGatewayRuntimeIntegrationTests() {
                     response_type: "identify",
                     ok: true,
                     data: {
+                      inventory_found: true,
                       item: {
                         item_id: "item_ring_of_protection",
                         item_name: "Ring of Protection",
@@ -761,7 +3380,58 @@ async function runGatewayRuntimeIntegrationTests() {
                         requires_attunement: true
                       },
                       character: {
+                        character_id: "char-gateway-magical-actions-001",
+                        name: "Mystic Hero",
                         attunement: { slots_used: 0, attunement_slots: 3 }
+                      },
+                      profile_snapshot: {
+                        profile_found: true,
+                        character_roster: [
+                          { character_id: "char-gateway-magical-actions-001", name: "Mystic Hero", level: 3, is_active: true }
+                        ],
+                        slot_status: {
+                          used_slots: 1,
+                          remaining_slots: 2,
+                          max_character_slots: 3
+                        },
+                        character: {
+                          character_id: "char-gateway-magical-actions-001",
+                          name: "Mystic Hero",
+                          race: "human",
+                          class: "wizard",
+                          level: 3,
+                          xp: 200,
+                          inventory_id: "inv-gateway-magical-actions-001",
+                          attunement: { slots_used: 0, attunement_slots: 3 },
+                          stats: {
+                            strength: 8,
+                            dexterity: 14,
+                            constitution: 12,
+                            intelligence: 16,
+                            wisdom: 10,
+                            charisma: 11
+                          }
+                        }
+                      },
+                      inventory: {
+                        inventory_id: "inv-gateway-magical-actions-001",
+                        currency: { gold: 12 },
+                        stackable_count: 0,
+                        equipment_count: 1,
+                        quest_count: 0,
+                        magical_count: 1,
+                        unidentified_count: 0,
+                        attuned_count: 0,
+                        attunement_slots: 3,
+                        equipment_preview: [
+                          { item_id: "item_ring_of_protection", item_name: "Ring of Protection", attuned: false }
+                        ],
+                        stackable_preview: [],
+                        magical_preview: [
+                          { item_id: "item_ring_of_protection", item_name: "Ring of Protection", requires_attunement: true, attuned: false }
+                        ],
+                        unidentified_preview: [],
+                        attuned_items: []
                       }
                     },
                     error: null
@@ -786,6 +3456,7 @@ async function runGatewayRuntimeIntegrationTests() {
                     response_type: "attune",
                     ok: true,
                     data: {
+                      inventory_found: true,
                       item: {
                         item_id: "item_ring_of_protection",
                         item_name: "Ring of Protection",
@@ -795,7 +3466,58 @@ async function runGatewayRuntimeIntegrationTests() {
                         is_attuned: true
                       },
                       character: {
+                        character_id: "char-gateway-magical-actions-001",
+                        name: "Mystic Hero",
                         attunement: { slots_used: 1, attunement_slots: 3 }
+                      },
+                      profile_snapshot: {
+                        profile_found: true,
+                        character_roster: [
+                          { character_id: "char-gateway-magical-actions-001", name: "Mystic Hero", level: 3, is_active: true }
+                        ],
+                        slot_status: {
+                          used_slots: 1,
+                          remaining_slots: 2,
+                          max_character_slots: 3
+                        },
+                        character: {
+                          character_id: "char-gateway-magical-actions-001",
+                          name: "Mystic Hero",
+                          race: "human",
+                          class: "wizard",
+                          level: 3,
+                          xp: 200,
+                          inventory_id: "inv-gateway-magical-actions-001",
+                          attunement: { slots_used: 1, attunement_slots: 3 },
+                          stats: {
+                            strength: 8,
+                            dexterity: 14,
+                            constitution: 12,
+                            intelligence: 16,
+                            wisdom: 10,
+                            charisma: 11
+                          }
+                        }
+                      },
+                      inventory: {
+                        inventory_id: "inv-gateway-magical-actions-001",
+                        currency: { gold: 12 },
+                        stackable_count: 0,
+                        equipment_count: 1,
+                        quest_count: 0,
+                        magical_count: 1,
+                        unidentified_count: 0,
+                        attuned_count: 1,
+                        attunement_slots: 3,
+                        equipment_preview: [
+                          { item_id: "item_ring_of_protection", item_name: "Ring of Protection", attuned: true }
+                        ],
+                        stackable_preview: [],
+                        magical_preview: [
+                          { item_id: "item_ring_of_protection", item_name: "Ring of Protection", requires_attunement: true, attuned: true }
+                        ],
+                        unidentified_preview: [],
+                        attuned_items: ["item_ring_of_protection"]
                       }
                     },
                     error: null
@@ -820,6 +3542,15 @@ async function runGatewayRuntimeIntegrationTests() {
                   ok: true,
                   data: {
                     inventory_found: true,
+                    active_character_id: "char-gateway-magical-actions-001",
+                    character_roster: [
+                      { character_id: "char-gateway-magical-actions-001", name: "Mystic Hero", level: 3, is_active: true }
+                    ],
+                    character: {
+                      character_id: "char-gateway-magical-actions-001",
+                      name: "Mystic Hero",
+                      level: 3
+                    },
                     inventory: {
                       inventory_id: "inv-gateway-magical-actions-001",
                       currency: { gold: 12 },
@@ -891,6 +3622,7 @@ async function runGatewayRuntimeIntegrationTests() {
     const identifyOut = await handleGatewayInteraction(identifyButton, runtime);
     assert.equal(identifyOut.ok, true);
     assert.equal(String(identifyButton._updateCalls[0].content).includes("Ring of Protection"), true);
+    assert.equal(profileRequests, 0);
     assert.equal(
       identifyButton._updateCalls[0].components.some((row) =>
         Array.isArray(row.components) && row.components.some((button) => String(button.data.custom_id).startsWith("inventory:view:attune:"))
@@ -902,6 +3634,7 @@ async function runGatewayRuntimeIntegrationTests() {
     const attuneOut = await handleGatewayInteraction(attuneButton, runtime);
     assert.equal(attuneOut.ok, true);
     assert.equal(String(attuneButton._updateCalls[0].content).includes("Attuned: true"), true);
+    assert.equal(profileRequests, 0);
     assert.equal(
       attuneButton._updateCalls[0].components.some((row) =>
         Array.isArray(row.components) && row.components.some((button) => String(button.data.custom_id).startsWith("inventory:view:unattune:"))
@@ -917,6 +3650,7 @@ async function runGatewayRuntimeIntegrationTests() {
 
   await runTest("gateway_inventory_equipment_actions_use_button_driven_equip_and_unequip_flow", async () => {
     const receivedEvents = [];
+    let inventoryReadCount = 0;
     const runtime = {
       processGatewayReadCommandEvent(event) {
         receivedEvents.push(event);
@@ -935,6 +3669,56 @@ async function runGatewayRuntimeIntegrationTests() {
                     response_type: "equip",
                     ok: true,
                     data: {
+                      inventory_found: true,
+                      active_character_id: "char-gateway-equipment-actions-001",
+                      character_roster: [
+                        {
+                          character_id: "char-gateway-equipment-actions-001",
+                          name: "Spear Hero",
+                          level: 3,
+                          is_active: true
+                        }
+                      ],
+                      slot_status: {
+                        used_slots: 1,
+                        remaining_slots: 2,
+                        max_character_slots: 3
+                      },
+                      character: {
+                        character_id: "char-gateway-equipment-actions-001",
+                        name: "Spear Hero",
+                        level: 3,
+                        inventory_id: "inv-gateway-equipment-actions-001",
+                        equipment: {
+                          main_hand: "item_spear_001"
+                        }
+                      },
+                      inventory: {
+                        inventory_id: "inv-gateway-equipment-actions-001",
+                        currency: { gold: 8 },
+                        stackable_count: 0,
+                        equipment_count: 1,
+                        quest_count: 0,
+                        magical_count: 0,
+                        unidentified_count: 0,
+                        attuned_count: 0,
+                        attunement_slots: 3,
+                        stackable_preview: [],
+                        equipment_preview: [
+                          {
+                            item_id: "item_spear_001",
+                            item_name: "Iron Spear",
+                            item_type: "equipment",
+                            equip_slot: "main_hand",
+                            equipped: true,
+                            equipped_slot: "main_hand"
+                          }
+                        ],
+                        quest_preview: [],
+                        magical_preview: [],
+                        unidentified_preview: [],
+                        attuned_items: []
+                      },
                       equipped: {
                         item_id: "item_spear_001",
                         slot: "main_hand"
@@ -963,6 +3747,54 @@ async function runGatewayRuntimeIntegrationTests() {
                     response_type: "unequip",
                     ok: true,
                     data: {
+                      inventory_found: true,
+                      active_character_id: "char-gateway-equipment-actions-001",
+                      character_roster: [
+                        {
+                          character_id: "char-gateway-equipment-actions-001",
+                          name: "Spear Hero",
+                          level: 3,
+                          is_active: true
+                        }
+                      ],
+                      slot_status: {
+                        used_slots: 1,
+                        remaining_slots: 2,
+                        max_character_slots: 3
+                      },
+                      character: {
+                        character_id: "char-gateway-equipment-actions-001",
+                        name: "Spear Hero",
+                        level: 3,
+                        inventory_id: "inv-gateway-equipment-actions-001",
+                        equipment: {}
+                      },
+                      inventory: {
+                        inventory_id: "inv-gateway-equipment-actions-001",
+                        currency: { gold: 8 },
+                        stackable_count: 0,
+                        equipment_count: 1,
+                        quest_count: 0,
+                        magical_count: 0,
+                        unidentified_count: 0,
+                        attuned_count: 0,
+                        attunement_slots: 3,
+                        stackable_preview: [],
+                        equipment_preview: [
+                          {
+                            item_id: "item_spear_001",
+                            item_name: "Iron Spear",
+                            item_type: "equipment",
+                            equip_slot: "main_hand",
+                            equipped: false,
+                            equipped_slot: null
+                          }
+                        ],
+                        quest_preview: [],
+                        magical_preview: [],
+                        unidentified_preview: [],
+                        attuned_items: []
+                      },
                       unequipped: {
                         item_id: "item_spear_001",
                         slot: "main_hand"
@@ -979,6 +3811,10 @@ async function runGatewayRuntimeIntegrationTests() {
           };
         }
 
+        if (event.event_type === "player_inventory_requested") {
+          inventoryReadCount += 1;
+        }
+
         return {
           ok: true,
           event_type: "read_command_runtime_completed",
@@ -991,6 +3827,25 @@ async function runGatewayRuntimeIntegrationTests() {
                   ok: true,
                   data: {
                     inventory_found: true,
+                    active_character_id: "char-gateway-equipment-actions-001",
+                    character_roster: [
+                      {
+                        character_id: "char-gateway-equipment-actions-001",
+                        name: "Spear Hero",
+                        level: 3,
+                        is_active: true
+                      }
+                    ],
+                    slot_status: {
+                      used_slots: 1,
+                      remaining_slots: 2,
+                      max_character_slots: 3
+                    },
+                    character: {
+                      character_id: "char-gateway-equipment-actions-001",
+                      name: "Spear Hero",
+                      level: 3
+                    },
                     inventory: {
                       inventory_id: "inv-gateway-equipment-actions-001",
                       currency: { gold: 8 },
@@ -1046,21 +3901,298 @@ async function runGatewayRuntimeIntegrationTests() {
     const equipButton = createButtonInteraction("inventory:view:equip:main_hand:item_spear_001", "player-gateway-equipment-actions-001");
     const equipOut = await handleGatewayInteraction(equipButton, runtime);
     assert.equal(equipOut.ok, true);
-    assert.equal(String(equipButton._updateCalls[0].content).includes("equip completed"), true);
+    assert.equal(String(equipButton._updateCalls[0].content).includes("Equip completed"), true);
+    assert.equal(String(equipButton._updateCalls[0].content).includes("Spear Hero"), true);
+    assert.equal(String(equipButton._updateCalls[0].content).includes("Item: item_spear_001"), true);
+    assert.equal(String(equipButton._updateCalls[0].content).includes("Slot: main_hand"), true);
+    assert.equal(String(equipButton._updateCalls[0].content).includes("Inventory: inv-gateway-equipment-actions-001"), true);
     assert.equal(
       equipButton._updateCalls[0].components.some((row) =>
         Array.isArray(row.components) && row.components.some((button) => String(button.data.custom_id).startsWith("inventory:view:unequip:main_hand:item_spear_001"))
       ),
       true
     );
+    assert.equal(inventoryReadCount, 1);
 
     const unequipButton = createButtonInteraction("inventory:view:unequip:main_hand:item_spear_001", "player-gateway-equipment-actions-001");
     const unequipOut = await handleGatewayInteraction(unequipButton, runtime);
     assert.equal(unequipOut.ok, true);
-    assert.equal(String(unequipButton._updateCalls[0].content).includes("unequip completed"), true);
+    assert.equal(String(unequipButton._updateCalls[0].content).includes("Unequip completed"), true);
+    assert.equal(String(unequipButton._updateCalls[0].content).includes("Spear Hero"), true);
+    assert.equal(String(unequipButton._updateCalls[0].content).includes("Item: item_spear_001"), true);
+    assert.equal(String(unequipButton._updateCalls[0].content).includes("Slot: main_hand"), true);
+    assert.equal(String(unequipButton._updateCalls[0].content).includes("Inventory: inv-gateway-equipment-actions-001"), true);
     assert.equal(
       unequipButton._updateCalls[0].components.some((row) =>
         Array.isArray(row.components) && row.components.some((button) => String(button.data.custom_id).startsWith("inventory:view:equip:main_hand:item_spear_001"))
+      ),
+      true
+    );
+    assert.equal(inventoryReadCount, 1);
+  }, results);
+
+  await runTest("gateway_profile_open_inventory_reuses_profile_linked_inventory_snapshot_after_equipment_mutation", async () => {
+    let inventoryRequests = 0;
+    let profileRequests = 0;
+    let equipRequests = 0;
+    const playerId = "player-gateway-equipment-profile-sync-001";
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      active_character_id: "char-gateway-equipment-profile-sync-001",
+                      character_roster: [
+                        {
+                          character_id: "char-gateway-equipment-profile-sync-001",
+                          name: "Sync Spear Hero",
+                          level: 4,
+                          is_active: true
+                        }
+                      ],
+                      character: {
+                        character_id: "char-gateway-equipment-profile-sync-001",
+                        name: "Sync Spear Hero",
+                        race: "human",
+                        class: "fighter",
+                        level: 4,
+                        xp: 300,
+                        inventory_id: "inv-gateway-equipment-profile-sync-001",
+                        stats: {
+                          strength: 15,
+                          dexterity: 12,
+                          constitution: 14,
+                          intelligence: 10,
+                          wisdom: 8,
+                          charisma: 13
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_inventory_requested") {
+          inventoryRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "inventory",
+                    ok: true,
+                    data: {
+                      inventory_found: true,
+                      active_character_id: "char-gateway-equipment-profile-sync-001",
+                      character_roster: [
+                        {
+                          character_id: "char-gateway-equipment-profile-sync-001",
+                          name: "Sync Spear Hero",
+                          level: 4,
+                          is_active: true
+                        }
+                      ],
+                      character: {
+                        character_id: "char-gateway-equipment-profile-sync-001",
+                        name: "Sync Spear Hero",
+                        level: 4
+                      },
+                      inventory: {
+                        inventory_id: "inv-gateway-equipment-profile-sync-001",
+                        equipment_count: 1,
+                        stackable_count: 0,
+                        quest_count: 0,
+                        magical_count: 0,
+                        unidentified_count: 0,
+                        attuned_count: 0,
+                        attunement_slots: 3,
+                        currency: { gold: 12 },
+                        equipment_preview: [
+                          {
+                            item_id: "item_spear_001",
+                            item_name: "Field Spear",
+                            item_type: "equipment",
+                            equip_slot: "main_hand",
+                            equipped: false,
+                            equipped_slot: null
+                          }
+                        ],
+                        stackable_preview: [],
+                        magical_preview: [],
+                        unidentified_preview: [],
+                        attuned_items: []
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_equip_requested") {
+          equipRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "equip",
+                    ok: true,
+                    data: {
+                      active_character_id: "char-gateway-equipment-profile-sync-001",
+                      character_roster: [
+                        {
+                          character_id: "char-gateway-equipment-profile-sync-001",
+                          name: "Sync Spear Hero",
+                          level: 4,
+                          is_active: true
+                        }
+                      ],
+                      profile_snapshot: {
+                        profile_found: true,
+                        active_character_id: "char-gateway-equipment-profile-sync-001",
+                        character_roster: [
+                          {
+                            character_id: "char-gateway-equipment-profile-sync-001",
+                            name: "Sync Spear Hero",
+                            level: 4,
+                            is_active: true
+                          }
+                        ],
+                        character: {
+                          character_id: "char-gateway-equipment-profile-sync-001",
+                          name: "Sync Spear Hero",
+                          race: "human",
+                          class: "fighter",
+                          level: 4,
+                          xp: 300,
+                          inventory_id: "inv-gateway-equipment-profile-sync-001",
+                          equipment: {
+                            main_hand: {
+                              item_id: "item_spear_001",
+                              item_name: "Field Spear"
+                            }
+                          },
+                          stats: {
+                            strength: 15,
+                            dexterity: 12,
+                            constitution: 14,
+                            intelligence: 10,
+                            wisdom: 8,
+                            charisma: 13
+                          }
+                        }
+                      },
+                      inventory_found: true,
+                      character: {
+                        character_id: "char-gateway-equipment-profile-sync-001",
+                        name: "Sync Spear Hero",
+                        level: 4
+                      },
+                      inventory: {
+                        inventory_id: "inv-gateway-equipment-profile-sync-001",
+                        equipment_count: 1,
+                        stackable_count: 0,
+                        quest_count: 0,
+                        magical_count: 0,
+                        unidentified_count: 0,
+                        attuned_count: 0,
+                        attunement_slots: 3,
+                        currency: { gold: 12 },
+                        equipment_preview: [
+                          {
+                            item_id: "item_spear_001",
+                            item_name: "Field Spear",
+                            item_type: "equipment",
+                            equip_slot: "main_hand",
+                            equipped: true,
+                            equipped_slot: "main_hand"
+                          }
+                        ],
+                        stackable_preview: [],
+                        magical_preview: [],
+                        unidentified_preview: [],
+                        attuned_items: []
+                      },
+                      equipped: {
+                        item_id: "item_spear_001",
+                        item_name: "Field Spear",
+                        equip_slot: "main_hand"
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const profileInteraction = createInteraction("profile", [], playerId);
+    await handleGatewayInteraction(profileInteraction, runtime);
+
+    const inventoryInteraction = createInteraction("inventory", [], playerId);
+    await handleGatewayInteraction(inventoryInteraction, runtime);
+
+    const equipmentButton = createButtonInteraction("inventory:view:equipment", playerId);
+    await handleGatewayInteraction(equipmentButton, runtime);
+
+    const equipButton = createButtonInteraction("inventory:view:equip:main_hand:item_spear_001", playerId);
+    const equipOut = await handleGatewayInteraction(equipButton, runtime);
+    assert.equal(equipOut.ok, true);
+
+    __test.deleteInventoryView(playerId);
+
+    const profileInventoryButton = createButtonInteraction("profile:view:inventory", playerId);
+    const inventoryOut = await handleGatewayInteraction(profileInventoryButton, runtime);
+
+    assert.equal(inventoryOut.ok, true);
+    assert.equal(profileRequests, 1);
+    assert.equal(inventoryRequests, 1);
+    assert.equal(equipRequests, 1);
+    assert.equal(profileInventoryButton._updateCalls.length, 1);
+    assert.equal(String(profileInventoryButton._updateCalls[0].content).includes("Sync Spear Hero"), true);
+    assert.equal(
+      profileInventoryButton._updateCalls[0].embeds[0].data.fields.some((field) =>
+        String(field.name).includes("Equip") &&
+        String(field.value).includes("Field Spear") &&
+        String(field.value).includes("main_hand")
       ),
       true
     );
@@ -4127,7 +7259,7 @@ async function runGatewayRuntimeIntegrationTests() {
     await handleGatewayInteraction(createTooEarly, runtime);
     assert.equal(
       createTooEarly._replyCalls[0].content,
-      "Choose race, both classes, and confirm the full 27-point buy before creating."
+        "Choose race, background, both classes, and confirm the full 27-point buy before creating."
     );
   }, results);
 
@@ -4150,6 +7282,7 @@ async function runGatewayRuntimeIntegrationTests() {
                     character: {
                       name: "Vera",
                       race: "human",
+                      background: "soldier",
                       class: "cleric",
                       class_option_id: "life_domain",
                       secondary_class_id: "sorcerer",
@@ -4166,6 +7299,74 @@ async function runGatewayRuntimeIntegrationTests() {
                     },
                     point_buy_summary: {
                       total_cost: 27
+                    },
+                    active_character_set: true,
+                    slot_status: {
+                      used_slots: 1,
+                      remaining_slots: 2,
+                      max_character_slots: 3
+                    },
+                    profile_snapshot: {
+                      profile_found: true,
+                      active_character_id: "char-start-create-001",
+                      character_roster: [
+                        { character_id: "char-start-create-001", name: "Vera", level: 1, is_active: true }
+                      ],
+                      slot_status: {
+                        used_slots: 1,
+                        remaining_slots: 2,
+                        max_character_slots: 3
+                      },
+                      character: {
+                        character_id: "char-start-create-001",
+                        name: "Vera",
+                        race: "human",
+                        class: "cleric",
+                        level: 1,
+                        xp: 0,
+                        inventory_id: "inv-start-create-001",
+                        stats: {
+                          strength: 15,
+                          dexterity: 14,
+                          constitution: 13,
+                          intelligence: 12,
+                          wisdom: 10,
+                          charisma: 8
+                        }
+                      }
+                    },
+                    inventory_snapshot: {
+                      inventory_found: true,
+                      active_character_id: "char-start-create-001",
+                      character_roster: [
+                        { character_id: "char-start-create-001", name: "Vera", level: 1, is_active: true }
+                      ],
+                      slot_status: {
+                        used_slots: 1,
+                        remaining_slots: 2,
+                        max_character_slots: 3
+                      },
+                      character: {
+                        character_id: "char-start-create-001",
+                        name: "Vera",
+                        level: 1
+                      },
+                      inventory: {
+                        inventory_id: "inv-start-create-001",
+                        currency: { gold: 0 },
+                        stackable_count: 0,
+                        equipment_count: 0,
+                        quest_count: 0,
+                        magical_count: 0,
+                        unidentified_count: 0,
+                        attuned_count: 0,
+                        attunement_slots: 3,
+                        stackable_preview: [],
+                        equipment_preview: [],
+                        magical_preview: [],
+                        unidentified_preview: [],
+                        attuned_items: []
+                      }
                     }
                   },
                   error: null
@@ -4187,6 +7388,7 @@ async function runGatewayRuntimeIntegrationTests() {
     );
 
     await handleGatewayInteraction(createSelectInteraction("start:race", "human", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:background_select", "soldier", playerId), runtime);
     await handleGatewayInteraction(createSelectInteraction("start:class_primary", "cleric", playerId), runtime);
     await handleGatewayInteraction(createSelectInteraction("start:class_option_primary", "life_domain", playerId), runtime);
     await handleGatewayInteraction(createSelectInteraction("start:class_secondary", "sorcerer", playerId), runtime);
@@ -4229,11 +7431,1272 @@ async function runGatewayRuntimeIntegrationTests() {
       charisma: 8
     });
     assert.equal(receivedEvent.payload.class_id, "cleric");
+    assert.equal(receivedEvent.payload.background_id, "soldier");
     assert.equal(receivedEvent.payload.class_option_id, "life_domain");
     assert.equal(receivedEvent.payload.secondary_class_id, "sorcerer");
     assert.equal(receivedEvent.payload.secondary_class_option_id, "draconic_bloodline");
     assert.equal(create._updateCalls.length, 1);
     assert.equal(create._updateCalls[0].embeds[0].data.title, "Character created");
+    assert.equal(create._updateCalls[0].components.length, 1);
+  }, results);
+
+  await runTest("gateway_start_complete_buttons_open_profile_and_inventory_views", async () => {
+    let startRequests = 0;
+    let profileRequests = 0;
+    let inventoryRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_start_requested") {
+          startRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "start",
+                    ok: true,
+                    data: {
+                      character: {
+                        character_id: "char-start-handoff-001",
+                        name: "Vera",
+                        race: "human",
+                        background: "soldier",
+                        class: "cleric",
+                        secondary_class_id: "sorcerer",
+                        level: 1,
+                        stats: {
+                          strength: 15,
+                          dexterity: 14,
+                          constitution: 13,
+                          intelligence: 12,
+                          wisdom: 10,
+                          charisma: 8
+                        },
+                        inventory_id: "inv-start-handoff-001"
+                      },
+                      inventory: {
+                        inventory_id: "inv-start-handoff-001"
+                      },
+                    point_buy_summary: {
+                      total_cost: 27,
+                      remaining_points: 0
+                    },
+                    active_character_id: "char-start-handoff-001",
+                    active_character_set: true,
+                      slot_status: {
+                      used_slots: 1,
+                      remaining_slots: 2,
+                      max_character_slots: 3
+                    },
+                    profile_snapshot: {
+                      profile_found: true,
+                      active_character_id: "char-start-handoff-001",
+                      character_roster: [
+                        { character_id: "char-start-handoff-001", name: "Vera", level: 1, is_active: true }
+                      ],
+                      slot_status: {
+                        used_slots: 1,
+                        remaining_slots: 2,
+                        max_character_slots: 3
+                      },
+                      character: {
+                        character_id: "char-start-handoff-001",
+                        name: "Vera",
+                        race: "human",
+                        class: "cleric",
+                        level: 1,
+                        xp: 0,
+                        inventory_id: "inv-start-handoff-001",
+                        stats: {
+                          strength: 15,
+                          dexterity: 14,
+                          constitution: 13,
+                          intelligence: 12,
+                          wisdom: 10,
+                          charisma: 8
+                        }
+                      }
+                    },
+                    inventory_snapshot: {
+                      inventory_found: true,
+                      active_character_id: "char-start-handoff-001",
+                      character_roster: [
+                        { character_id: "char-start-handoff-001", name: "Vera", level: 1, is_active: true }
+                      ],
+                      slot_status: {
+                        used_slots: 1,
+                        remaining_slots: 2,
+                        max_character_slots: 3
+                      },
+                      character: {
+                        character_id: "char-start-handoff-001",
+                        name: "Vera",
+                        level: 1
+                      },
+                      inventory: {
+                        inventory_id: "inv-start-handoff-001",
+                        currency: { gold: 0 },
+                        stackable_count: 1,
+                        equipment_count: 0,
+                        quest_count: 0,
+                        magical_count: 0,
+                        unidentified_count: 0,
+                        attuned_count: 0,
+                        attunement_slots: 3,
+                        stackable_preview: [
+                          { item_id: "ration", item_name: "Ration", quantity: 3 }
+                        ],
+                        equipment_preview: [],
+                        magical_preview: [],
+                        unidentified_preview: [],
+                        attuned_items: []
+                      }
+                    }
+                  },
+                  error: null
+                }
+                }
+              ],
+              final_state: {},
+              events_processed: [event]
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      active_character_id: "char-start-handoff-001",
+                      character_roster: [
+                        { character_id: "char-start-handoff-001", name: "Vera", level: 1, is_active: true }
+                      ],
+                      slot_status: {
+                        used_slots: 1,
+                        remaining_slots: 2,
+                        max_character_slots: 3
+                      },
+                      character: {
+                        character_id: "char-start-handoff-001",
+                        name: "Vera",
+                        race: "human",
+                        class: "cleric",
+                        level: 1,
+                        xp: 0,
+                        inventory_id: "inv-start-handoff-001",
+                        stats: {
+                          strength: 15,
+                          dexterity: 14,
+                          constitution: 13,
+                          intelligence: 12,
+                          wisdom: 10,
+                          charisma: 8
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              final_state: {},
+              events_processed: [event]
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_inventory_requested") {
+          inventoryRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "inventory",
+                    ok: true,
+                    data: {
+                      inventory_found: true,
+                      active_character_id: "char-start-handoff-001",
+                      character_roster: [
+                        { character_id: "char-start-handoff-001", name: "Vera", level: 1, is_active: true }
+                      ],
+                      slot_status: {
+                        used_slots: 1,
+                        remaining_slots: 2,
+                        max_character_slots: 3
+                      },
+                      character: {
+                        character_id: "char-start-handoff-001",
+                        name: "Vera",
+                        level: 1
+                      },
+                      inventory: {
+                        inventory_id: "inv-start-handoff-001",
+                        currency: { gold: 0 },
+                        stackable_count: 1,
+                        equipment_count: 0,
+                        quest_count: 0,
+                        magical_count: 0,
+                        unidentified_count: 0,
+                        attuned_count: 0,
+                        attunement_slots: 3,
+                        stackable_preview: [
+                          { item_id: "ration", item_name: "Ration", quantity: 3 }
+                        ],
+                        equipment_preview: [],
+                        magical_preview: [],
+                        unidentified_preview: [],
+                        attuned_items: []
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              final_state: {},
+              events_processed: [event]
+            },
+            error: null
+          };
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const playerId = "player-start-handoff-001";
+    await handleGatewayInteraction(
+      createInteraction("start", [{ name: "name", value: "Vera" }], playerId),
+      runtime
+    );
+    await handleGatewayInteraction(createSelectInteraction("start:race", "human", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:background_select", "soldier", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:class_primary", "cleric", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:class_option_primary", "life_domain", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:class_secondary", "sorcerer", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:class_option_secondary", "draconic_bloodline", playerId), runtime);
+    await handleGatewayInteraction(createButtonInteraction("start:point_buy", playerId), runtime);
+
+    const plan = [
+      ["strength", 7],
+      ["dexterity", 6],
+      ["constitution", 5],
+      ["intelligence", 4],
+      ["wisdom", 2]
+    ];
+    for (let i = 0; i < plan.length; i += 1) {
+      const [ability, clicks] = plan[i];
+      await handleGatewayInteraction(createSelectInteraction("start:point_buy_ability", ability, playerId), runtime);
+      for (let j = 0; j < clicks; j += 1) {
+        await handleGatewayInteraction(createButtonInteraction("start:point_buy_increase", playerId), runtime);
+      }
+    }
+    await handleGatewayInteraction(createButtonInteraction("start:point_buy_confirm", playerId), runtime);
+
+    const create = createButtonInteraction("start:create", playerId);
+    await handleGatewayInteraction(create, runtime);
+    assert.equal(startRequests, 1);
+
+    const profileButton = createButtonInteraction("start:complete:profile", playerId);
+    const profileOut = await handleGatewayInteraction(profileButton, runtime);
+    assert.equal(profileOut.ok, true);
+    assert.equal(profileRequests, 0);
+    assert.equal(profileButton._updateCalls.length, 1);
+    assert.equal(profileButton._updateCalls[0].embeds[0].data.title, "Vera | Hunter Record");
+
+    const inventoryButton = createButtonInteraction("start:complete:inventory", playerId);
+    const inventoryOut = await handleGatewayInteraction(inventoryButton, runtime);
+    assert.equal(inventoryOut.ok, true);
+    assert.equal(inventoryRequests, 0);
+    assert.equal(inventoryButton._updateCalls.length, 1);
+    assert.equal(inventoryButton._updateCalls[0].embeds[0].data.title, "Dimensional Pack");
+    assert.equal(String(inventoryButton._updateCalls[0].embeds[0].data.description).includes("Vera"), true);
+  }, results);
+
+  await runTest("gateway_start_complete_routes_multi_character_accounts_into_character_hub", async () => {
+    let startRequests = 0;
+    let profileRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_start_requested") {
+          startRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "start",
+                    ok: true,
+                    data: {
+                      character: {
+                        character_id: "char-start-hub-002",
+                        name: "Nova",
+                        race: "elf",
+                        background: "sage",
+                        class: "wizard",
+                        secondary_class_id: "rogue",
+                        level: 1,
+                        inventory_id: "inv-start-hub-002",
+                        stats: {
+                          strength: 8,
+                          dexterity: 14,
+                          constitution: 13,
+                          intelligence: 15,
+                          wisdom: 12,
+                          charisma: 10
+                        }
+                      },
+                      inventory: {
+                        inventory_id: "inv-start-hub-002"
+                      },
+                      point_buy_summary: {
+                        total_cost: 27,
+                        remaining_points: 0
+                      },
+                      active_character_id: "char-start-hub-002",
+                      active_character_set: true,
+                      slot_status: {
+                        used_slots: 2,
+                        remaining_slots: 1,
+                        max_character_slots: 3
+                      },
+                      profile_snapshot: {
+                        profile_found: true,
+                        active_character_id: "char-start-hub-002",
+                        character_roster: [
+                          { character_id: "char-start-hub-001", name: "Aster", level: 2, is_active: false },
+                          { character_id: "char-start-hub-002", name: "Nova", level: 1, is_active: true }
+                        ],
+                        slot_status: {
+                          used_slots: 2,
+                          remaining_slots: 1,
+                          max_character_slots: 3
+                        },
+                        character: {
+                          character_id: "char-start-hub-002",
+                          name: "Nova",
+                          race: "elf",
+                          class: "wizard",
+                          level: 1,
+                          xp: 0,
+                          inventory_id: "inv-start-hub-002",
+                          stats: {
+                            strength: 8,
+                            dexterity: 14,
+                            constitution: 13,
+                            intelligence: 15,
+                            wisdom: 12,
+                            charisma: 10
+                          }
+                        }
+                      },
+                      inventory_snapshot: {
+                        inventory_found: true,
+                        active_character_id: "char-start-hub-002",
+                        character_roster: [
+                          { character_id: "char-start-hub-001", name: "Aster", level: 2, is_active: false },
+                          { character_id: "char-start-hub-002", name: "Nova", level: 1, is_active: true }
+                        ],
+                        slot_status: {
+                          used_slots: 2,
+                          remaining_slots: 1,
+                          max_character_slots: 3
+                        },
+                        character: {
+                          character_id: "char-start-hub-002",
+                          name: "Nova",
+                          level: 1
+                        },
+                        inventory: {
+                          inventory_id: "inv-start-hub-002",
+                          currency: { gold: 0 },
+                          stackable_count: 0,
+                          equipment_count: 1,
+                          quest_count: 0,
+                          magical_count: 0,
+                          unidentified_count: 0,
+                          attuned_count: 0,
+                          attunement_slots: 3,
+                          stackable_preview: [],
+                          equipment_preview: [
+                            { item_id: "quarterstaff", item_name: "Quarterstaff", slot: "main_hand" }
+                          ],
+                          magical_preview: [],
+                          unidentified_preview: [],
+                          attuned_items: []
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              final_state: {},
+              events_processed: [event]
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+          throw new Error("hub open should use cached start snapshot");
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const playerId = "player-start-hub-002";
+    await handleGatewayInteraction(
+      createInteraction("start", [{ name: "name", value: "Nova" }], playerId),
+      runtime
+    );
+    await handleGatewayInteraction(createSelectInteraction("start:race", "elf", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:race_option", "high_elf", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:background_select", "sage", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:class_primary", "fighter", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:class_secondary", "rogue", playerId), runtime);
+    await handleGatewayInteraction(createButtonInteraction("start:point_buy", playerId), runtime);
+
+    const plan = [
+      ["intelligence", 7],
+      ["dexterity", 6],
+      ["constitution", 5],
+      ["wisdom", 4],
+      ["charisma", 2]
+    ];
+    for (let i = 0; i < plan.length; i += 1) {
+      const [ability, clicks] = plan[i];
+      await handleGatewayInteraction(createSelectInteraction("start:point_buy_ability", ability, playerId), runtime);
+      for (let j = 0; j < clicks; j += 1) {
+        await handleGatewayInteraction(createButtonInteraction("start:point_buy_increase", playerId), runtime);
+      }
+    }
+    await handleGatewayInteraction(createButtonInteraction("start:point_buy_confirm", playerId), runtime);
+
+    const create = createButtonInteraction("start:create", playerId);
+    await handleGatewayInteraction(create, runtime);
+    assert.equal(startRequests, 1);
+    assert.equal(
+      create._updateCalls[0].components[0].components.some((button) => button.data && button.data.custom_id === "start:complete:hub"),
+      true
+    );
+    assert.equal(
+      create._updateCalls[0].embeds[0].data.fields.some((field) => String(field.value).includes("Open Character Hub")),
+      true
+    );
+
+    const hubButton = createButtonInteraction("start:complete:hub", playerId);
+    const hubOut = await handleGatewayInteraction(hubButton, runtime);
+    assert.equal(hubOut.ok, true);
+    assert.equal(profileRequests, 0);
+    assert.equal(hubButton._updateCalls.length, 1);
+    assert.equal(hubButton._updateCalls[0].embeds[0].data.title, "Character Roster");
+    assert.equal(String(hubButton._updateCalls[0].embeds[0].data.description).includes("more than one character"), true);
+    assert.equal(
+      hubButton._updateCalls[0].components[0].components.some((button) => button.data && button.data.custom_id === "roster:view:open_profile"),
+      true
+    );
+  }, results);
+
+  await runTest("gateway_start_slot_cap_failure_surfaces_truthful_creation_message", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type !== "player_start_requested") {
+          throw new Error("unexpected event type " + event.event_type);
+        }
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "start",
+                  ok: false,
+                  data: {
+                    slot_status: {
+                      used_slots: 3,
+                      remaining_slots: 0,
+                      max_character_slots: 3
+                    }
+                  },
+                  error: "character slot limit reached"
+                }
+              }
+            ],
+            final_state: {},
+            events_processed: [event]
+          },
+          error: null
+        };
+      }
+    };
+
+    const playerId = "player-start-slotcap-ui-001";
+    await handleGatewayInteraction(
+      createInteraction("start", [{ name: "name", value: "Fourth Hero" }], playerId),
+      runtime
+    );
+    await handleGatewayInteraction(createSelectInteraction("start:race", "human", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:background_select", "soldier", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:class_primary", "fighter", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:class_secondary", "wizard", playerId), runtime);
+    await handleGatewayInteraction(createButtonInteraction("start:point_buy", playerId), runtime);
+
+    const plan = [
+      ["strength", 7],
+      ["dexterity", 6],
+      ["constitution", 5],
+      ["intelligence", 4],
+      ["wisdom", 2]
+    ];
+    for (let i = 0; i < plan.length; i += 1) {
+      const [ability, clicks] = plan[i];
+      await handleGatewayInteraction(createSelectInteraction("start:point_buy_ability", ability, playerId), runtime);
+      for (let j = 0; j < clicks; j += 1) {
+        await handleGatewayInteraction(createButtonInteraction("start:point_buy_increase", playerId), runtime);
+      }
+    }
+    await handleGatewayInteraction(createButtonInteraction("start:point_buy_confirm", playerId), runtime);
+
+    const create = createButtonInteraction("start:create", playerId);
+    const out = await handleGatewayInteraction(create, runtime);
+    assert.equal(out.ok, true);
+    assert.equal(create._updateCalls.length, 1);
+    assert.equal(create._updateCalls[0].embeds[0].data.title, "Character creation failed");
+    assert.equal(String(create._updateCalls[0].embeds[0].data.description).includes("character slot limit reached"), true);
+    assert.equal(create._updateCalls[0].components.length, 0);
+  }, results);
+
+  await runTest("gateway_character_hub_can_open_profile_directly_from_hub_cache", async () => {
+    let runtimeProfileRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_profile_requested") {
+          runtimeProfileRequests += 1;
+          throw new Error("hub profile open should use cached profile view");
+        }
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const playerId = "player-gateway-roster-profile-open-001";
+    const profileData = {
+      profile_found: true,
+      active_character_id: "char-roster-profile-open-001",
+      character_roster: [
+        { character_id: "char-roster-profile-open-001", name: "Sel", level: 3, is_active: true },
+        { character_id: "char-roster-profile-open-002", name: "Mira", level: 2, is_active: false }
+      ],
+      slot_status: {
+        used_slots: 2,
+        remaining_slots: 1,
+        max_character_slots: 3
+      },
+      character: {
+        character_id: "char-roster-profile-open-001",
+        name: "Sel",
+        race: "human",
+        class: "fighter",
+        level: 3,
+        xp: 250,
+        inventory_id: "inv-roster-profile-open-001",
+        stats: {
+          strength: 16,
+          dexterity: 12,
+          constitution: 14,
+          intelligence: 10,
+          wisdom: 10,
+          charisma: 8
+        }
+      }
+    };
+
+    __test.setProfileView(playerId, {
+      data: profileData,
+      content: "Profile loaded for Sel.",
+      embeds: [__test.buildProfileEmbed(profileData)],
+      components: __test.buildProfileComponents(profileData)
+    });
+    __test.setRosterView(playerId, {
+      data: profileData,
+      source: "inventory",
+      content: "Character roster ready for Sel."
+    });
+
+    const interaction = createButtonInteraction("roster:view:open_profile", playerId);
+    const out = await handleGatewayInteraction(interaction, runtime);
+    assert.equal(out.ok, true);
+    assert.equal(runtimeProfileRequests, 0);
+    assert.equal(interaction._updateCalls[0].embeds[0].data.title, "Sel | Hunter Record");
+  }, results);
+
+  await runTest("gateway_character_hub_back_to_profile_recovers_from_roster_linked_profile_snapshot", async () => {
+    let runtimeProfileRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_profile_requested") {
+          runtimeProfileRequests += 1;
+          throw new Error("roster profile recovery should use linked snapshot");
+        }
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const playerId = "player-gateway-roster-linked-profile-001";
+    const profileData = {
+      profile_found: true,
+      active_character_id: "char-roster-linked-profile-001",
+      character_roster: [
+        { character_id: "char-roster-linked-profile-001", name: "Tess", level: 4, is_active: true },
+        { character_id: "char-roster-linked-profile-002", name: "Orin", level: 3, is_active: false }
+      ],
+      slot_status: {
+        used_slots: 2,
+        remaining_slots: 1,
+        max_character_slots: 3
+      },
+      character: {
+        character_id: "char-roster-linked-profile-001",
+        name: "Tess",
+        race: "halfling",
+        class: "bard",
+        level: 4,
+        xp: 420,
+        inventory_id: "inv-roster-linked-profile-001",
+        stats: {
+          strength: 8,
+          dexterity: 16,
+          constitution: 12,
+          intelligence: 10,
+          wisdom: 11,
+          charisma: 16
+        }
+      }
+    };
+
+    __test.setRosterView(playerId, {
+      data: profileData,
+      source: "inventory",
+      content: "Character roster ready for Tess.",
+      profile_data: profileData
+    });
+    __test.deleteProfileView(playerId);
+
+    const interaction = createButtonInteraction("roster:view:profile", playerId);
+    const out = await handleGatewayInteraction(interaction, runtime);
+    assert.equal(out.ok, true);
+    assert.equal(runtimeProfileRequests, 0);
+    assert.equal(interaction._updateCalls[0].embeds[0].data.title, "Tess | Hunter Record");
+  }, results);
+
+  await runTest("gateway_character_hub_open_inventory_recovers_from_roster_linked_inventory_snapshot", async () => {
+    let runtimeInventoryRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_inventory_requested") {
+          runtimeInventoryRequests += 1;
+          throw new Error("roster inventory recovery should use linked snapshot");
+        }
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    const playerId = "player-gateway-roster-linked-inventory-001";
+    const profileData = {
+      profile_found: true,
+      active_character_id: "char-roster-linked-inventory-001",
+      character_roster: [
+        { character_id: "char-roster-linked-inventory-001", name: "Kite", level: 5, is_active: true },
+        { character_id: "char-roster-linked-inventory-002", name: "Bran", level: 2, is_active: false }
+      ],
+      slot_status: {
+        used_slots: 2,
+        remaining_slots: 1,
+        max_character_slots: 3
+      },
+      character: {
+        character_id: "char-roster-linked-inventory-001",
+        name: "Kite",
+        race: "elf",
+        class: "ranger",
+        level: 5,
+        xp: 900,
+        inventory_id: "inv-roster-linked-inventory-001"
+      }
+    };
+    const inventoryData = {
+      inventory_found: true,
+      active_character_id: "char-roster-linked-inventory-001",
+      character_roster: profileData.character_roster,
+      slot_status: profileData.slot_status,
+      character: {
+        character_id: "char-roster-linked-inventory-001",
+        name: "Kite",
+        level: 5
+      },
+      inventory: {
+        inventory_id: "inv-roster-linked-inventory-001",
+        currency: { gold: 22 },
+        stackable_count: 1,
+        equipment_count: 1,
+        quest_count: 0,
+        magical_count: 0,
+        unidentified_count: 0,
+        attuned_count: 0,
+        attunement_slots: 3,
+        stackable_preview: [
+          { item_id: "arrow_bundle", item_name: "Arrow Bundle", quantity: 20 }
+        ],
+        equipment_preview: [
+          { item_id: "longbow", item_name: "Longbow", slot: "main_hand" }
+        ],
+        magical_preview: [],
+        unidentified_preview: [],
+        attuned_items: []
+      }
+    };
+
+    __test.setRosterView(playerId, {
+      data: profileData,
+      source: "profile",
+      content: "Character roster ready for Kite.",
+      profile_data: profileData,
+      inventory_data: inventoryData
+    });
+    __test.deleteInventoryView(playerId);
+
+    const interaction = createButtonInteraction("roster:view:open_inventory", playerId);
+    const out = await handleGatewayInteraction(interaction, runtime);
+    assert.equal(out.ok, true);
+    assert.equal(runtimeInventoryRequests, 0);
+    assert.equal(interaction._updateCalls[0].embeds[0].data.title, "Dimensional Pack");
+    assert.equal(String(interaction._updateCalls[0].embeds[0].data.description).includes("Kite"), true);
+  }, results);
+
+  await runTest("gateway_start_buttons_reply_cleanly_after_character_creation_consumes_session", async () => {
+    const runtime = {
+      processGatewayReadCommandEvent() {
+        return {
+          ok: true,
+          event_type: "read_command_runtime_completed",
+          payload: {
+            responses: [
+              {
+                event_type: "gateway_response_ready",
+                payload: {
+                  response_type: "start",
+                  ok: true,
+                  data: {
+                    character: {
+                      name: "Vera",
+                      race: "human",
+                      background: "soldier",
+                      class: "cleric",
+                      secondary_class_id: "sorcerer",
+                      level: 1,
+                      stats: {
+                        strength: 15,
+                        dexterity: 14,
+                        constitution: 13,
+                        intelligence: 12,
+                        wisdom: 10,
+                        charisma: 8
+                      },
+                      inventory_id: "inv-start-create-001"
+                    },
+                    inventory: {
+                      inventory_id: "inv-start-create-001"
+                    },
+                    point_buy_summary: {
+                      total_cost: 27
+                    },
+                    active_character_set: true
+                  },
+                  error: null
+                }
+              }
+            ],
+            final_state: {},
+            events_processed: []
+          },
+          error: null
+        };
+      }
+    };
+    const playerId = "player-start-session-consumed-001";
+
+    await handleGatewayInteraction(
+      createInteraction("start", [{ name: "name", value: "Vera" }], playerId),
+      runtime
+    );
+    await handleGatewayInteraction(createSelectInteraction("start:race", "human", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:background_select", "soldier", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:class_primary", "cleric", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:class_option_primary", "life_domain", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:class_secondary", "sorcerer", playerId), runtime);
+    await handleGatewayInteraction(createSelectInteraction("start:class_option_secondary", "draconic_bloodline", playerId), runtime);
+    await handleGatewayInteraction(createButtonInteraction("start:point_buy", playerId), runtime);
+
+    const plan = [
+      ["strength", 7],
+      ["dexterity", 6],
+      ["constitution", 5],
+      ["intelligence", 4],
+      ["wisdom", 2]
+    ];
+    for (let i = 0; i < plan.length; i += 1) {
+      const [ability, clicks] = plan[i];
+      await handleGatewayInteraction(createSelectInteraction("start:point_buy_ability", ability, playerId), runtime);
+      for (let j = 0; j < clicks; j += 1) {
+        await handleGatewayInteraction(createButtonInteraction("start:point_buy_increase", playerId), runtime);
+      }
+    }
+    await handleGatewayInteraction(createButtonInteraction("start:point_buy_confirm", playerId), runtime);
+    await handleGatewayInteraction(createButtonInteraction("start:create", playerId), runtime);
+
+    const staleButton = createButtonInteraction("start:point_buy", playerId);
+    const out = await handleGatewayInteraction(staleButton, runtime);
+    assert.equal(out.ok, true);
+    assert.equal(staleButton._replyCalls.length, 1);
+    assert.equal(staleButton._replyCalls[0].content, "No active `/start` session found. Run `/start name:<character name>` again.");
+  }, results);
+
+  await runTest("gateway_profile_and_inventory_follow_newest_character_after_second_start", async () => {
+    let startRequests = 0;
+    let profileRequests = 0;
+    let inventoryRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_start_requested") {
+          startRequests += 1;
+          const isFirstCharacter = startRequests === 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "start",
+                    ok: true,
+                    data: {
+                      character: {
+                        character_id: isFirstCharacter ? "char-start-old-001" : "char-start-new-001",
+                        name: isFirstCharacter ? "Older Hero" : "Newer Hero",
+                        race: "human",
+                        background: "soldier",
+                        class: "fighter",
+                        secondary_class_id: "wizard",
+                        level: 1,
+                        stats: {
+                          strength: 15,
+                          dexterity: 14,
+                          constitution: 13,
+                          intelligence: 12,
+                          wisdom: 10,
+                          charisma: 8
+                        },
+                        inventory_id: isFirstCharacter ? "inv-start-old-001" : "inv-start-new-001"
+                      },
+                      inventory: {
+                        inventory_id: isFirstCharacter ? "inv-start-old-001" : "inv-start-new-001"
+                      },
+                      point_buy_summary: {
+                        total_cost: 27
+                      },
+                      active_character_set: true
+                    },
+                    error: null
+                  }
+                }
+              ],
+              final_state: {},
+              events_processed: [event]
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      active_character_id: "char-start-new-001",
+                      character_roster: [
+                        { character_id: "char-start-old-001", name: "Older Hero", level: 1, is_active: false },
+                        { character_id: "char-start-new-001", name: "Newer Hero", level: 1, is_active: true }
+                      ],
+                      character: {
+                        character_id: "char-start-new-001",
+                        name: "Newer Hero",
+                        race: "human",
+                        class: "fighter",
+                        level: 1,
+                        xp: 0,
+                        inventory_id: "inv-start-new-001",
+                        stats: {
+                          strength: 15,
+                          dexterity: 14,
+                          constitution: 13,
+                          intelligence: 12,
+                          wisdom: 10,
+                          charisma: 8
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_inventory_requested") {
+          inventoryRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "inventory",
+                    ok: true,
+                    data: {
+                      inventory_found: true,
+                      character: {
+                        character_id: "char-start-new-001",
+                        name: "Newer Hero",
+                        level: 1
+                      },
+                      inventory: {
+                        inventory_id: "inv-start-new-001",
+                        currency: { gold: 0 },
+                        stackable_count: 1,
+                        equipment_count: 0,
+                        quest_count: 0,
+                        magical_count: 0,
+                        unidentified_count: 0,
+                        attuned_count: 0,
+                        attunement_slots: 3,
+                        stackable_preview: [
+                          { item_id: "ration", item_name: "Ration", quantity: 3 }
+                        ],
+                        equipment_preview: [],
+                        magical_preview: [],
+                        unidentified_preview: [],
+                        attuned_items: []
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    async function completeStartWizard(playerId, name) {
+      await handleGatewayInteraction(createInteraction("start", [{ name: "name", value: name }], playerId), runtime);
+      await handleGatewayInteraction(createSelectInteraction("start:race", "human", playerId), runtime);
+      await handleGatewayInteraction(createSelectInteraction("start:background_select", "soldier", playerId), runtime);
+      await handleGatewayInteraction(createSelectInteraction("start:class_primary", "fighter", playerId), runtime);
+      await handleGatewayInteraction(createSelectInteraction("start:class_secondary", "wizard", playerId), runtime);
+      await handleGatewayInteraction(createButtonInteraction("start:point_buy", playerId), runtime);
+
+      const plan = [
+        ["strength", 7],
+        ["dexterity", 6],
+        ["constitution", 5],
+        ["intelligence", 4],
+        ["wisdom", 2]
+      ];
+      for (let i = 0; i < plan.length; i += 1) {
+        const [ability, clicks] = plan[i];
+        await handleGatewayInteraction(createSelectInteraction("start:point_buy_ability", ability, playerId), runtime);
+        for (let j = 0; j < clicks; j += 1) {
+          await handleGatewayInteraction(createButtonInteraction("start:point_buy_increase", playerId), runtime);
+        }
+      }
+      await handleGatewayInteraction(createButtonInteraction("start:point_buy_confirm", playerId), runtime);
+      return handleGatewayInteraction(createButtonInteraction("start:create", playerId), runtime);
+    }
+
+    const playerId = "player-gateway-second-start-001";
+    const firstCreate = await completeStartWizard(playerId, "Older Hero");
+    const secondCreate = await completeStartWizard(playerId, "Newer Hero");
+    assert.equal(firstCreate.ok, true);
+    assert.equal(secondCreate.ok, true);
+    assert.equal(startRequests, 2);
+
+    const profileInteraction = createInteraction("profile", [], playerId);
+    const profileOut = await handleGatewayInteraction(profileInteraction, runtime);
+    assert.equal(profileOut.ok, true);
+    assert.equal(profileRequests, 1);
+    assert.equal(profileInteraction._replyCalls.length, 1);
+    assert.equal(profileInteraction._replyCalls[0].embeds[0].data.title, "Newer Hero | Hunter Record");
+    assert.equal(
+      profileInteraction._replyCalls[0].embeds[0].data.fields.some((field) => field.name === "Roster" && String(field.value).includes(">> Newer Hero")),
+      true
+    );
+
+    const inventoryButton = createButtonInteraction("profile:view:inventory", playerId);
+    const inventoryOut = await handleGatewayInteraction(inventoryButton, runtime);
+    assert.equal(inventoryOut.ok, true);
+    assert.equal(inventoryRequests, 1);
+    assert.equal(inventoryButton._updateCalls.length, 1);
+    assert.equal(inventoryButton._updateCalls[0].embeds[0].data.title, "Dimensional Pack");
+    assert.equal(String(inventoryButton._updateCalls[0].embeds[0].data.description).includes("Newer Hero"), true);
+  }, results);
+
+  await runTest("gateway_second_start_invalidates_stale_inventory_view_cache", async () => {
+    let startRequests = 0;
+    let profileRequests = 0;
+    let inventoryRequests = 0;
+    const runtime = {
+      processGatewayReadCommandEvent(event) {
+        if (event.event_type === "player_start_requested") {
+          startRequests += 1;
+          const isFirstCharacter = startRequests === 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "start",
+                    ok: true,
+                    data: {
+                      character: {
+                        character_id: isFirstCharacter ? "char-start-cache-old-001" : "char-start-cache-new-001",
+                        name: isFirstCharacter ? "Older Hero" : "Newer Hero",
+                        race: "human",
+                        background: "soldier",
+                        class: "fighter",
+                        secondary_class_id: "wizard",
+                        level: 1,
+                        stats: {
+                          strength: 15,
+                          dexterity: 14,
+                          constitution: 13,
+                          intelligence: 12,
+                          wisdom: 10,
+                          charisma: 8
+                        },
+                        inventory_id: isFirstCharacter ? "inv-start-cache-old-001" : "inv-start-cache-new-001"
+                      },
+                      inventory: {
+                        inventory_id: isFirstCharacter ? "inv-start-cache-old-001" : "inv-start-cache-new-001"
+                      },
+                      point_buy_summary: {
+                        total_cost: 27
+                      },
+                      active_character_set: true
+                    },
+                    error: null
+                  }
+                }
+              ],
+              final_state: {},
+              events_processed: [event]
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_profile_requested") {
+          profileRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "profile",
+                    ok: true,
+                    data: {
+                      profile_found: true,
+                      active_character_id: "char-start-cache-old-001",
+                      character_roster: [
+                        { character_id: "char-start-cache-old-001", name: "Older Hero", level: 1, is_active: true }
+                      ],
+                      character: {
+                        character_id: "char-start-cache-old-001",
+                        name: "Older Hero",
+                        race: "human",
+                        class: "fighter",
+                        level: 1,
+                        xp: 0,
+                        inventory_id: "inv-start-cache-old-001",
+                        stats: {
+                          strength: 15,
+                          dexterity: 14,
+                          constitution: 13,
+                          intelligence: 12,
+                          wisdom: 10,
+                          charisma: 8
+                        }
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        if (event.event_type === "player_inventory_requested") {
+          inventoryRequests += 1;
+          return {
+            ok: true,
+            event_type: "read_command_runtime_completed",
+            payload: {
+              responses: [
+                {
+                  event_type: "gateway_response_ready",
+                  payload: {
+                    response_type: "inventory",
+                    ok: true,
+                    data: {
+                      inventory_found: true,
+                      character: {
+                        character_id: "char-start-cache-old-001",
+                        name: "Older Hero",
+                        level: 1
+                      },
+                      inventory: {
+                        inventory_id: "inv-start-cache-old-001",
+                        currency: { gold: 0 },
+                        stackable_count: 1,
+                        equipment_count: 0,
+                        quest_count: 0,
+                        magical_count: 0,
+                        unidentified_count: 0,
+                        attuned_count: 0,
+                        attunement_slots: 3,
+                        stackable_preview: [
+                          { item_id: "ration", item_name: "Ration", quantity: 3 }
+                        ],
+                        equipment_preview: [],
+                        magical_preview: [],
+                        unidentified_preview: [],
+                        attuned_items: []
+                      }
+                    },
+                    error: null
+                  }
+                }
+              ],
+              events_processed: [event],
+              final_state: {}
+            },
+            error: null
+          };
+        }
+
+        throw new Error("unexpected event type " + event.event_type);
+      }
+    };
+
+    async function completeStartWizard(playerId, name) {
+      await handleGatewayInteraction(createInteraction("start", [{ name: "name", value: name }], playerId), runtime);
+      await handleGatewayInteraction(createSelectInteraction("start:race", "human", playerId), runtime);
+      await handleGatewayInteraction(createSelectInteraction("start:background_select", "soldier", playerId), runtime);
+      await handleGatewayInteraction(createSelectInteraction("start:class_primary", "fighter", playerId), runtime);
+      await handleGatewayInteraction(createSelectInteraction("start:class_secondary", "wizard", playerId), runtime);
+      await handleGatewayInteraction(createButtonInteraction("start:point_buy", playerId), runtime);
+
+      const plan = [
+        ["strength", 7],
+        ["dexterity", 6],
+        ["constitution", 5],
+        ["intelligence", 4],
+        ["wisdom", 2]
+      ];
+      for (let i = 0; i < plan.length; i += 1) {
+        const [ability, clicks] = plan[i];
+        await handleGatewayInteraction(createSelectInteraction("start:point_buy_ability", ability, playerId), runtime);
+        for (let j = 0; j < clicks; j += 1) {
+          await handleGatewayInteraction(createButtonInteraction("start:point_buy_increase", playerId), runtime);
+        }
+      }
+      await handleGatewayInteraction(createButtonInteraction("start:point_buy_confirm", playerId), runtime);
+      return handleGatewayInteraction(createButtonInteraction("start:create", playerId), runtime);
+    }
+
+    const playerId = "player-gateway-second-start-cache-001";
+    await completeStartWizard(playerId, "Older Hero");
+    const profileInteraction = createInteraction("profile", [], playerId);
+    await handleGatewayInteraction(profileInteraction, runtime);
+    const openInventory = createButtonInteraction("profile:view:inventory", playerId);
+    await handleGatewayInteraction(openInventory, runtime);
+    assert.equal(profileRequests, 1);
+    assert.equal(inventoryRequests, 1);
+
+    const secondCreate = await completeStartWizard(playerId, "Newer Hero");
+    assert.equal(secondCreate.ok, true);
+    assert.equal(startRequests, 2);
+
+    const staleInventoryTab = createButtonInteraction("inventory:view:magical", playerId);
+    const staleOut = await handleGatewayInteraction(staleInventoryTab, runtime);
+    assert.equal(staleOut.ok, true);
+    assert.equal(staleInventoryTab._replyCalls.length, 1);
+    assert.equal(staleInventoryTab._replyCalls[0].content, "No active inventory view found. Run /inventory again.");
   }, results);
 
   const passed = results.filter((x) => x.ok).length;

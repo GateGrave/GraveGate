@@ -34,6 +34,7 @@ const EVENT_TYPES = {
   GATEWAY_HELP_REQUESTED: "gateway_help_requested",
   PLAYER_START_REQUESTED: "player_start_requested",
   PLAYER_PROFILE_REQUESTED: "player_profile_requested",
+  PLAYER_SET_ACTIVE_CHARACTER_REQUESTED: "player_set_active_character_requested",
   PLAYER_COMBAT_REQUESTED: "player_combat_requested",
   PLAYER_INVENTORY_REQUESTED: "player_inventory_requested",
   PLAYER_SHOP_REQUESTED: "player_shop_requested",

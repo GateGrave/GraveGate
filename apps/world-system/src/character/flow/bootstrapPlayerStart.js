@@ -254,12 +254,10 @@ function loadCharactersForBootstrap(context) {
     }
 
     const persistenceCharacters = Array.isArray(listed.payload.characters) ? listed.payload.characters : [];
-    if (persistenceCharacters.length > 0) {
-      return success("player_start_characters_loaded", {
-        characters: persistenceCharacters,
-        source: "characterPersistence"
-      });
-    }
+    return success("player_start_characters_loaded", {
+      characters: persistenceCharacters,
+      source: "characterPersistence"
+    });
   }
 
   if (context.characterRepository && typeof context.characterRepository.listStoredCharacters === "function") {
@@ -355,7 +353,10 @@ function ensurePlayerInventory(context, playerId, preferredInventoryId) {
   }
 
   const inventories = Array.isArray(listed.payload.inventories) ? listed.payload.inventories : [];
-  const existing = inventories.find((inventory) => String(inventory.owner_id || "") === String(playerId || ""));
+  const preferredId = String(preferredInventoryId || "").trim();
+  const existing = preferredId
+    ? inventories.find((inventory) => String(inventory.inventory_id || "") === preferredId)
+    : null;
   if (existing) {
     return success("player_start_inventory_ready", {
       inventory: existing,
@@ -363,7 +364,7 @@ function ensurePlayerInventory(context, playerId, preferredInventoryId) {
     });
   }
 
-  const inventoryId = preferredInventoryId || "inv-" + String(playerId);
+  const inventoryId = preferredId || "inv-" + String(playerId);
   const createdInventory = createInventoryRecord({
     inventory_id: inventoryId,
     owner_type: "player",
@@ -387,6 +388,7 @@ function bootstrapPlayerStart(input) {
   const requestedName = data.requested_character_name || null;
   const requestedRaceId = normalizeSelectionValue(data.race_id);
   const requestedRaceOptionId = normalizeSelectionValue(data.race_option_id);
+  const requestedBackgroundId = normalizeSelectionValue(data.background_id);
   const requestedClassId = normalizeSelectionValue(data.class_id);
   const requestedClassOptionId = normalizeSelectionValue(data.class_option_id);
   const requestedSecondaryClassId = normalizeSelectionValue(data.secondary_class_id);
@@ -435,7 +437,7 @@ function bootstrapPlayerStart(input) {
   }
 
   const nextCharacterId = buildNextCharacterId(String(account.account_id || ""), accountCharacters);
-  const preferredInventoryId = "inv-" + safePlayerId;
+  const preferredInventoryId = "inv-" + nextCharacterId.character_id;
 
   let characterStats = null;
   let pointBuySummary = null;
@@ -510,13 +512,13 @@ function bootstrapPlayerStart(input) {
   });
 
   const hasAnySelectionInput = Boolean(
-    requestedRaceId || requestedRaceOptionId || requestedClassId || requestedSecondaryClassId
+    requestedRaceId || requestedRaceOptionId || requestedBackgroundId || requestedClassId || requestedSecondaryClassId
   );
   if (hasAnySelectionInput) {
-    if (!requestedRaceId || !requestedClassId || !requestedSecondaryClassId) {
+    if (!requestedRaceId || !requestedBackgroundId || !requestedClassId || !requestedSecondaryClassId) {
       return failure(
         "player_start_bootstrap_failed",
-        "race_id, class_id, and secondary_class_id are required together when applying start selections"
+        "race_id, background_id, class_id, and secondary_class_id are required together when applying start selections"
       );
     }
     if (requestedClassId === requestedSecondaryClassId) {
@@ -560,6 +562,7 @@ function bootstrapPlayerStart(input) {
       character: characterWithInventory,
       race_id: requestedRaceId,
       race_option_id: requestedRaceOptionId || null,
+      background_id: requestedBackgroundId,
       class_id: requestedClassId,
       class_option_id: requestedClassOptionId || null
     });
@@ -595,6 +598,7 @@ function bootstrapPlayerStart(input) {
       start_configuration: {
         mode: "gestalt",
         race_id: requestedRaceId,
+        background_id: requestedBackgroundId,
         class_id: requestedClassId,
         class_option_id: requestedClassOptionId || null,
         secondary_class_id: requestedSecondaryClassId,
@@ -622,12 +626,33 @@ function bootstrapPlayerStart(input) {
     );
   }
 
+  const activateOut = accountService.setActiveCharacter(
+    String(account.account_id || ""),
+    String(characterWithInventory.character_id || "")
+  );
+  if (!activateOut.ok) {
+    return failure(
+      "player_start_bootstrap_failed",
+      activateOut.error || "failed to activate newly created character"
+    );
+  }
+
   return success("player_start_bootstrap_completed", {
     bootstrap_status: "created",
     character_created: true,
     inventory_created: ensuredInventory.payload.created,
     account_created: accountReady.payload.created,
-    account,
+    active_character_id: String(characterWithInventory.character_id || ""),
+    active_character_set: true,
+    slot_status: {
+      used_slots: Number(slotOut.payload.character_count || 0) + 1,
+      remaining_slots: Math.max(
+        0,
+        Number(slotOut.payload.max_character_slots || 3) - (Number(slotOut.payload.character_count || 0) + 1)
+      ),
+      max_character_slots: Number(slotOut.payload.max_character_slots || 3)
+    },
+    account: activateOut.payload.account || account,
     character: characterWithInventory,
     inventory: ensuredInventory.payload.inventory,
     point_buy_summary: pointBuySummary

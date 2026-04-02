@@ -127,6 +127,25 @@ function runAccountSlotActiveCharacterTests() {
     assert.equal(active.payload.character.character_id, c2.character_id);
   }, results);
 
+  runTest("registering_second_character_does_not_replace_existing_active_character", () => {
+    const ctx = createContext();
+    const account = seedAccount(ctx, "account-slot-003b", "discord-slot-003b", 3);
+
+    const first = seedCharacter(ctx, "char-slot-owned-010", account.account_id, "discord-slot-003b");
+    const firstRegister = ctx.accountService.registerCharacterForAccount(account.account_id, first.character_id);
+    const second = seedCharacter(ctx, "char-slot-owned-011", account.account_id, "discord-slot-003b");
+    const secondRegister = ctx.accountService.registerCharacterForAccount(account.account_id, second.character_id);
+
+    assert.equal(firstRegister.ok, true);
+    assert.equal(firstRegister.payload.auto_set_active, true);
+    assert.equal(secondRegister.ok, true);
+    assert.equal(secondRegister.payload.auto_set_active, false);
+
+    const active = ctx.accountService.getActiveCharacter(account.account_id);
+    assert.equal(active.ok, true);
+    assert.equal(active.payload.character.character_id, first.character_id);
+  }, results);
+
   runTest("setting_active_character_fails_for_unowned_character", () => {
     const ctx = createContext();
     const ownedAccount = seedAccount(ctx, "account-slot-004", "discord-slot-004", 3);

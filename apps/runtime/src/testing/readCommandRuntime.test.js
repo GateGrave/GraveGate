@@ -240,6 +240,117 @@ async function runReadCommandRuntimeTests() {
     assert.equal(typeof response.payload.data.character, "object");
   }, results);
 
+  await runTest("profile_reads_use_account_active_character_when_multiple_characters_exist", async () => {
+    const adapter = createInMemoryAdapter();
+    const characterPersistence = new CharacterPersistenceBridge({ adapter });
+    const accountPersistence = new AccountPersistenceBridge({ adapter });
+    const playerId = "player-read-profile-active-001";
+    const accountOut = accountPersistence.findOrCreateAccountByDiscordUserId({ discord_user_id: playerId });
+    const accountId = accountOut.payload.account.account_id;
+
+    characterPersistence.saveCharacter(createCharacterRecord({
+      character_id: "char-read-profile-inactive-001",
+      account_id: accountId,
+      player_id: playerId,
+      name: "Inactive Hero",
+      class: "fighter",
+      race: "human",
+      inventory_id: "inv-read-profile-inactive-001"
+    }));
+    characterPersistence.saveCharacter(createCharacterRecord({
+      character_id: "char-read-profile-active-001",
+      account_id: accountId,
+      player_id: playerId,
+      name: "Active Hero",
+      class: "wizard",
+      race: "elf",
+      inventory_id: "inv-read-profile-active-001"
+    }));
+
+    accountPersistence.saveAccount({
+      ...accountOut.payload.account,
+      active_character_id: "char-read-profile-active-001"
+    });
+
+    const runtime = createReadCommandRuntime({ characterPersistence, accountPersistence });
+    const event = mapInteractionOrThrow(createInteraction("profile", [], playerId));
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    const response = findResponse(out, "profile");
+
+    assert.equal(out.ok, true);
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.data.profile_found, true);
+    assert.equal(response.payload.data.character.character_id, "char-read-profile-active-001");
+    assert.equal(response.payload.data.character.name, "Active Hero");
+    assert.equal(response.payload.data.active_character_id, "char-read-profile-active-001");
+    assert.equal(Array.isArray(response.payload.data.character_roster), true);
+    assert.equal(response.payload.data.character_roster.length, 2);
+    assert.equal(response.payload.data.character_roster.find((entry) => entry.character_id === "char-read-profile-active-001").is_active, true);
+    assert.equal(response.payload.data.character_roster.find((entry) => entry.character_id === "char-read-profile-inactive-001").is_active, false);
+    assert.equal(response.payload.data.slot_status.used_slots, 2);
+    assert.equal(response.payload.data.slot_status.remaining_slots, 1);
+    assert.equal(response.payload.data.slot_status.max_character_slots, 3);
+  }, results);
+
+  await runTest("profile_returns_profile_not_found_for_player_with_no_characters", async () => {
+    const adapter = createInMemoryAdapter();
+    const characterPersistence = new CharacterPersistenceBridge({ adapter });
+    const accountPersistence = new AccountPersistenceBridge({ adapter });
+    const playerId = "player-read-profile-empty-001";
+
+    accountPersistence.findOrCreateAccountByDiscordUserId({ discord_user_id: playerId });
+
+    const runtime = createReadCommandRuntime({ characterPersistence, accountPersistence });
+    const event = mapInteractionOrThrow(createInteraction("profile", [], playerId));
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    const response = findResponse(out, "profile");
+
+    assert.equal(out.ok, true);
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.ok, true);
+    assert.equal(response.payload.data.profile_found, false);
+    assert.equal("character" in response.payload.data, false);
+  }, results);
+
+  await runTest("profile_falls_back_to_owned_character_when_active_character_id_is_stale", async () => {
+    const adapter = createInMemoryAdapter();
+    const characterPersistence = new CharacterPersistenceBridge({ adapter });
+    const accountPersistence = new AccountPersistenceBridge({ adapter });
+    const playerId = "player-read-profile-stale-active-001";
+    const accountOut = accountPersistence.findOrCreateAccountByDiscordUserId({ discord_user_id: playerId });
+    const accountId = accountOut.payload.account.account_id;
+
+    characterPersistence.saveCharacter(createCharacterRecord({
+      character_id: "char-read-profile-owned-fallback-001",
+      account_id: accountId,
+      player_id: playerId,
+      name: "Fallback Hero",
+      class: "fighter",
+      race: "human",
+      inventory_id: "inv-read-profile-owned-fallback-001"
+    }));
+
+    accountPersistence.saveAccount({
+      ...accountOut.payload.account,
+      active_character_id: "char-stale-does-not-exist-001"
+    });
+
+    const runtime = createReadCommandRuntime({ characterPersistence, accountPersistence });
+    const event = mapInteractionOrThrow(createInteraction("profile", [], playerId));
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    const response = findResponse(out, "profile");
+
+    assert.equal(out.ok, true);
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.data.profile_found, true);
+    assert.equal(response.payload.data.character.character_id, "char-read-profile-owned-fallback-001");
+    assert.equal(response.payload.data.character.name, "Fallback Hero");
+    assert.equal(response.payload.data.active_character_id, "char-read-profile-owned-fallback-001");
+    assert.equal(response.payload.data.slot_status.used_slots, 1);
+    assert.equal(response.payload.data.slot_status.remaining_slots, 2);
+    assert.equal(response.payload.data.slot_status.max_character_slots, 3);
+  }, results);
+
   await runTest("end_to_end_feat_command_through_canonical_path", async () => {
     const adapter = createInMemoryAdapter();
     const characterPersistence = new CharacterPersistenceBridge({ adapter });
@@ -423,6 +534,454 @@ async function runReadCommandRuntimeTests() {
     assert.equal(response.payload.data.inventory.magical_preview[0].effect_summary.includes("AC +1"), true);
     assert.equal(Array.isArray(response.payload.data.inventory.tradeable_items), true);
     assert.equal(response.payload.data.inventory.tradeable_items[0].item_id, "potion");
+  }, results);
+
+  await runTest("inventory_reads_use_active_character_inventory_when_multiple_characters_exist", async () => {
+    const adapter = createInMemoryAdapter();
+    const characterPersistence = new CharacterPersistenceBridge({ adapter });
+    const accountPersistence = new AccountPersistenceBridge({ adapter });
+    const inventoryPersistence = new InventoryPersistenceBridge({ adapter });
+    const playerId = "player-read-inventory-active-001";
+    const accountOut = accountPersistence.findOrCreateAccountByDiscordUserId({ discord_user_id: playerId });
+    const accountId = accountOut.payload.account.account_id;
+
+    characterPersistence.saveCharacter(createCharacterRecord({
+      character_id: "char-read-inventory-inactive-001",
+      account_id: accountId,
+      player_id: playerId,
+      name: "Inactive Inventory Hero",
+      inventory_id: "inv-read-inventory-inactive-001"
+    }));
+    characterPersistence.saveCharacter(createCharacterRecord({
+      character_id: "char-read-inventory-active-001",
+      account_id: accountId,
+      player_id: playerId,
+      name: "Active Inventory Hero",
+      inventory_id: "inv-read-inventory-active-001",
+      attunement: {
+        attunement_slots: 3,
+        slots_used: 1,
+        attuned_items: ["item-active-ring"]
+      }
+    }));
+
+    inventoryPersistence.saveInventory(createInventoryRecord({
+      inventory_id: "inv-read-inventory-inactive-001",
+      owner_type: "player",
+      owner_id: playerId,
+      stackable_items: [{ item_id: "old_potion", item_name: "Old Potion", quantity: 1 }]
+    }));
+    inventoryPersistence.saveInventory(createInventoryRecord({
+      inventory_id: "inv-read-inventory-active-001",
+      owner_type: "player",
+      owner_id: playerId,
+      equipment_items: [{
+        item_id: "item-active-ring",
+        item_name: "Active Ring",
+        item_type: "equipment",
+        equip_slot: "ring",
+        metadata: {
+          magical: true,
+          requires_attunement: true,
+          equipped: true,
+          equipped_slot: "ring",
+          armor_class_bonus: 1
+        }
+      }]
+    }));
+
+    accountPersistence.saveAccount({
+      ...accountOut.payload.account,
+      active_character_id: "char-read-inventory-active-001"
+    });
+
+    const runtime = createReadCommandRuntime({
+      characterPersistence,
+      accountPersistence,
+      inventoryPersistence
+    });
+    const event = mapInteractionOrThrow(createInteraction("inventory", [], playerId));
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    const response = findResponse(out, "inventory");
+
+    assert.equal(out.ok, true);
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.data.inventory_found, true);
+    assert.equal(response.payload.data.active_character_id, "char-read-inventory-active-001");
+    assert.equal(Array.isArray(response.payload.data.character_roster), true);
+    assert.equal(response.payload.data.character_roster.length, 2);
+    assert.equal(response.payload.data.character_roster.find((entry) => entry.character_id === "char-read-inventory-active-001").is_active, true);
+    assert.equal(response.payload.data.character_roster.find((entry) => entry.character_id === "char-read-inventory-inactive-001").is_active, false);
+    assert.equal(response.payload.data.slot_status.used_slots, 2);
+    assert.equal(response.payload.data.slot_status.remaining_slots, 1);
+    assert.equal(response.payload.data.slot_status.max_character_slots, 3);
+    assert.equal(response.payload.data.inventory.inventory_id, "inv-read-inventory-active-001");
+    assert.equal(response.payload.data.inventory.equipment_preview[0].item_id, "item-active-ring");
+  }, results);
+
+  await runTest("inventory_returns_inventory_not_found_for_player_with_no_characters", async () => {
+    const adapter = createInMemoryAdapter();
+    const characterPersistence = new CharacterPersistenceBridge({ adapter });
+    const accountPersistence = new AccountPersistenceBridge({ adapter });
+    const inventoryPersistence = new InventoryPersistenceBridge({ adapter });
+    const playerId = "player-read-inventory-empty-001";
+
+    accountPersistence.findOrCreateAccountByDiscordUserId({ discord_user_id: playerId });
+
+    const runtime = createReadCommandRuntime({
+      characterPersistence,
+      accountPersistence,
+      inventoryPersistence
+    });
+    const event = mapInteractionOrThrow(createInteraction("inventory", [], playerId));
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    const response = findResponse(out, "inventory");
+
+    assert.equal(out.ok, true);
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.ok, true);
+    assert.equal(response.payload.data.inventory_found, false);
+    assert.equal("inventory" in response.payload.data, false);
+  }, results);
+
+  await runTest("inventory_falls_back_to_owned_character_inventory_when_active_character_id_is_stale", async () => {
+    const adapter = createInMemoryAdapter();
+    const characterPersistence = new CharacterPersistenceBridge({ adapter });
+    const accountPersistence = new AccountPersistenceBridge({ adapter });
+    const inventoryPersistence = new InventoryPersistenceBridge({ adapter });
+    const playerId = "player-read-inventory-stale-active-001";
+    const accountOut = accountPersistence.findOrCreateAccountByDiscordUserId({ discord_user_id: playerId });
+    const accountId = accountOut.payload.account.account_id;
+
+    characterPersistence.saveCharacter(createCharacterRecord({
+      character_id: "char-read-inventory-owned-fallback-001",
+      account_id: accountId,
+      player_id: playerId,
+      name: "Fallback Inventory Hero",
+      inventory_id: "inv-read-inventory-owned-fallback-001"
+    }));
+    inventoryPersistence.saveInventory(createInventoryRecord({
+      inventory_id: "inv-read-inventory-owned-fallback-001",
+      owner_type: "player",
+      owner_id: playerId,
+      stackable_items: [{ item_id: "fallback_potion", item_name: "Fallback Potion", quantity: 1 }]
+    }));
+
+    accountPersistence.saveAccount({
+      ...accountOut.payload.account,
+      active_character_id: "char-stale-does-not-exist-002"
+    });
+
+    const runtime = createReadCommandRuntime({
+      characterPersistence,
+      accountPersistence,
+      inventoryPersistence
+    });
+    const event = mapInteractionOrThrow(createInteraction("inventory", [], playerId));
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    const response = findResponse(out, "inventory");
+
+    assert.equal(out.ok, true);
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.data.inventory_found, true);
+    assert.equal(response.payload.data.active_character_id, "char-read-inventory-owned-fallback-001");
+    assert.equal(Array.isArray(response.payload.data.character_roster), true);
+    assert.equal(response.payload.data.character_roster.length, 1);
+    assert.equal(response.payload.data.character_roster[0].character_id, "char-read-inventory-owned-fallback-001");
+    assert.equal(response.payload.data.character_roster[0].is_active, true);
+    assert.equal(response.payload.data.slot_status.used_slots, 1);
+    assert.equal(response.payload.data.slot_status.remaining_slots, 2);
+    assert.equal(response.payload.data.slot_status.max_character_slots, 3);
+    assert.equal(response.payload.data.character.name, "Fallback Inventory Hero");
+    assert.equal(response.payload.data.inventory.inventory_id, "inv-read-inventory-owned-fallback-001");
+  }, results);
+
+  await runTest("player_active_character_switch_updates_profile_and_inventory_consistently", async () => {
+    const adapter = createInMemoryAdapter();
+    const characterPersistence = new CharacterPersistenceBridge({ adapter });
+    const accountPersistence = new AccountPersistenceBridge({ adapter });
+    const inventoryPersistence = new InventoryPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({
+      characterPersistence,
+      accountPersistence,
+      inventoryPersistence
+    });
+    const playerId = "player-runtime-switch-001";
+    const accountOut = accountPersistence.findOrCreateAccountByDiscordUserId({ discord_user_id: playerId });
+    const accountId = accountOut.payload.account.account_id;
+
+    characterPersistence.saveCharacter(createCharacterRecord({
+      character_id: "char-runtime-switch-a-001",
+      account_id: accountId,
+      player_id: playerId,
+      name: "Switch Knight",
+      class: "fighter",
+      race: "human",
+      inventory_id: "inv-runtime-switch-a-001"
+    }));
+    characterPersistence.saveCharacter(createCharacterRecord({
+      character_id: "char-runtime-switch-b-001",
+      account_id: accountId,
+      player_id: playerId,
+      name: "Switch Mage",
+      class: "wizard",
+      race: "elf",
+      inventory_id: "inv-runtime-switch-b-001"
+    }));
+
+    inventoryPersistence.saveInventory(createInventoryRecord({
+      inventory_id: "inv-runtime-switch-a-001",
+      owner_type: "player",
+      owner_id: playerId,
+      stackable_items: [{ item_id: "old_supply", item_name: "Old Supply", quantity: 1 }]
+    }));
+    inventoryPersistence.saveInventory(createInventoryRecord({
+      inventory_id: "inv-runtime-switch-b-001",
+      owner_type: "player",
+      owner_id: playerId,
+      equipment_items: [{ item_id: "mage_staff", item_name: "Mage Staff", quantity: 1, metadata: {} }]
+    }));
+
+    accountPersistence.saveAccount({
+      ...accountOut.payload.account,
+      active_character_id: "char-runtime-switch-a-001"
+    });
+
+    const switchEvent = createEvent(EVENT_TYPES.PLAYER_SET_ACTIVE_CHARACTER_REQUESTED, {
+      character_id: "char-runtime-switch-b-001",
+      request_id: "switch-request-001"
+    }, {
+      source: "gateway.discord",
+      target_system: "world_system",
+      player_id: playerId
+    });
+    const switchOut = await runtime.processGatewayReadCommandEvent(switchEvent);
+    const switchResponse = findResponse(switchOut, "profile");
+    assert.equal(Boolean(switchResponse), true);
+    assert.equal(switchResponse.payload.ok, true);
+    assert.equal(switchResponse.payload.data.active_character_updated, true);
+    assert.equal(switchResponse.payload.data.active_character_id, "char-runtime-switch-b-001");
+    assert.equal(switchResponse.payload.data.profile_found, true);
+    assert.equal(switchResponse.payload.data.character.character_id, "char-runtime-switch-b-001");
+    assert.equal(switchResponse.payload.data.character.name, "Switch Mage");
+    assert.equal(Array.isArray(switchResponse.payload.data.character_roster), true);
+    assert.equal(switchResponse.payload.data.character_roster.length, 2);
+    assert.equal(switchResponse.payload.data.character_roster.find((entry) => entry.character_id === "char-runtime-switch-b-001").is_active, true);
+    assert.equal(Boolean(switchResponse.payload.data.inventory_snapshot), true);
+    assert.equal(switchResponse.payload.data.inventory_snapshot.inventory_found, true);
+    assert.equal(switchResponse.payload.data.inventory_snapshot.character.character_id, "char-runtime-switch-b-001");
+    assert.equal(switchResponse.payload.data.inventory_snapshot.inventory.inventory_id, "inv-runtime-switch-b-001");
+    assert.equal(switchResponse.payload.data.inventory_snapshot.inventory.equipment_preview[0].item_id, "mage_staff");
+
+    const profileOut = await runtime.processGatewayReadCommandEvent(
+      mapInteractionOrThrow(createInteraction("profile", [], playerId))
+    );
+    const profileResponse = findResponse(profileOut, "profile");
+    assert.equal(Boolean(profileResponse), true);
+    assert.equal(profileResponse.payload.data.profile_found, true);
+    assert.equal(profileResponse.payload.data.character.character_id, "char-runtime-switch-b-001");
+    assert.equal(profileResponse.payload.data.character.name, "Switch Mage");
+    assert.equal(Array.isArray(profileResponse.payload.data.character_roster), true);
+    assert.equal(profileResponse.payload.data.character_roster.length, 2);
+    assert.equal(profileResponse.payload.data.character_roster.find((entry) => entry.character_id === "char-runtime-switch-b-001").is_active, true);
+
+      const inventoryOut = await runtime.processGatewayReadCommandEvent(
+        mapInteractionOrThrow(createInteraction("inventory", [], playerId))
+      );
+      const inventoryResponse = findResponse(inventoryOut, "inventory");
+      assert.equal(Boolean(inventoryResponse), true);
+      assert.equal(inventoryResponse.payload.data.inventory_found, true);
+      assert.equal(inventoryResponse.payload.data.active_character_id, "char-runtime-switch-b-001");
+      assert.equal(Array.isArray(inventoryResponse.payload.data.character_roster), true);
+      assert.equal(inventoryResponse.payload.data.character_roster.length, 2);
+      assert.equal(inventoryResponse.payload.data.character_roster.find((entry) => entry.character_id === "char-runtime-switch-b-001").is_active, true);
+      assert.equal(inventoryResponse.payload.data.character_roster.find((entry) => entry.character_id === "char-runtime-switch-a-001").is_active, false);
+      assert.equal(inventoryResponse.payload.data.character.name, "Switch Mage");
+      assert.equal(inventoryResponse.payload.data.inventory.inventory_id, "inv-runtime-switch-b-001");
+      assert.equal(inventoryResponse.payload.data.inventory.equipment_preview[0].item_id, "mage_staff");
+    }, results);
+
+  await runTest("player_active_character_switch_rejects_unowned_character_cleanly", async () => {
+    const adapter = createInMemoryAdapter();
+    const characterPersistence = new CharacterPersistenceBridge({ adapter });
+    const accountPersistence = new AccountPersistenceBridge({ adapter });
+    const inventoryPersistence = new InventoryPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({
+      characterPersistence,
+      accountPersistence,
+      inventoryPersistence
+    });
+    const playerId = "player-runtime-switch-fail-001";
+    const accountOut = accountPersistence.findOrCreateAccountByDiscordUserId({ discord_user_id: playerId });
+    const accountId = accountOut.payload.account.account_id;
+
+    characterPersistence.saveCharacter(createCharacterRecord({
+      character_id: "char-runtime-switch-owned-001",
+      account_id: accountId,
+      player_id: playerId,
+      name: "Owned Hero",
+      inventory_id: "inv-runtime-switch-owned-001"
+    }));
+    characterPersistence.saveCharacter(createCharacterRecord({
+      character_id: "char-runtime-switch-other-001",
+      account_id: "account-someone-else-001",
+      player_id: "player-someone-else-001",
+      name: "Other Hero",
+      inventory_id: "inv-runtime-switch-other-001"
+    }));
+
+    accountPersistence.saveAccount({
+      ...accountOut.payload.account,
+      active_character_id: "char-runtime-switch-owned-001"
+    });
+
+    const switchEvent = createEvent(EVENT_TYPES.PLAYER_SET_ACTIVE_CHARACTER_REQUESTED, {
+      character_id: "char-runtime-switch-other-001",
+      request_id: "switch-request-fail-001"
+    }, {
+      source: "gateway.discord",
+      target_system: "world_system",
+      player_id: playerId
+    });
+
+    const out = await runtime.processGatewayReadCommandEvent(switchEvent);
+    const response = findResponse(out, "profile");
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.ok, false);
+    assert.equal(response.payload.error, "character is not owned by account");
+  }, results);
+
+  await runTest("multi_character_lifecycle_switches_reads_and_equipment_back_to_older_character", async () => {
+    const adapter = createInMemoryAdapter();
+    const characterPersistence = new CharacterPersistenceBridge({ adapter });
+    const accountPersistence = new AccountPersistenceBridge({ adapter });
+    const inventoryPersistence = new InventoryPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({
+      characterPersistence,
+      accountPersistence,
+      inventoryPersistence
+    });
+    const playerId = "player-runtime-lifecycle-001";
+
+    const firstStartOut = await runtime.processGatewayReadCommandEvent(
+      mapInteractionOrThrow(createInteraction("start", [{ name: "name", value: "Older Hero" }], playerId))
+    );
+    const secondStartOut = await runtime.processGatewayReadCommandEvent(
+      mapInteractionOrThrow(createInteraction("start", [{ name: "name", value: "Newer Hero" }], playerId))
+    );
+
+    const firstStartResponse = findResponse(firstStartOut, "start");
+    const secondStartResponse = findResponse(secondStartOut, "start");
+    assert.equal(Boolean(firstStartResponse), true);
+    assert.equal(Boolean(secondStartResponse), true);
+    assert.equal(firstStartResponse.payload.ok, true);
+    assert.equal(secondStartResponse.payload.ok, true);
+
+    const olderCharacterId = firstStartResponse.payload.data.character.character_id;
+    const newerCharacterId = secondStartResponse.payload.data.character.character_id;
+    const olderInventoryId = firstStartResponse.payload.data.inventory.inventory_id;
+
+    const switchBackOut = await runtime.processGatewayReadCommandEvent(createEvent(
+      EVENT_TYPES.PLAYER_SET_ACTIVE_CHARACTER_REQUESTED,
+      {
+        character_id: olderCharacterId,
+        request_id: "switch-request-lifecycle-001"
+      },
+      {
+        source: "gateway.discord",
+        target_system: "world_system",
+        player_id: playerId
+      }
+    ));
+    const switchBackResponse = findResponse(switchBackOut, "profile");
+    assert.equal(Boolean(switchBackResponse), true);
+    assert.equal(switchBackResponse.payload.ok, true);
+    assert.equal(switchBackResponse.payload.data.active_character_id, olderCharacterId);
+
+    const olderInventory = inventoryPersistence.loadInventoryById(olderInventoryId);
+    assert.equal(olderInventory.ok, true);
+    olderInventory.payload.inventory.equipment_items.push({
+      item_id: "item-lifecycle-sword-001",
+      item_name: "Lifecycle Sword",
+      quantity: 1,
+      owner_player_id: playerId,
+      metadata: {}
+    });
+    inventoryPersistence.saveInventory(olderInventory.payload.inventory);
+
+    const profileOut = await runtime.processGatewayReadCommandEvent(
+      mapInteractionOrThrow(createInteraction("profile", [], playerId))
+    );
+    const profileResponse = findResponse(profileOut, "profile");
+    assert.equal(Boolean(profileResponse), true);
+    assert.equal(profileResponse.payload.data.profile_found, true);
+    assert.equal(profileResponse.payload.data.character.character_id, olderCharacterId);
+    assert.equal(profileResponse.payload.data.character.name, "Older Hero");
+    assert.equal(profileResponse.payload.data.character_roster.find((entry) => entry.character_id === olderCharacterId).is_active, true);
+    assert.equal(profileResponse.payload.data.character_roster.find((entry) => entry.character_id === newerCharacterId).is_active, false);
+
+    const inventoryOut = await runtime.processGatewayReadCommandEvent(
+      mapInteractionOrThrow(createInteraction("inventory", [], playerId))
+    );
+    const inventoryResponse = findResponse(inventoryOut, "inventory");
+    assert.equal(Boolean(inventoryResponse), true);
+    assert.equal(inventoryResponse.payload.data.inventory_found, true);
+    assert.equal(inventoryResponse.payload.data.active_character_id, olderCharacterId);
+    assert.equal(Array.isArray(inventoryResponse.payload.data.character_roster), true);
+    assert.equal(inventoryResponse.payload.data.character_roster.length, 2);
+    assert.equal(inventoryResponse.payload.data.character_roster.find((entry) => entry.character_id === olderCharacterId).is_active, true);
+    assert.equal(inventoryResponse.payload.data.character_roster.find((entry) => entry.character_id === newerCharacterId).is_active, false);
+    assert.equal(inventoryResponse.payload.data.character.character_id, olderCharacterId);
+    assert.equal(inventoryResponse.payload.data.inventory.inventory_id, olderInventoryId);
+
+    const equipOut = await runtime.processGatewayReadCommandEvent(
+      mapInteractionOrThrow(createInteraction("equip", [
+        { name: "item_id", value: "item-lifecycle-sword-001" },
+        { name: "slot", value: "main_hand" }
+      ], playerId))
+    );
+    const equipResponse = findResponse(equipOut, "equip");
+    assert.equal(Boolean(equipResponse), true);
+    assert.equal(equipResponse.payload.ok, true);
+    assert.equal(equipResponse.payload.data.character.character_id, olderCharacterId);
+    assert.equal(equipResponse.payload.data.inventory_found, true);
+    assert.equal(equipResponse.payload.data.inventory.inventory_id, olderInventoryId);
+    assert.equal(
+      equipResponse.payload.data.character_roster.find((entry) => entry.character_id === olderCharacterId).is_active,
+      true
+    );
+    assert.equal(
+      equipResponse.payload.data.character_roster.find((entry) => entry.character_id === newerCharacterId).is_active,
+      false
+    );
+
+    const olderCharacterAfterEquip = characterPersistence.loadCharacterById(olderCharacterId);
+    const newerCharacterAfterEquip = characterPersistence.loadCharacterById(newerCharacterId);
+    assert.equal(olderCharacterAfterEquip.ok, true);
+    assert.equal(newerCharacterAfterEquip.ok, true);
+    assert.equal(olderCharacterAfterEquip.payload.character.equipment.main_hand, "item-lifecycle-sword-001");
+    assert.equal(newerCharacterAfterEquip.payload.character.equipment.main_hand || null, null);
+
+    const unequipOut = await runtime.processGatewayReadCommandEvent(
+      mapInteractionOrThrow(createInteraction("unequip", [
+        { name: "item_id", value: "item-lifecycle-sword-001" },
+        { name: "slot", value: "main_hand" }
+      ], playerId))
+    );
+    const unequipResponse = findResponse(unequipOut, "unequip");
+    assert.equal(Boolean(unequipResponse), true);
+    assert.equal(unequipResponse.payload.ok, true);
+    assert.equal(unequipResponse.payload.data.character.character_id, olderCharacterId);
+    assert.equal(unequipResponse.payload.data.inventory_found, true);
+    assert.equal(unequipResponse.payload.data.inventory.inventory_id, olderInventoryId);
+    assert.equal(
+      unequipResponse.payload.data.character_roster.find((entry) => entry.character_id === olderCharacterId).is_active,
+      true
+    );
+
+    const olderCharacterAfterUnequip = characterPersistence.loadCharacterById(olderCharacterId);
+    assert.equal(olderCharacterAfterUnequip.ok, true);
+    assert.equal(olderCharacterAfterUnequip.payload.character.equipment.main_hand || null, null);
   }, results);
 
   await runTest("end_to_end_shop_browse_and_buy_flow_through_canonical_path", async () => {
@@ -713,10 +1272,30 @@ async function runReadCommandRuntimeTests() {
     const out = await runtime.processGatewayReadCommandEvent(event);
     assert.equal(out.ok, true);
 
-    const response = findResponse(out, "start");
-    assert.equal(Boolean(response), true);
-    assert.equal(response.payload.ok, true);
-    assert.equal(response.payload.data.bootstrap_status, "created");
+      const response = findResponse(out, "start");
+      assert.equal(Boolean(response), true);
+      assert.equal(response.payload.ok, true);
+      assert.equal(response.payload.data.bootstrap_status, "created");
+      assert.equal(response.payload.data.active_character_set, true);
+      assert.equal(response.payload.data.active_character_id, response.payload.data.character.character_id);
+      assert.equal(Array.isArray(response.payload.data.character_roster), true);
+      assert.equal(response.payload.data.character_roster.length, 1);
+      assert.equal(response.payload.data.character_roster[0].character_id, response.payload.data.character.character_id);
+      assert.equal(response.payload.data.character_roster[0].is_active, true);
+      assert.equal(response.payload.data.slot_status.used_slots, 1);
+      assert.equal(response.payload.data.slot_status.remaining_slots, 2);
+      assert.equal(response.payload.data.slot_status.max_character_slots, 3);
+      assert.equal(Boolean(response.payload.data.profile_snapshot), true);
+      assert.equal(response.payload.data.profile_snapshot.profile_found, true);
+      assert.equal(response.payload.data.profile_snapshot.character.character_id, response.payload.data.character.character_id);
+      assert.equal(response.payload.data.profile_snapshot.character.name, "Start Hero");
+      assert.equal(Boolean(response.payload.data.inventory_snapshot), true);
+      assert.equal(response.payload.data.inventory_snapshot.inventory_found, true);
+      assert.equal(response.payload.data.inventory_snapshot.character.character_id, response.payload.data.character.character_id);
+      assert.equal(
+        response.payload.data.inventory_snapshot.inventory.inventory_id,
+        response.payload.data.inventory.inventory_id
+      );
 
     const listedCharacters = characterPersistence.listCharacters();
     assert.equal(listedCharacters.ok, true);
@@ -731,12 +1310,13 @@ async function runReadCommandRuntimeTests() {
     assert.equal(loadedAccount.ok, true);
     assert.equal(loadedAccount.payload.account.active_character_id, createdCharacter.character_id);
 
-    const listedInventories = inventoryPersistence.listInventories();
-    assert.equal(listedInventories.ok, true);
-    const createdInventory = listedInventories.payload.inventories.find((inventory) => {
-      return String(inventory.owner_id || "") === playerId;
-    });
-    assert.equal(Boolean(createdInventory), true);
+      const listedInventories = inventoryPersistence.listInventories();
+      assert.equal(listedInventories.ok, true);
+      const createdInventory = listedInventories.payload.inventories.find((inventory) => {
+        return String(inventory.inventory_id || "") === String(response.payload.data.character.inventory_id || "");
+      });
+      assert.equal(Boolean(createdInventory), true);
+      assert.equal(createdInventory.inventory_id, response.payload.data.inventory.inventory_id);
   }, results);
 
   await runTest("repeated_start_request_creates_characters_until_slot_cap", async () => {
@@ -775,18 +1355,56 @@ async function runReadCommandRuntimeTests() {
     assert.equal(thirdResponse.payload.ok, true);
     assert.equal(fourthResponse.payload.ok, false);
     assert.equal(fourthResponse.payload.error, "character slot limit reached");
+    assert.equal(firstResponse.payload.data.slot_status.used_slots, 1);
+    assert.equal(firstResponse.payload.data.slot_status.remaining_slots, 2);
+    assert.equal(secondResponse.payload.data.slot_status.used_slots, 2);
+    assert.equal(secondResponse.payload.data.slot_status.remaining_slots, 1);
+    assert.equal(thirdResponse.payload.data.slot_status.used_slots, 3);
+    assert.equal(thirdResponse.payload.data.slot_status.remaining_slots, 0);
+    assert.equal(Array.isArray(thirdResponse.payload.data.character_roster), true);
+    assert.equal(thirdResponse.payload.data.character_roster.length, 3);
+    assert.equal(thirdResponse.payload.data.character_roster.find((entry) => entry.character_id === thirdResponse.payload.data.character.character_id).is_active, true);
 
-    const listedCharacters = characterPersistence.listCharacters();
-    assert.equal(listedCharacters.ok, true);
-    const matches = listedCharacters.payload.characters.filter((character) => {
-      return String(character.player_id || "") === playerId;
-    });
-    assert.equal(matches.length, 3);
+      const listedCharacters = characterPersistence.listCharacters();
+      assert.equal(listedCharacters.ok, true);
+      const matches = listedCharacters.payload.characters.filter((character) => {
+        return String(character.player_id || "") === playerId;
+      });
+      assert.equal(matches.length, 3);
 
-    const loadedAccount = accountPersistence.loadAccountByDiscordUserId(playerId);
-    assert.equal(loadedAccount.ok, true);
-    const firstCharacterId = firstResponse.payload.data.character.character_id;
-    assert.equal(loadedAccount.payload.account.active_character_id, firstCharacterId);
+      const listedInventories = inventoryPersistence.listInventories();
+      assert.equal(listedInventories.ok, true);
+      const matchedInventories = listedInventories.payload.inventories.filter((inventory) => {
+        return String(inventory.owner_id || "") === playerId;
+      });
+      assert.equal(matchedInventories.length, 3);
+      assert.equal(new Set(matchedInventories.map((inventory) => String(inventory.inventory_id || ""))).size, 3);
+
+      const loadedAccount = accountPersistence.loadAccountByDiscordUserId(playerId);
+      assert.equal(loadedAccount.ok, true);
+      const thirdCharacterId = thirdResponse.payload.data.character.character_id;
+      assert.equal(loadedAccount.payload.account.active_character_id, thirdCharacterId);
+
+      const profileOut = await runtime.processGatewayReadCommandEvent(
+        mapInteractionOrThrow(createInteraction("profile", [], playerId))
+      );
+      const profileResponse = findResponse(profileOut, "profile");
+      assert.equal(Boolean(profileResponse), true);
+      assert.equal(profileResponse.payload.data.profile_found, true);
+      assert.equal(profileResponse.payload.data.character.character_id, thirdCharacterId);
+      assert.equal(profileResponse.payload.data.character.name, "Dupe Hero Three");
+
+      const inventoryOut = await runtime.processGatewayReadCommandEvent(
+        mapInteractionOrThrow(createInteraction("inventory", [], playerId))
+      );
+      const inventoryResponse = findResponse(inventoryOut, "inventory");
+      assert.equal(Boolean(inventoryResponse), true);
+      assert.equal(inventoryResponse.payload.data.inventory_found, true);
+      assert.equal(inventoryResponse.payload.data.character.character_id, thirdCharacterId);
+      assert.equal(
+        inventoryResponse.payload.data.inventory.inventory_id,
+        thirdResponse.payload.data.inventory.inventory_id
+      );
   }, results);
 
   await runTest("start_creation_reloads_with_applied_race_and_gestalt_class_selection", async () => {
@@ -802,6 +1420,7 @@ async function runReadCommandRuntimeTests() {
       requested_character_name: "Selection Hero",
       race_id: "dragonborn",
       race_option_id: "blue",
+      background_id: "soldier",
       class_id: "sorcerer",
       class_option_id: "draconic_bloodline",
       secondary_class_id: "fighter",
@@ -830,12 +1449,17 @@ async function runReadCommandRuntimeTests() {
     assert.equal(reloadedCharacter.ok, true);
     assert.equal(reloadedCharacter.payload.character.race_id, "dragonborn");
     assert.equal(reloadedCharacter.payload.character.race_option_id, "blue");
+    assert.equal(reloadedCharacter.payload.character.background_id, "soldier");
+    assert.equal(reloadedCharacter.payload.character.background, "soldier");
     assert.equal(reloadedCharacter.payload.character.class_id, "sorcerer");
     assert.equal(reloadedCharacter.payload.character.class_option_id, "draconic_bloodline");
-    assert.equal(reloadedCharacter.payload.character.gestalt_progression.track_b_class_key, "fighter");
-    assert.equal(reloadedCharacter.payload.character.gestalt_progression.track_a_option_id, "draconic_bloodline");
-    assert.equal(reloadedCharacter.payload.character.metadata.start_configuration.mode, "gestalt");
-    assert.deepEqual(reloadedCharacter.payload.character.base_stats, {
+      assert.equal(reloadedCharacter.payload.character.gestalt_progression.track_b_class_key, "fighter");
+      assert.equal(reloadedCharacter.payload.character.gestalt_progression.track_a_option_id, "draconic_bloodline");
+      assert.equal(reloadedCharacter.payload.character.metadata.start_configuration.mode, "gestalt");
+      assert.equal(reloadedCharacter.payload.character.metadata.start_configuration.background_id, "soldier");
+      assert.equal(response.payload.data.active_character_id, characterId);
+      assert.equal(response.payload.data.inventory.inventory_id, reloadedCharacter.payload.character.inventory_id);
+      assert.deepEqual(reloadedCharacter.payload.character.base_stats, {
       strength: 15,
       dexterity: 10,
       constitution: 15,
@@ -843,6 +1467,41 @@ async function runReadCommandRuntimeTests() {
       wisdom: 8,
       charisma: 14
     });
+  }, results);
+
+  await runTest("start_selection_requires_background_when_selection_ids_are_provided", async () => {
+    const adapter = createInMemoryAdapter();
+    const characterPersistence = new CharacterPersistenceBridge({ adapter });
+    const accountPersistence = new AccountPersistenceBridge({ adapter });
+    const inventoryPersistence = new InventoryPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({ characterPersistence, accountPersistence, inventoryPersistence });
+    const playerId = "player-start-runtime-background-required-001";
+
+    const event = createEvent(EVENT_TYPES.PLAYER_START_REQUESTED, {
+      command_name: "start",
+      requested_character_name: "Missing Background Hero",
+      race_id: "human",
+      class_id: "fighter",
+      secondary_class_id: "wizard",
+      stats: {
+        strength: 15,
+        dexterity: 14,
+        constitution: 13,
+        intelligence: 12,
+        wisdom: 10,
+        charisma: 8
+      }
+    }, {
+      source: "gateway.discord",
+      target_system: "world_system",
+      player_id: playerId
+    });
+
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    const response = findResponse(out, "start");
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.ok, false);
+    assert.equal(response.payload.error, "race_id, background_id, class_id, and secondary_class_id are required together when applying start selections");
   }, results);
 
   await runTest("admin_inspect_returns_structured_output_for_valid_account_character", async () => {
@@ -1569,6 +2228,14 @@ async function runReadCommandRuntimeTests() {
     const response = findResponse(out, "equip");
     assert.equal(Boolean(response), true);
     assert.equal(response.payload.ok, true);
+    assert.equal(response.payload.data.inventory_found, true);
+    assert.equal(response.payload.data.character.character_id, characterId);
+    assert.equal(response.payload.data.character.name, "Equip Hero");
+    assert.equal(response.payload.data.inventory.inventory_id, inventoryId);
+    assert.equal(response.payload.data.inventory.equipment_preview[0].equipped, true);
+    assert.equal(Array.isArray(response.payload.data.character_roster), true);
+    assert.equal(response.payload.data.character_roster[0].character_id, characterId);
+    assert.equal(response.payload.data.slot_status.used_slots, 0);
 
     const loadedCharacter = characterPersistence.loadCharacterById(characterId);
     assert.equal(loadedCharacter.ok, true);
@@ -1578,6 +2245,140 @@ async function runReadCommandRuntimeTests() {
     assert.equal(loadedInventory.ok, true);
     assert.equal(loadedInventory.payload.inventory.equipment_items[0].metadata.equipped, true);
     assert.equal(loadedInventory.payload.inventory.equipment_items[0].metadata.equipped_slot, "main_hand");
+  }, results);
+
+  await runTest("equip_after_creating_newer_character_targets_new_active_character_inventory", async () => {
+    const adapter = createInMemoryAdapter();
+    const accountPersistence = new AccountPersistenceBridge({ adapter });
+    const characterPersistence = new CharacterPersistenceBridge({ adapter });
+    const inventoryPersistence = new InventoryPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({
+      accountPersistence,
+      characterPersistence,
+      inventoryPersistence
+    });
+    const playerId = "player-equip-runtime-active-001";
+
+    const firstStartOut = await runtime.processGatewayReadCommandEvent(
+      mapInteractionOrThrow(createInteraction("start", [{ name: "name", value: "Older Hero" }], playerId))
+    );
+    const secondStartOut = await runtime.processGatewayReadCommandEvent(
+      mapInteractionOrThrow(createInteraction("start", [{ name: "name", value: "Newer Hero" }], playerId))
+    );
+
+    const firstStartResponse = findResponse(firstStartOut, "start");
+    const secondStartResponse = findResponse(secondStartOut, "start");
+    assert.equal(Boolean(firstStartResponse), true);
+    assert.equal(Boolean(secondStartResponse), true);
+    assert.equal(secondStartResponse.payload.ok, true);
+
+    const olderCharacterId = firstStartResponse.payload.data.character.character_id;
+    const newerCharacterId = secondStartResponse.payload.data.character.character_id;
+    const newerInventoryId = secondStartResponse.payload.data.inventory.inventory_id;
+
+    const newerInventory = inventoryPersistence.loadInventoryById(newerInventoryId);
+    assert.equal(newerInventory.ok, true);
+    newerInventory.payload.inventory.equipment_items.push({
+      item_id: "item-new-active-sword-001",
+      item_name: "New Active Sword",
+      quantity: 1,
+      owner_player_id: playerId,
+      metadata: {}
+    });
+    inventoryPersistence.saveInventory(newerInventory.payload.inventory);
+
+    const equipOut = await runtime.processGatewayReadCommandEvent(
+      mapInteractionOrThrow(createInteraction("equip", [
+        { name: "item_id", value: "item-new-active-sword-001" },
+        { name: "slot", value: "main_hand" }
+      ], playerId))
+    );
+    const equipResponse = findResponse(equipOut, "equip");
+    assert.equal(Boolean(equipResponse), true);
+    assert.equal(equipResponse.payload.ok, true);
+    assert.equal(equipResponse.payload.data.character.character_id, newerCharacterId);
+
+    const newerCharacter = characterPersistence.loadCharacterById(newerCharacterId);
+    const olderCharacter = characterPersistence.loadCharacterById(olderCharacterId);
+    assert.equal(newerCharacter.ok, true);
+    assert.equal(olderCharacter.ok, true);
+    assert.equal(newerCharacter.payload.character.equipment.main_hand, "item-new-active-sword-001");
+    assert.equal(olderCharacter.payload.character.equipment.main_hand || null, null);
+  }, results);
+
+  await runTest("unequip_after_creating_newer_character_targets_new_active_character_inventory", async () => {
+    const adapter = createInMemoryAdapter();
+    const accountPersistence = new AccountPersistenceBridge({ adapter });
+    const characterPersistence = new CharacterPersistenceBridge({ adapter });
+    const inventoryPersistence = new InventoryPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({
+      accountPersistence,
+      characterPersistence,
+      inventoryPersistence
+    });
+    const playerId = "player-unequip-runtime-active-001";
+
+    const firstStartOut = await runtime.processGatewayReadCommandEvent(
+      mapInteractionOrThrow(createInteraction("start", [{ name: "name", value: "Older Hero" }], playerId))
+    );
+    const secondStartOut = await runtime.processGatewayReadCommandEvent(
+      mapInteractionOrThrow(createInteraction("start", [{ name: "name", value: "Newer Hero" }], playerId))
+    );
+
+    const firstStartResponse = findResponse(firstStartOut, "start");
+    const secondStartResponse = findResponse(secondStartOut, "start");
+    assert.equal(Boolean(firstStartResponse), true);
+    assert.equal(Boolean(secondStartResponse), true);
+    assert.equal(secondStartResponse.payload.ok, true);
+
+    const olderCharacterId = firstStartResponse.payload.data.character.character_id;
+    const newerCharacterId = secondStartResponse.payload.data.character.character_id;
+    const newerInventoryId = secondStartResponse.payload.data.inventory.inventory_id;
+
+    const newerCharacter = characterPersistence.loadCharacterById(newerCharacterId);
+    assert.equal(newerCharacter.ok, true);
+    newerCharacter.payload.character.equipment.main_hand = "item-new-active-sword-unequip-001";
+    characterPersistence.saveCharacter(newerCharacter.payload.character);
+
+    const newerInventory = inventoryPersistence.loadInventoryById(newerInventoryId);
+    assert.equal(newerInventory.ok, true);
+    newerInventory.payload.inventory.equipment_items.push({
+      item_id: "item-new-active-sword-unequip-001",
+      item_name: "New Active Sword",
+      quantity: 1,
+      owner_player_id: playerId,
+      metadata: {
+        equipped: true,
+        equipped_slot: "main_hand"
+      }
+    });
+    inventoryPersistence.saveInventory(newerInventory.payload.inventory);
+
+    const unequipOut = await runtime.processGatewayReadCommandEvent(
+      mapInteractionOrThrow(createInteraction("unequip", [
+        { name: "item_id", value: "item-new-active-sword-unequip-001" },
+        { name: "slot", value: "main_hand" }
+      ], playerId))
+    );
+    const unequipResponse = findResponse(unequipOut, "unequip");
+    assert.equal(Boolean(unequipResponse), true);
+    assert.equal(unequipResponse.payload.ok, true);
+    assert.equal(unequipResponse.payload.data.character.character_id, newerCharacterId);
+    assert.equal(unequipResponse.payload.data.inventory_found, true);
+    assert.equal(unequipResponse.payload.data.inventory.inventory_id, newerInventoryId);
+    assert.equal(unequipResponse.payload.data.inventory.equipment_preview[0].equipped, false);
+    assert.equal(Array.isArray(unequipResponse.payload.data.character_roster), true);
+    assert.equal(
+      unequipResponse.payload.data.character_roster.find((entry) => entry.character_id === newerCharacterId).is_active,
+      true
+    );
+
+    const reloadedNewerCharacter = characterPersistence.loadCharacterById(newerCharacterId);
+    const olderCharacter = characterPersistence.loadCharacterById(olderCharacterId);
+    assert.equal(reloadedNewerCharacter.ok, true);
+    assert.equal(olderCharacter.ok, true);
+    assert.equal(reloadedNewerCharacter.payload.character.equipment.main_hand || null, null);
+    assert.equal(olderCharacter.payload.character.equipment.main_hand || null, null);
   }, results);
 
   await runTest("end_to_end_identify_attune_and_unattune_flow_updates_world_state", async () => {
@@ -1645,6 +2446,10 @@ async function runReadCommandRuntimeTests() {
     assert.equal(Boolean(identifyResponse), true);
     assert.equal(identifyResponse.payload.ok, true);
     assert.equal(identifyResponse.payload.data.item.item_id, "item_ring_of_protection");
+    assert.equal(identifyResponse.payload.data.inventory_found, true);
+    assert.equal(Boolean(identifyResponse.payload.data.profile_snapshot), true);
+    assert.equal(identifyResponse.payload.data.profile_snapshot.profile_found, true);
+    assert.equal(identifyResponse.payload.data.inventory.inventory_id, inventoryId);
 
     const attuneEvent = mapInteractionOrThrow(createInteraction("attune", [
       { name: "item_id", value: "item_ring_of_protection" }
@@ -1654,6 +2459,10 @@ async function runReadCommandRuntimeTests() {
     assert.equal(Boolean(attuneResponse), true);
     assert.equal(attuneResponse.payload.ok, true);
     assert.equal(attuneResponse.payload.data.item.is_attuned, true);
+    assert.equal(attuneResponse.payload.data.inventory_found, true);
+    assert.equal(Boolean(attuneResponse.payload.data.profile_snapshot), true);
+    assert.equal(attuneResponse.payload.data.inventory.attuned_count, 1);
+    assert.equal(attuneResponse.payload.data.profile_snapshot.character.attunement.slots_used, 1);
 
     const inventoryEvent = mapInteractionOrThrow(createInteraction("inventory", [], playerId));
     const inventoryOut = await runtime.processGatewayReadCommandEvent(inventoryEvent);
@@ -1670,6 +2479,10 @@ async function runReadCommandRuntimeTests() {
     assert.equal(Boolean(unattuneResponse), true);
     assert.equal(unattuneResponse.payload.ok, true);
     assert.equal(unattuneResponse.payload.data.item.is_attuned, false);
+    assert.equal(unattuneResponse.payload.data.inventory_found, true);
+    assert.equal(Boolean(unattuneResponse.payload.data.profile_snapshot), true);
+    assert.equal(unattuneResponse.payload.data.inventory.attuned_count, 0);
+    assert.equal(unattuneResponse.payload.data.profile_snapshot.character.attunement.slots_used, 0);
   }, results);
 
   await runTest("end_to_end_unequip_runtime_flow_updates_persistence", async () => {
@@ -1872,6 +2685,54 @@ async function runReadCommandRuntimeTests() {
     assert.equal(Boolean(response), true);
     assert.equal(response.payload.ok, false);
     assert.equal(response.payload.error, "slot already occupied by another item");
+  }, results);
+
+  await runTest("equip_request_without_character_returns_structured_failure", async () => {
+    const adapter = createInMemoryAdapter();
+    const characterPersistence = new CharacterPersistenceBridge({ adapter });
+    const inventoryPersistence = new InventoryPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({ characterPersistence, inventoryPersistence });
+    const playerId = "player-runtime-equip-no-character-001";
+
+    const event = createEvent(EVENT_TYPES.PLAYER_EQUIP_REQUESTED, {
+      command_name: "equip",
+      item_id: "item-missing-owner-001",
+      slot: "main_hand"
+    }, {
+      source: "gateway.discord",
+      target_system: "world_system",
+      player_id: playerId
+    });
+
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    const response = findResponse(out, "equip");
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.ok, false);
+    assert.equal(response.payload.error, "character not found for player");
+  }, results);
+
+  await runTest("unequip_request_without_character_returns_structured_failure", async () => {
+    const adapter = createInMemoryAdapter();
+    const characterPersistence = new CharacterPersistenceBridge({ adapter });
+    const inventoryPersistence = new InventoryPersistenceBridge({ adapter });
+    const runtime = createReadCommandRuntime({ characterPersistence, inventoryPersistence });
+    const playerId = "player-runtime-unequip-no-character-001";
+
+    const event = createEvent(EVENT_TYPES.PLAYER_UNEQUIP_REQUESTED, {
+      command_name: "unequip",
+      item_id: "item-missing-owner-001",
+      slot: "main_hand"
+    }, {
+      source: "gateway.discord",
+      target_system: "world_system",
+      player_id: playerId
+    });
+
+    const out = await runtime.processGatewayReadCommandEvent(event);
+    const response = findResponse(out, "unequip");
+    assert.equal(Boolean(response), true);
+    assert.equal(response.payload.ok, false);
+    assert.equal(response.payload.error, "character not found for player");
   }, results);
 
   await runTest("end_to_end_dungeon_enter_runtime_flow_persists_session", async () => {

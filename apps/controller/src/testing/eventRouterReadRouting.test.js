@@ -3,6 +3,9 @@
 const assert = require("assert");
 const { createEvent, EVENT_TYPES } = require("../../../../packages/shared-types");
 const { EventRouter } = require("..");
+const { createInMemoryAdapter } = require("../../../database/src/adapters/inMemoryAdapter");
+const { AccountPersistenceBridge } = require("../../../world-system/src/account/account.persistence");
+const { AccountService } = require("../../../world-system/src/account/account.service");
 const { CharacterRepository } = require("../../../world-system/src/character/character.repository");
 const { CharacterPersistenceBridge } = require("../../../world-system/src/character/character.persistence");
 const { createCharacterRecord } = require("../../../world-system/src/character/character.schema");
@@ -25,9 +28,16 @@ function runTest(name, fn, results) {
 }
 
 function createRouteContext() {
+  const adapter = createInMemoryAdapter();
+  const accountPersistence = new AccountPersistenceBridge({ adapter });
   const characterRepository = new CharacterRepository();
-  const characterPersistence = new CharacterPersistenceBridge();
-  const inventoryPersistence = new InventoryPersistenceBridge();
+  const characterPersistence = new CharacterPersistenceBridge({ adapter });
+  const inventoryPersistence = new InventoryPersistenceBridge({ adapter });
+  const accountService = new AccountService({
+    accountPersistence,
+    characterPersistence,
+    characterRepository
+  });
   const sessionPersistence = new SessionPersistenceBridge();
   const sessionManager = new DungeonSessionManagerCore();
   const combatManager = new CombatManager();
@@ -36,6 +46,8 @@ function createRouteContext() {
 
   return {
     characterRepository,
+    accountPersistence,
+    accountService,
     characterPersistence,
     inventoryPersistence,
     sessionPersistence,
@@ -45,6 +57,8 @@ function createRouteContext() {
     queued,
     context: {
       characterRepository,
+      accountPersistence,
+      accountService,
       characterPersistence,
       inventoryPersistence,
       sessionPersistence,
@@ -100,7 +114,7 @@ function runEventRouterReadRoutingTests() {
   runTest("profile_event_routes_to_world_and_emits_profile_response", () => {
     const router = new EventRouter();
     const setup = createRouteContext();
-    setup.characterRepository.saveCharacter({
+    setup.characterPersistence.saveCharacter({
       character_id: "char-100",
       player_id: "player-100",
       name: "Read Hero",
@@ -121,9 +135,80 @@ function runEventRouterReadRoutingTests() {
     assert.equal(setup.queued[0].payload.data.profile_found, true);
   }, results);
 
+  runTest("profile_event_returns_profile_not_found_when_player_has_no_characters", () => {
+    const router = new EventRouter();
+    const setup = createRouteContext();
+    const event = createEvent(EVENT_TYPES.PLAYER_PROFILE_REQUESTED, { command_name: "profile" }, {
+      source: "gateway.discord",
+      target_system: "world_system",
+      player_id: "player-profile-empty-001"
+    });
+
+    const out = router.route(event, setup.context);
+    assert.equal(out.system, "world");
+    assert.equal(setup.queued.length, 1);
+    assert.equal(setup.queued[0].payload.response_type, "profile");
+    assert.equal(setup.queued[0].payload.ok, true);
+    assert.equal(setup.queued[0].payload.data.profile_found, false);
+  }, results);
+
+  runTest("profile_event_falls_back_to_owned_character_when_account_active_character_is_stale", () => {
+    const router = new EventRouter();
+    const setup = createRouteContext();
+    setup.accountPersistence.saveAccount({
+      account_id: "account-profile-stale-001",
+      discord_user_id: "player-profile-stale-001",
+      active_character_id: "char-missing-001"
+    });
+    setup.characterPersistence.saveCharacter(
+      createCharacterRecord({
+        character_id: "char-owned-profile-001",
+        account_id: "account-profile-stale-001",
+        player_id: "player-profile-stale-001",
+        name: "Fallback Profile Hero",
+        class: "fighter",
+        level: 4
+      })
+    );
+
+    const event = createEvent(EVENT_TYPES.PLAYER_PROFILE_REQUESTED, { command_name: "profile" }, {
+      source: "gateway.discord",
+      target_system: "world_system",
+      player_id: "player-profile-stale-001"
+    });
+
+    const out = router.route(event, setup.context);
+    assert.equal(out.system, "world");
+    assert.equal(setup.queued.length, 1);
+    assert.equal(setup.queued[0].payload.response_type, "profile");
+    assert.equal(setup.queued[0].payload.ok, true);
+    assert.equal(setup.queued[0].payload.data.profile_found, true);
+    assert.equal(setup.queued[0].payload.data.active_character_id, "char-owned-profile-001");
+    assert.equal(setup.queued[0].payload.data.character.character_id, "char-owned-profile-001");
+    assert.equal(setup.queued[0].payload.data.character_roster.length, 1);
+    assert.equal(setup.queued[0].payload.data.character_roster[0].is_active, true);
+    assert.equal(setup.queued[0].payload.data.slot_status.used_slots, 1);
+    assert.equal(setup.queued[0].payload.data.slot_status.remaining_slots, 2);
+    assert.equal(setup.queued[0].payload.data.slot_status.max_character_slots, 3);
+  }, results);
+
   runTest("inventory_event_routes_to_world_and_emits_inventory_response", () => {
     const router = new EventRouter();
     const setup = createRouteContext();
+    setup.accountPersistence.saveAccount({
+      account_id: "account-inventory-route-001",
+      discord_user_id: "player-200",
+      active_character_id: "char-inventory-route-001"
+    });
+    setup.characterPersistence.saveCharacter(
+      createCharacterRecord({
+        character_id: "char-inventory-route-001",
+        account_id: "account-inventory-route-001",
+        player_id: "player-200",
+        name: "Inventory Route Hero",
+        inventory_id: "inv-200"
+      })
+    );
     setup.inventoryPersistence.saveInventory(
       createInventoryRecord({
         inventory_id: "inv-200",
@@ -143,6 +228,84 @@ function runEventRouterReadRoutingTests() {
     assert.equal(setup.queued.length, 1);
     assert.equal(setup.queued[0].payload.response_type, "inventory");
     assert.equal(setup.queued[0].payload.data.inventory_found, true);
+    assert.equal(setup.queued[0].payload.data.active_character_id, "char-inventory-route-001");
+    assert.equal(Array.isArray(setup.queued[0].payload.data.character_roster), true);
+    assert.equal(setup.queued[0].payload.data.character_roster.length, 1);
+    assert.equal(setup.queued[0].payload.data.character_roster[0].character_id, "char-inventory-route-001");
+    assert.equal(setup.queued[0].payload.data.character_roster[0].is_active, true);
+    assert.equal(setup.queued[0].payload.data.slot_status.used_slots, 1);
+    assert.equal(setup.queued[0].payload.data.slot_status.remaining_slots, 2);
+    assert.equal(setup.queued[0].payload.data.slot_status.max_character_slots, 3);
+    assert.equal(setup.queued[0].payload.data.character.character_id, "char-inventory-route-001");
+    assert.equal(setup.queued[0].payload.data.inventory.inventory_id, "inv-200");
+  }, results);
+
+  runTest("inventory_event_returns_inventory_not_found_when_player_has_no_characters", () => {
+    const router = new EventRouter();
+    const setup = createRouteContext();
+    const event = createEvent(EVENT_TYPES.PLAYER_INVENTORY_REQUESTED, { command_name: "inventory" }, {
+      source: "gateway.discord",
+      target_system: "world_system",
+      player_id: "player-inventory-empty-001"
+    });
+
+    const out = router.route(event, setup.context);
+    assert.equal(out.system, "world");
+    assert.equal(setup.queued.length, 1);
+    assert.equal(setup.queued[0].payload.response_type, "inventory");
+    assert.equal(setup.queued[0].payload.ok, true);
+    assert.equal(setup.queued[0].payload.data.inventory_found, false);
+  }, results);
+
+  runTest("inventory_event_falls_back_to_owned_character_inventory_when_account_active_character_is_stale", () => {
+    const router = new EventRouter();
+    const setup = createRouteContext();
+    setup.accountPersistence.saveAccount({
+      account_id: "account-inventory-stale-001",
+      discord_user_id: "player-inventory-stale-001",
+      active_character_id: "char-missing-002"
+    });
+    setup.characterPersistence.saveCharacter(
+      createCharacterRecord({
+        character_id: "char-owned-inventory-001",
+        account_id: "account-inventory-stale-001",
+        player_id: "player-inventory-stale-001",
+        name: "Fallback Inventory Hero",
+        class: "fighter",
+        inventory_id: "inv-owned-inventory-001"
+      })
+    );
+    setup.inventoryPersistence.saveInventory(
+      createInventoryRecord({
+        inventory_id: "inv-owned-inventory-001",
+        owner_id: "player-inventory-stale-001",
+        stackable_items: [{ item_id: "potion", quantity: 3 }]
+      })
+    );
+
+    const event = createEvent(EVENT_TYPES.PLAYER_INVENTORY_REQUESTED, { command_name: "inventory" }, {
+      source: "gateway.discord",
+      target_system: "world_system",
+      player_id: "player-inventory-stale-001"
+    });
+
+    const out = router.route(event, setup.context);
+    assert.equal(out.system, "world");
+    assert.equal(setup.queued.length, 1);
+    assert.equal(setup.queued[0].payload.response_type, "inventory");
+    assert.equal(setup.queued[0].payload.ok, true);
+    assert.equal(setup.queued[0].payload.data.inventory_found, true);
+    assert.equal(setup.queued[0].payload.data.active_character_id, "char-owned-inventory-001");
+    assert.equal(Array.isArray(setup.queued[0].payload.data.character_roster), true);
+    assert.equal(setup.queued[0].payload.data.character_roster.length, 1);
+    assert.equal(setup.queued[0].payload.data.character_roster[0].character_id, "char-owned-inventory-001");
+    assert.equal(setup.queued[0].payload.data.character_roster[0].is_active, true);
+    assert.equal(setup.queued[0].payload.data.slot_status.used_slots, 1);
+    assert.equal(setup.queued[0].payload.data.slot_status.remaining_slots, 2);
+    assert.equal(setup.queued[0].payload.data.slot_status.max_character_slots, 3);
+    assert.equal(setup.queued[0].payload.data.character.character_id, "char-owned-inventory-001");
+    assert.equal(setup.queued[0].payload.data.inventory.inventory_id, "inv-owned-inventory-001");
+    assert.equal(setup.queued[0].payload.data.inventory.stackable_count, 1);
   }, results);
 
   runTest("start_event_routes_to_world_and_emits_world_dispatch_event", () => {
@@ -230,6 +393,24 @@ function runEventRouterReadRoutingTests() {
     assert.equal(setup.queued.length, 1);
     assert.equal(setup.queued[0].event_type, EVENT_TYPES.RUNTIME_WORLD_COMMAND_REQUESTED);
     assert.equal(setup.queued[0].payload.request_event.event_type, EVENT_TYPES.PLAYER_EQUIP_REQUESTED);
+  }, results);
+
+  runTest("set_active_character_event_routes_to_world_and_emits_world_dispatch_event", () => {
+    const router = new EventRouter();
+    const setup = createRouteContext();
+    const event = createEvent(EVENT_TYPES.PLAYER_SET_ACTIVE_CHARACTER_REQUESTED, {
+      character_id: "char-router-switch-001"
+    }, {
+      source: "gateway.discord",
+      target_system: "world_system",
+      player_id: "player-router-switch-001"
+    });
+
+    const out = router.route(event, setup.context);
+    assert.equal(out.system, "world");
+    assert.equal(setup.queued.length, 1);
+    assert.equal(setup.queued[0].event_type, EVENT_TYPES.RUNTIME_WORLD_COMMAND_REQUESTED);
+    assert.equal(setup.queued[0].payload.request_event.event_type, EVENT_TYPES.PLAYER_SET_ACTIVE_CHARACTER_REQUESTED);
   }, results);
 
   runTest("unequip_event_routes_to_world_and_emits_world_dispatch_event", () => {

@@ -2,6 +2,8 @@
 
 const { createEvent, EVENT_TYPES } = require("../../../packages/shared-types");
 const { bootstrapPlayerStart } = require("../../world-system/src/character/flow/bootstrapPlayerStart");
+const { processPlayerActiveCharacterRequest } = require("../../world-system/src/account/processPlayerActiveCharacterRequest");
+const { resolveActiveCharacterForPlayer } = require("../../world-system/src/account/resolveActiveCharacter");
 const {
   processEquipRequest,
   processUnequipRequest
@@ -120,6 +122,172 @@ function resolvePlayerCharacter(context, playerId) {
   }
   const rows = Array.isArray(listed.payload.characters) ? listed.payload.characters : [];
   return rows.find((entry) => String(entry.player_id || "") === String(playerId || "")) || null;
+}
+
+function resolveActivePlayerCharacter(context, playerId) {
+  const resolved = resolveActiveCharacterForPlayer(context, playerId);
+  if (!resolved.ok) {
+    return null;
+  }
+  return resolved.payload && resolved.payload.character ? resolved.payload.character : null;
+}
+
+function summarizeCharacterRoster(context, playerId, activeCharacterId) {
+  const safePlayerId = String(playerId || "").trim();
+  const safeActiveCharacterId = String(activeCharacterId || "").trim();
+  const accountService = context && context.accountService;
+  let characters = [];
+
+  if (accountService && typeof accountService.getAccountByDiscordUserId === "function" && typeof accountService.listCharactersForAccount === "function") {
+    const accountOut = accountService.getAccountByDiscordUserId(safePlayerId);
+    if (accountOut.ok && accountOut.payload && accountOut.payload.account && accountOut.payload.account.account_id) {
+      const listed = accountService.listCharactersForAccount(String(accountOut.payload.account.account_id));
+      if (listed.ok) {
+        characters = Array.isArray(listed.payload && listed.payload.characters) ? listed.payload.characters : [];
+      }
+    }
+  }
+
+  if (characters.length === 0) {
+    const listed = loadCharactersForProfile(context);
+    if (listed.ok) {
+      characters = Array.isArray(listed.characters)
+        ? listed.characters.filter((entry) => String(entry && entry.player_id || "") === safePlayerId)
+        : [];
+    }
+  }
+
+  return characters
+    .map((entry) => ({
+      character_id: entry && entry.character_id ? String(entry.character_id) : null,
+      name: entry && entry.name ? String(entry.name) : (entry && entry.character_id ? String(entry.character_id) : "Unknown"),
+      race: entry && entry.race ? String(entry.race) : null,
+      class: entry && entry.class ? String(entry.class) : null,
+      level: Number.isFinite(Number(entry && entry.level)) ? Number(entry.level) : 1,
+      is_active: String(entry && entry.character_id || "") === safeActiveCharacterId
+    }))
+    .filter((entry) => entry.character_id);
+}
+
+function summarizeCharacterSlotStatus(context, playerId) {
+  const safePlayerId = String(playerId || "").trim();
+  const accountService = context && context.accountService;
+  let characterCount = 0;
+  let maxSlots = 3;
+
+  if (accountService && typeof accountService.getAccountByDiscordUserId === "function" && typeof accountService.listCharactersForAccount === "function") {
+    const accountOut = accountService.getAccountByDiscordUserId(safePlayerId);
+    if (accountOut.ok && accountOut.payload && accountOut.payload.account && accountOut.payload.account.account_id) {
+      const account = accountOut.payload.account;
+      maxSlots = Number.isFinite(Number(account.max_character_slots)) ? Number(account.max_character_slots) : 3;
+      const listed = accountService.listCharactersForAccount(String(account.account_id));
+      if (listed.ok) {
+        characterCount = Array.isArray(listed.payload && listed.payload.characters) ? listed.payload.characters.length : 0;
+      }
+    }
+  }
+
+  return {
+    used_slots: characterCount,
+    remaining_slots: Math.max(0, maxSlots - characterCount),
+    max_character_slots: maxSlots
+  };
+}
+
+function summarizeInventoryCharacter(character) {
+  if (!character || typeof character !== "object") {
+    return null;
+  }
+  return {
+    character_id: character.character_id || null,
+    name: character.name || null,
+    level: Number.isFinite(Number(character.level)) ? Number(character.level) : 1
+  };
+}
+
+function buildInventoryReadPayload(context, playerId, character, inventory) {
+  const activeCharacterId = character && character.character_id ? character.character_id : null;
+  return {
+    inventory_found: true,
+    active_character_id: activeCharacterId,
+    character_roster: summarizeCharacterRoster(context, playerId, activeCharacterId),
+    slot_status: summarizeCharacterSlotStatus(context, playerId),
+    character: summarizeInventoryCharacter(character),
+    inventory: summarizeInventory(inventory, character)
+  };
+}
+
+function buildInventoryMutationPayload(context, playerId, character, inventory, extra) {
+  return {
+    ...buildInventoryReadPayload(context, playerId, character, inventory),
+    profile_snapshot: buildProfileReadPayload(context, playerId, character),
+    ...(extra && typeof extra === "object" ? extra : {})
+  };
+}
+
+function buildProfileReadPayload(context, playerId, character) {
+  return {
+    profile_found: true,
+    active_character_id: character && character.character_id ? character.character_id : null,
+    character_roster: summarizeCharacterRoster(context, playerId, character && character.character_id ? character.character_id : null),
+    slot_status: summarizeCharacterSlotStatus(context, playerId),
+    character: {
+      character_id: character && character.character_id ? character.character_id : null,
+      player_id: character && character.player_id ? character.player_id : null,
+      name: character && character.name ? character.name : null,
+      race: character && character.race ? character.race : null,
+      class: character && character.class ? character.class : null,
+      background: character && character.background ? character.background : null,
+      race_id: character && character.race_id ? character.race_id : null,
+      class_id: character && character.class_id ? character.class_id : null,
+      secondary_class_id:
+        character && character.gestalt_progression && character.gestalt_progression.track_b_class_key
+          ? character.gestalt_progression.track_b_class_key
+          : null,
+      class_option_id: character && character.class_option_id ? character.class_option_id : null,
+      secondary_class_option_id:
+        character && character.gestalt_progression && character.gestalt_progression.track_b_option_id
+          ? character.gestalt_progression.track_b_option_id
+          : null,
+      level: character && character.level ? character.level : 1,
+      xp: Number.isFinite(Number(character && character.xp)) ? Number(character.xp) : 0,
+      proficiency_bonus: Number.isFinite(Number(character && character.proficiency_bonus)) ? Number(character.proficiency_bonus) : 2,
+      inventory_id: character && character.inventory_id ? character.inventory_id : null,
+      base_stats: character && character.base_stats ? character.base_stats : null,
+      stats: character && character.stats ? character.stats : {},
+      hp_summary: character && character.hp_summary ? character.hp_summary : {
+        current: Number.isFinite(Number(character && character.current_hitpoints)) ? Number(character.current_hitpoints) : 10,
+        max: Number.isFinite(Number(character && character.hitpoint_max)) ? Number(character.hitpoint_max) : 10,
+        temporary: Number.isFinite(Number(character && character.temporary_hitpoints)) ? Number(character.temporary_hitpoints) : 0
+      },
+      armor_class: resolveEffectiveCharacterArmorClass(character),
+      initiative: Number.isFinite(Number(character && character.initiative)) ? Number(character.initiative) : 0,
+      speed: resolveEffectiveCharacterSpeed(character),
+      spellcasting_ability: character && character.spellcasting_ability ? character.spellcasting_ability : null,
+      spellsave_dc: resolveEffectiveSpellSaveDc(character),
+      saving_throws: resolveCharacterSavingThrows(character),
+      skills: character && character.skills ? character.skills : {},
+      feats: summarizeCharacterFeats(context, character),
+      feat_slots: getRemainingFeatSlots(character),
+      feat_available: isFeatSlotAvailable(character),
+      attunement: character && character.attunement ? character.attunement : { attunement_slots: 3, slots_used: 0, attuned_items: [] },
+      item_effects: resolveCharacterItemEffects(character),
+      spellbook: character && character.spellbook ? character.spellbook : {}
+    }
+  };
+}
+
+function loadInventoryForCharacter(context, character) {
+  const inventoryId = character && character.inventory_id ? String(character.inventory_id) : "";
+  const inventoryPersistence = context && context.inventoryPersistence;
+  if (!inventoryId || !inventoryPersistence || typeof inventoryPersistence.loadInventoryById !== "function") {
+    return null;
+  }
+  const loaded = inventoryPersistence.loadInventoryById(inventoryId);
+  if (!loaded.ok || !loaded.payload || !loaded.payload.inventory) {
+    return null;
+  }
+  return loaded.payload.inventory;
 }
 
 function resolveFeatIndexFromContent(context) {
@@ -1241,6 +1409,7 @@ function handleWorldCommandDispatch(event, context) {
       requested_character_name: requestEvent.payload && requestEvent.payload.requested_character_name,
       race_id: requestEvent.payload && requestEvent.payload.race_id,
       race_option_id: requestEvent.payload && requestEvent.payload.race_option_id,
+      background_id: requestEvent.payload && requestEvent.payload.background_id,
       class_id: requestEvent.payload && requestEvent.payload.class_id,
       class_option_id: requestEvent.payload && requestEvent.payload.class_option_id,
       secondary_class_id: requestEvent.payload && requestEvent.payload.secondary_class_id,
@@ -1255,19 +1424,31 @@ function handleWorldCommandDispatch(event, context) {
 
     const character = bootstrap.payload.character || {};
     const inventory = bootstrap.payload.inventory || {};
+    const profileSnapshot = buildProfileReadPayload(context, requestEvent.player_id, character);
+    const inventorySnapshot = buildInventoryReadPayload(context, requestEvent.player_id, character, inventory);
     return [createGatewayResponseEvent(requestEvent, "start", {
-      bootstrap_status: bootstrap.payload.bootstrap_status || "created",
-      character_created: Boolean(bootstrap.payload.character_created),
-      inventory_created: Boolean(bootstrap.payload.inventory_created),
-      character: {
-        character_id: character.character_id || null,
-        player_id: character.player_id || null,
-        name: character.name || null,
-        level: character.level || 1,
-        race: character.race || null,
-        class: character.class || null,
-        race_id: character.race_id || null,
-        class_id: character.class_id || null,
+        bootstrap_status: bootstrap.payload.bootstrap_status || "created",
+        character_created: Boolean(bootstrap.payload.character_created),
+        inventory_created: Boolean(bootstrap.payload.inventory_created),
+        active_character_id: bootstrap.payload.active_character_id || character.character_id || null,
+        active_character_set: bootstrap.payload.active_character_set === true,
+        character_roster: summarizeCharacterRoster(
+          context,
+          requestEvent.player_id,
+          bootstrap.payload.active_character_id || character.character_id || null
+        ),
+        slot_status: bootstrap.payload.slot_status || null,
+        character: {
+          character_id: character.character_id || null,
+          player_id: character.player_id || null,
+          name: character.name || null,
+          level: character.level || 1,
+          race: character.race || null,
+          background: character.background || null,
+          class: character.class || null,
+          race_id: character.race_id || null,
+          background_id: character.background_id || null,
+          class_id: character.class_id || null,
         secondary_class_id:
           character.gestalt_progression && character.gestalt_progression.track_b_class_key
             ? character.gestalt_progression.track_b_class_key
@@ -1283,10 +1464,38 @@ function handleWorldCommandDispatch(event, context) {
         inventory_id: character.inventory_id || null
       },
       point_buy_summary: bootstrap.payload.point_buy_summary || null,
-      inventory: {
-        inventory_id: inventory.inventory_id || null,
-        owner_id: inventory.owner_id || null
-      }
+        inventory: {
+          inventory_id: inventory.inventory_id || null,
+          owner_id: inventory.owner_id || null
+        },
+      profile_snapshot: profileSnapshot,
+      inventory_snapshot: inventorySnapshot
+      }, true, null, "world_system")];
+  }
+
+  if (requestEvent.event_type === EVENT_TYPES.PLAYER_SET_ACTIVE_CHARACTER_REQUESTED) {
+    const replayState = rejectDuplicateMutationIfNeeded(requestEvent, context, "set_active_character", "world_system");
+    if (replayState && replayState.event_type) {
+      return [replayState];
+    }
+    const out = processPlayerActiveCharacterRequest({
+      context,
+      player_id: requestEvent.player_id,
+      character_id: requestEvent.payload && requestEvent.payload.character_id
+    });
+    if (!out.ok) {
+      return [createGatewayResponseEvent(requestEvent, "profile", {}, false, out.error || "active character switch failed", "world_system")];
+    }
+    markMutationReplaySuccess(context, replayState, true);
+
+    const activeCharacter = resolveActivePlayerCharacter(context, requestEvent.player_id);
+    const inventorySnapshot = loadInventoryForCharacter(context, activeCharacter);
+    return [createGatewayResponseEvent(requestEvent, "profile", {
+      ...buildProfileReadPayload(context, requestEvent.player_id, activeCharacter),
+      active_character_updated: true,
+      inventory_snapshot: inventorySnapshot
+        ? buildInventoryReadPayload(context, requestEvent.player_id, activeCharacter, inventorySnapshot)
+        : null
     }, true, null, "world_system")];
   }
 
@@ -1309,17 +1518,25 @@ function handleWorldCommandDispatch(event, context) {
 
     const equipped = out.payload.equipped || {};
     const character = out.payload.character || {};
-    return [createGatewayResponseEvent(requestEvent, "equip", {
-      equipped: {
-        item_id: equipped.item_id || null,
-        slot: equipped.slot || null
-      },
-      character: {
-        character_id: character.character_id || null,
-        player_id: character.player_id || null,
-        equipment: character.equipment || {}
+    const inventory = out.payload.inventory || {};
+    return [createGatewayResponseEvent(requestEvent, "equip", buildInventoryMutationPayload(
+      context,
+      requestEvent.player_id,
+      character,
+      inventory,
+      {
+        equipped: {
+          item_id: equipped.item_id || null,
+          slot: equipped.slot || null
+        },
+        character: {
+          ...summarizeInventoryCharacter(character),
+          player_id: character.player_id || null,
+          inventory_id: character.inventory_id || null,
+          equipment: character.equipment || {}
+        }
       }
-    }, true, null, "world_system")];
+    ), true, null, "world_system")];
   }
 
   if (requestEvent.event_type === EVENT_TYPES.PLAYER_UNEQUIP_REQUESTED) {
@@ -1341,17 +1558,25 @@ function handleWorldCommandDispatch(event, context) {
 
     const unequipped = out.payload.unequipped || {};
     const character = out.payload.character || {};
-    return [createGatewayResponseEvent(requestEvent, "unequip", {
-      unequipped: {
-        item_id: unequipped.item_id || null,
-        slot: unequipped.slot || null
-      },
-      character: {
-        character_id: character.character_id || null,
-        player_id: character.player_id || null,
-        equipment: character.equipment || {}
+    const inventory = out.payload.inventory || {};
+    return [createGatewayResponseEvent(requestEvent, "unequip", buildInventoryMutationPayload(
+      context,
+      requestEvent.player_id,
+      character,
+      inventory,
+      {
+        unequipped: {
+          item_id: unequipped.item_id || null,
+          slot: unequipped.slot || null
+        },
+        character: {
+          ...summarizeInventoryCharacter(character),
+          player_id: character.player_id || null,
+          inventory_id: character.inventory_id || null,
+          equipment: character.equipment || {}
+        }
       }
-    }, true, null, "world_system")];
+    ), true, null, "world_system")];
   }
 
   if (requestEvent.event_type === EVENT_TYPES.PLAYER_IDENTIFY_ITEM_REQUESTED) {
@@ -1368,11 +1593,16 @@ function handleWorldCommandDispatch(event, context) {
       return [createGatewayResponseEvent(requestEvent, "identify", {}, false, out.error || "identify request failed", "world_system")];
     }
     markMutationReplaySuccess(context, replayState, true);
-    return [createGatewayResponseEvent(requestEvent, "identify", {
-      item: out.payload.item || null,
-      character: out.payload.character || null,
-      inventory: out.payload.inventory || null
-    }, true, null, "world_system")];
+    return [createGatewayResponseEvent(requestEvent, "identify", buildInventoryMutationPayload(
+      context,
+      requestEvent.player_id,
+      out.payload.character || {},
+      out.payload.inventory || {},
+      {
+        item: out.payload.item || null,
+        character: out.payload.character || null
+      }
+    ), true, null, "world_system")];
   }
 
   if (requestEvent.event_type === EVENT_TYPES.PLAYER_ATTUNE_ITEM_REQUESTED) {
@@ -1390,11 +1620,16 @@ function handleWorldCommandDispatch(event, context) {
       return [createGatewayResponseEvent(requestEvent, "attune", {}, false, out.error || "attune request failed", "world_system")];
     }
     markMutationReplaySuccess(context, replayState, true);
-    return [createGatewayResponseEvent(requestEvent, "attune", {
-      item: out.payload.item || null,
-      character: out.payload.character || null,
-      inventory: out.payload.inventory || null
-    }, true, null, "world_system")];
+    return [createGatewayResponseEvent(requestEvent, "attune", buildInventoryMutationPayload(
+      context,
+      requestEvent.player_id,
+      out.payload.character || {},
+      out.payload.inventory || {},
+      {
+        item: out.payload.item || null,
+        character: out.payload.character || null
+      }
+    ), true, null, "world_system")];
   }
 
   if (requestEvent.event_type === EVENT_TYPES.PLAYER_UNATTUNE_ITEM_REQUESTED) {
@@ -1412,11 +1647,16 @@ function handleWorldCommandDispatch(event, context) {
       return [createGatewayResponseEvent(requestEvent, "unattune", {}, false, out.error || "unattune request failed", "world_system")];
     }
     markMutationReplaySuccess(context, replayState, true);
-    return [createGatewayResponseEvent(requestEvent, "unattune", {
-      item: out.payload.item || null,
-      character: out.payload.character || null,
-      inventory: out.payload.inventory || null
-    }, true, null, "world_system")];
+    return [createGatewayResponseEvent(requestEvent, "unattune", buildInventoryMutationPayload(
+      context,
+      requestEvent.player_id,
+      out.payload.character || {},
+      out.payload.inventory || {},
+      {
+        item: out.payload.item || null,
+        character: out.payload.character || null
+      }
+    ), true, null, "world_system")];
   }
 
   if (requestEvent.event_type === EVENT_TYPES.PLAYER_FEAT_REQUESTED) {
@@ -2305,8 +2545,7 @@ function handleWorldReadRequest(event, context) {
     }
 
     const playerId = event.player_id;
-    const characters = loadedCharacters.characters;
-    const found = characters.find((character) => String(character.player_id || "") === String(playerId || ""));
+    const found = resolveActivePlayerCharacter(context, playerId);
 
     if (!found) {
       return [
@@ -2317,52 +2556,14 @@ function handleWorldReadRequest(event, context) {
     }
 
     return [
-      createGatewayResponseEvent(event, "profile", {
-        profile_found: true,
-        character: {
-          character_id: found.character_id || null,
-          player_id: found.player_id || null,
-          name: found.name || null,
-          race: found.race || null,
-          class: found.class || null,
-          background: found.background || null,
-          race_id: found.race_id || null,
-          class_id: found.class_id || null,
-          secondary_class_id:
-            found.gestalt_progression && found.gestalt_progression.track_b_class_key
-              ? found.gestalt_progression.track_b_class_key
-              : null,
-          class_option_id: found.class_option_id || null,
-          secondary_class_option_id:
-            found.gestalt_progression && found.gestalt_progression.track_b_option_id
-              ? found.gestalt_progression.track_b_option_id
-              : null,
-          level: found.level || 1,
-          xp: Number.isFinite(Number(found.xp)) ? Number(found.xp) : 0,
-          proficiency_bonus: Number.isFinite(Number(found.proficiency_bonus)) ? Number(found.proficiency_bonus) : 2,
-          inventory_id: found.inventory_id || null,
-          base_stats: found.base_stats || null,
-          stats: found.stats || {},
-          hp_summary: found.hp_summary || {
-            current: Number.isFinite(Number(found.current_hitpoints)) ? Number(found.current_hitpoints) : 10,
-            max: Number.isFinite(Number(found.hitpoint_max)) ? Number(found.hitpoint_max) : 10,
-            temporary: Number.isFinite(Number(found.temporary_hitpoints)) ? Number(found.temporary_hitpoints) : 0
-          },
-          armor_class: resolveEffectiveCharacterArmorClass(found),
-          initiative: Number.isFinite(Number(found.initiative)) ? Number(found.initiative) : 0,
-          speed: resolveEffectiveCharacterSpeed(found),
-          spellcasting_ability: found.spellcasting_ability || null,
-          spellsave_dc: resolveEffectiveSpellSaveDc(found),
-          saving_throws: resolveCharacterSavingThrows(found),
-          skills: found.skills || {},
-          feats: summarizeCharacterFeats(context, found),
-          feat_slots: getRemainingFeatSlots(found),
-          feat_available: isFeatSlotAvailable(found),
-          attunement: found.attunement || { attunement_slots: 3, slots_used: 0, attuned_items: [] },
-          item_effects: resolveCharacterItemEffects(found),
-          spellbook: found.spellbook || {}
-        }
-      }, true, null, "world_system")
+      createGatewayResponseEvent(
+        event,
+        "profile",
+        buildProfileReadPayload(context, playerId, found),
+        true,
+        null,
+        "world_system"
+      )
     ];
   }
 
@@ -2388,8 +2589,10 @@ function handleWorldReadRequest(event, context) {
 
     const playerId = event.player_id;
     const inventories = Array.isArray(listed.payload.inventories) ? listed.payload.inventories : [];
-    const found = inventories.find((inventory) => String(inventory.owner_id || "") === String(playerId || ""));
-    const playerCharacter = resolvePlayerCharacter(context, playerId);
+    const playerCharacter = resolveActivePlayerCharacter(context, playerId);
+    const found = playerCharacter && playerCharacter.inventory_id
+      ? inventories.find((inventory) => String(inventory.inventory_id || "") === String(playerCharacter.inventory_id || ""))
+      : inventories.find((inventory) => String(inventory.owner_id || "") === String(playerId || ""));
 
     if (!found) {
       return [
@@ -2399,12 +2602,16 @@ function handleWorldReadRequest(event, context) {
       ];
     }
 
-      return [
-        createGatewayResponseEvent(event, "inventory", {
-          inventory_found: true,
-          inventory: summarizeInventory(found, playerCharacter)
-        }, true, null, "world_system")
-      ];
+    return [
+      createGatewayResponseEvent(
+        event,
+        "inventory",
+        buildInventoryReadPayload(context, playerId, playerCharacter, found),
+        true,
+        null,
+        "world_system"
+      )
+    ];
   }
 
   return [];

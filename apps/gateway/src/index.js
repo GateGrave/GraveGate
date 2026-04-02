@@ -16,25 +16,9 @@ const { createDiscordClient } = require("./discord/createClient");
 const { registerCommands } = require("./discord/registerCommands");
 const { mapSlashCommandToGatewayEvent } = require("./discord/commandEventMapper");
 const { createReadCommandRuntime } = require("../../runtime/src/readCommandRuntime");
-const {
-  buildCombatMapView,
-  buildMapInteractionContext,
-  buildTokenVisualOverrides,
-  handleButtonAction: handleCombatMapButtonAction,
-  adaptMapActionToCanonicalEvent
-} = require("./combatMapView");
-const {
-  createDungeonMapMoveDirectionAction,
-  adaptDungeonMapActionToCanonicalEvent
-} = require("../../map-system/src");
-const {
-  buildDungeonMapView,
-  parseDungeonMapCustomId,
-  DUNGEON_MAP_ACTIONS,
-  toggleDungeonDebugFlag
-} = require("./dungeonMapView");
 const { listAvailableRaces, getRaceOptions } = require("../../world-system/src/character/rules/raceRules");
 const { listAvailableClasses, getClassOptions, getClassData } = require("../../world-system/src/character/rules/classRules");
+const { listAvailableBackgrounds } = require("../../world-system/src/character/rules/backgroundRules");
 
 // Load variables from root .env file.
 dotenv.config({
@@ -45,6 +29,7 @@ const ABILITY_FIELDS = ["strength", "dexterity", "constitution", "intelligence",
 const START_SESSION_TTL_MS = 30 * 60 * 1000;
 const INVENTORY_VIEW_TTL_MS = 15 * 60 * 1000;
 const PROFILE_VIEW_TTL_MS = 15 * 60 * 1000;
+const ROSTER_VIEW_TTL_MS = 15 * 60 * 1000;
 const SHOP_VIEW_TTL_MS = 15 * 60 * 1000;
 const CRAFT_VIEW_TTL_MS = 15 * 60 * 1000;
 const TRADE_VIEW_TTL_MS = 15 * 60 * 1000;
@@ -69,8 +54,17 @@ const CUSTOM_IDS = {
   pointBuyConfirm: "start:point_buy_confirm",
   pointBuyBack: "start:point_buy_back",
   createButton: "start:create",
+  startCompleteHub: "start:complete:hub",
+  startCompleteProfile: "start:complete:profile",
+  startCompleteInventory: "start:complete:inventory",
+  profileRefresh: "profile:view:refresh",
   profileOpenInventory: "profile:view:inventory",
+  profileOpenRoster: "profile:view:roster",
+  profileSwitchCharacter: "profile:view:switch",
   inventoryBackToProfile: "inventory:view:profile",
+  inventoryRefresh: "inventory:view:refresh",
+  inventoryOpenRoster: "inventory:view:roster",
+  inventorySwitchCharacter: "inventory:view:switch",
   inventorySummary: "inventory:view:summary",
   inventoryEquipment: "inventory:view:equipment",
   inventoryMagical: "inventory:view:magical",
@@ -80,6 +74,13 @@ const CUSTOM_IDS = {
   inventoryIdentify: "inventory:view:identify",
   inventoryAttune: "inventory:view:attune",
   inventoryUnattune: "inventory:view:unattune",
+  rosterOpenProfile: "roster:view:open_profile",
+  rosterBackProfile: "roster:view:profile",
+  rosterBackInventory: "roster:view:inventory",
+  rosterOpenInventory: "roster:view:open_inventory",
+  rosterOpenEquipment: "roster:view:equipment",
+  rosterRefresh: "roster:view:refresh",
+  rosterSwitchCharacter: "roster:view:switch",
   shopRefresh: "shop:view:refresh",
   shopVendorBrowse: "shop:view:browse",
   craftRefresh: "craft:view:refresh",
@@ -104,6 +105,7 @@ const CUSTOM_IDS = {
 const startSessions = new Map();
 const inventoryViews = new Map();
 const profileViews = new Map();
+const rosterViews = new Map();
 const shopViews = new Map();
 const craftViews = new Map();
 const tradeViews = new Map();
@@ -112,6 +114,28 @@ const combatMapViews = new Map();
 const dungeonMapViews = new Map();
 let raceCatalogCache = null;
 let classCatalogCache = null;
+let backgroundCatalogCache = null;
+let combatMapSupportCache = null;
+let dungeonMapSupportCache = null;
+
+function loadCombatMapSupport() {
+  if (!combatMapSupportCache) {
+    combatMapSupportCache = require("./combatMapView");
+  }
+  return combatMapSupportCache;
+}
+
+function loadDungeonMapSupport() {
+  if (!dungeonMapSupportCache) {
+    const dungeonMapView = require("./dungeonMapView");
+    const mapSystem = require("../../map-system/src");
+    dungeonMapSupportCache = Object.assign({}, dungeonMapView, {
+      createDungeonMapMoveDirectionAction: mapSystem.createDungeonMapMoveDirectionAction,
+      adaptDungeonMapActionToCanonicalEvent: mapSystem.adaptDungeonMapActionToCanonicalEvent
+    });
+  }
+  return dungeonMapSupportCache;
+}
 
 function nowMs() {
   return Date.now();
@@ -171,6 +195,15 @@ function pruneProfileViews() {
   for (const [userId, session] of profileViews.entries()) {
     if (!session || session.expiresAt < cutoff) {
       profileViews.delete(userId);
+    }
+  }
+}
+
+function pruneRosterViews() {
+  const cutoff = nowMs() - ROSTER_VIEW_TTL_MS;
+  for (const [userId, session] of rosterViews.entries()) {
+    if (!session || session.expiresAt < cutoff) {
+      rosterViews.delete(userId);
     }
   }
 }
@@ -299,6 +332,26 @@ function setInventoryView(userId, view) {
   }));
 }
 
+function formatCharacterFocus(character, fallback) {
+  const safe = character && typeof character === "object" ? character : {};
+  const name = cleanText(safe.name, "");
+  const characterId = cleanText(safe.character_id, "");
+  if (name && characterId) {
+    return `${name} (${characterId})`;
+  }
+  if (name) {
+    return name;
+  }
+  if (characterId) {
+    return characterId;
+  }
+  return fallback || "active character";
+}
+
+function deleteInventoryView(userId) {
+  inventoryViews.delete(String(userId || "").trim());
+}
+
 function getProfileView(userId) {
   pruneProfileViews();
   return profileViews.get(String(userId || "").trim()) || null;
@@ -311,6 +364,276 @@ function setProfileView(userId, view) {
     user_id: safeUser,
     expiresAt: nowMs() + PROFILE_VIEW_TTL_MS
   }));
+}
+
+function deleteProfileView(userId) {
+  profileViews.delete(String(userId || "").trim());
+}
+
+function getRosterView(userId) {
+  pruneRosterViews();
+  return rosterViews.get(String(userId || "").trim()) || null;
+}
+
+function setRosterView(userId, view) {
+  const safeUser = String(userId || "").trim();
+  if (!safeUser) return;
+  rosterViews.set(safeUser, Object.assign({}, view, {
+    user_id: safeUser,
+    expiresAt: nowMs() + ROSTER_VIEW_TTL_MS
+  }));
+}
+
+function deleteRosterView(userId) {
+  rosterViews.delete(String(userId || "").trim());
+}
+
+function syncCharacterViewCaches(userId, nextProfileData) {
+  const nextCharacterId = String(nextProfileData && nextProfileData.character && nextProfileData.character.character_id || "");
+  const inventoryView = getInventoryView(userId);
+  const cachedInventoryCharacterId = String(
+    inventoryView && inventoryView.data && inventoryView.data.character && inventoryView.data.character.character_id || ""
+  );
+  if (cachedInventoryCharacterId && nextCharacterId && cachedInventoryCharacterId !== nextCharacterId) {
+    deleteInventoryView(userId);
+  }
+  const rosterView = getRosterView(userId);
+  if (rosterView && rosterView.data) {
+    const linkedInventoryData =
+      inventoryView && canReuseInventoryViewForProfile(nextProfileData, inventoryView)
+        ? inventoryView.data
+        : hasInventorySnapshot(rosterView.inventory_data) && canReuseInventoryViewForProfile(nextProfileData, { data: rosterView.inventory_data })
+          ? rosterView.inventory_data
+          : null;
+    cacheRosterView(userId, nextProfileData, {
+      source: rosterView.source || "profile",
+      content: rosterView.content || "Character roster loaded.",
+      inventory_data: linkedInventoryData,
+      profile_data: nextProfileData
+    });
+  }
+}
+
+function hasInventorySnapshot(data) {
+  const safe = data && typeof data === "object" ? data : {};
+  return safe.inventory_found === true &&
+    safe.inventory && typeof safe.inventory === "object" &&
+    safe.character && typeof safe.character === "object";
+}
+
+function hasProfileSnapshot(data) {
+  const safe = data && typeof data === "object" ? data : {};
+  return safe.profile_found === true &&
+    safe.character && typeof safe.character === "object";
+}
+
+function cacheProfileSnapshot(userId, profileData, contentOverride, options) {
+  if (!hasProfileSnapshot(profileData)) {
+    return false;
+  }
+  const config = options && typeof options === "object" ? options : {};
+  syncCharacterViewCaches(userId, profileData);
+  setProfileView(userId, {
+    data: profileData,
+    content: contentOverride || `Profile loaded for ${cleanText(profileData.character && profileData.character.name, "unknown")}.`,
+    embeds: [buildProfileEmbed(profileData)],
+    components: buildProfileComponents(profileData),
+    inventory_data: hasInventorySnapshot(config.inventory_data) ? config.inventory_data : null
+  });
+  return true;
+}
+
+function syncInventorySnapshotIntoProfileView(userId, inventoryData) {
+  if (!hasInventorySnapshot(inventoryData)) {
+    return false;
+  }
+  const profileView = getProfileView(userId);
+  if (!profileView || !hasProfileSnapshot(profileView.data)) {
+    return false;
+  }
+  if (!canReuseInventoryViewForProfile(profileView.data, { data: inventoryData })) {
+    return false;
+  }
+  cacheProfileSnapshot(userId, profileView.data, profileView.content, {
+    inventory_data: inventoryData
+  });
+  return true;
+}
+
+function cacheInventorySnapshot(userId, inventoryData, options) {
+  if (!hasInventorySnapshot(inventoryData)) {
+    return false;
+  }
+  const config = options && typeof options === "object" ? options : {};
+  setInventoryView(userId, {
+    data: inventoryData,
+    tab: config.tab || "summary",
+    content: config.content || `Inventory loaded for ${cleanText(inventoryData.character && inventoryData.character.name, "unknown")}.`,
+    profile_data: hasProfileSnapshot(config.profile_data) ? config.profile_data : null
+  });
+  syncInventorySnapshotIntoProfileView(userId, inventoryData);
+  return true;
+}
+
+function cacheCharacterStateSnapshots(userId, options) {
+  const config = options && typeof options === "object" ? options : {};
+  const profileData = hasProfileSnapshot(config.profile_data) ? config.profile_data : null;
+  const inventoryData = hasInventorySnapshot(config.inventory_data) ? config.inventory_data : null;
+  const inventoryTab = config.inventory_tab || "summary";
+
+  if (profileData) {
+    cacheProfileSnapshot(userId, profileData, config.profile_content, {
+      inventory_data: inventoryData
+    });
+  }
+
+  if (inventoryData) {
+    cacheInventorySnapshot(userId, inventoryData, {
+      tab: inventoryTab,
+      content: config.inventory_content,
+      profile_data: profileData
+    });
+  }
+
+  const rosterView = getRosterView(userId);
+  if (rosterView && profileData) {
+    cacheRosterView(userId, profileData, {
+      source: rosterView.source || "profile",
+      content: rosterView.content || "Character roster loaded.",
+      profile_data: profileData,
+      inventory_data: inventoryData || rosterView.inventory_data || null
+    });
+  }
+
+  return Boolean(profileData || inventoryData);
+}
+
+function buildProfileViewPayload(view) {
+  const safe = view && typeof view === "object" ? view : {};
+  return {
+    content: safe.content || "Profile loaded.",
+    embeds: Array.isArray(safe.embeds) ? safe.embeds : [],
+    components: Array.isArray(safe.components) ? safe.components : []
+  };
+}
+
+function buildInventoryViewPayload(data, tab, content) {
+  const nextTab = String(tab || "summary");
+  return {
+    content: content || "Inventory loaded.",
+    embeds: [buildInventoryDetailEmbed(data, nextTab)],
+    components: buildInventoryComponents(nextTab, data)
+  };
+}
+
+function getCachedProfileViewPayload(userId) {
+  const view = getProfileView(userId);
+  if (!view || !view.data) {
+    return null;
+  }
+  return buildProfileViewPayload(view);
+}
+
+function getCachedInventoryViewPayload(userId) {
+  const view = getInventoryView(userId);
+  if (!view || !view.data) {
+    return null;
+  }
+  return buildInventoryViewPayload(view.data, view.tab || "summary", view.content || "Inventory loaded.");
+}
+
+function buildRosterViewPayload(view) {
+  const safe = view && typeof view === "object" ? view : {};
+  const data = safe.data && typeof safe.data === "object"
+    ? Object.assign({}, safe.data, { __hub_source: cleanText(safe.source, "profile") })
+    : {};
+  return {
+    content: safe.content || "Character roster loaded.",
+    embeds: [buildRosterEmbed(data)],
+    components: buildRosterComponents(safe)
+  };
+}
+
+function cacheRosterView(userId, data, options) {
+  const config = options && typeof options === "object" ? options : {};
+  const source = cleanText(config.source, "profile");
+  if (!hasProfileSnapshot(data) && !Array.isArray(data && data.character_roster)) {
+    return false;
+  }
+  setRosterView(userId, {
+    data,
+    source,
+    content: config.content || "Character roster loaded.",
+    profile_data: hasProfileSnapshot(config.profile_data) ? config.profile_data : (hasProfileSnapshot(data) ? data : null),
+    inventory_data: hasInventorySnapshot(config.inventory_data) ? config.inventory_data : null
+  });
+  return true;
+}
+
+function getCachedRosterViewPayload(userId) {
+  const view = getRosterView(userId);
+  if (!view || !view.data) {
+    return null;
+  }
+  return buildRosterViewPayload(view);
+}
+
+function reuseRosterLinkedProfileView(userId) {
+  const rosterView = getRosterView(userId);
+  if (!rosterView || !hasProfileSnapshot(rosterView.profile_data)) {
+    return null;
+  }
+  cacheProfileSnapshot(
+    userId,
+    rosterView.profile_data,
+    `Profile loaded for ${cleanText(rosterView.profile_data.character && rosterView.profile_data.character.name, "unknown")}.`,
+    {
+      inventory_data: hasInventorySnapshot(rosterView.inventory_data) ? rosterView.inventory_data : null
+    }
+  );
+  return getCachedProfileViewPayload(userId);
+}
+
+function reuseRosterLinkedInventoryView(userId, tab, content) {
+  const rosterView = getRosterView(userId);
+  if (!rosterView || !hasInventorySnapshot(rosterView.inventory_data)) {
+    return null;
+  }
+  cacheInventorySnapshot(userId, rosterView.inventory_data, {
+    tab: tab || "summary",
+    content: content || `Inventory loaded for ${cleanText(rosterView.inventory_data.character && rosterView.inventory_data.character.name, "unknown")}.`,
+    profile_data: hasProfileSnapshot(rosterView.profile_data) ? rosterView.profile_data : null
+  });
+  return getCachedInventoryViewPayload(userId);
+}
+
+function getActiveCharacterIdFromProfileData(profileData) {
+  const safe = profileData && typeof profileData === "object" ? profileData : {};
+  return cleanText(
+    safe.active_character_id ||
+      (safe.character && safe.character.character_id) ||
+      "",
+    ""
+  );
+}
+
+function getActiveCharacterIdFromInventoryData(inventoryData) {
+  const safe = inventoryData && typeof inventoryData === "object" ? inventoryData : {};
+  return cleanText(
+    safe.active_character_id ||
+      (safe.character && safe.character.character_id) ||
+      "",
+    ""
+  );
+}
+
+function canReuseInventoryViewForProfile(profileData, inventoryView) {
+  if (!hasProfileSnapshot(profileData) || !inventoryView || !hasInventorySnapshot(inventoryView.data)) {
+    return false;
+  }
+  const profileCharacterId = getActiveCharacterIdFromProfileData(profileData);
+  const inventoryCharacterId = getActiveCharacterIdFromInventoryData(inventoryView.data);
+  return Boolean(profileCharacterId) && profileCharacterId === inventoryCharacterId;
 }
 
 function getShopView(userId) {
@@ -421,6 +744,28 @@ function loadClasses() {
   return classCatalogCache;
 }
 
+function loadBackgrounds() {
+  if (backgroundCatalogCache) {
+    return backgroundCatalogCache;
+  }
+
+  const out = listAvailableBackgrounds();
+  const backgrounds = Array.isArray(out.payload && out.payload.backgrounds) ? out.payload.backgrounds : [];
+  backgroundCatalogCache = backgrounds
+    .map((entry) => (entry && typeof entry === "object" ? entry : {}))
+    .filter((entry) => Boolean(normalizeSelection(entry.id)))
+    .map((entry) => ({
+      id: normalizeSelection(entry.id),
+      name: cleanText(entry.name || entry.id, "Unknown Background"),
+      source: cleanText((entry.metadata && entry.metadata.source) || "", "SRD 5.1"),
+      notes: Array.isArray(entry.metadata && entry.metadata.notes) ? entry.metadata.notes : [],
+      features: Array.isArray(entry.features) ? entry.features : []
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return backgroundCatalogCache;
+}
+
 function getRaceById(raceId) {
   const target = normalizeSelection(raceId);
   const list = loadRaces();
@@ -435,6 +780,17 @@ function getRaceById(raceId) {
 function getClassById(classId) {
   const target = normalizeSelection(classId);
   const list = loadClasses();
+  for (let i = 0; i < list.length; i += 1) {
+    if (list[i].id === target) {
+      return list[i];
+    }
+  }
+  return null;
+}
+
+function getBackgroundById(backgroundId) {
+  const target = normalizeSelection(backgroundId);
+  const list = loadBackgrounds();
   for (let i = 0; i < list.length; i += 1) {
     if (list[i].id === target) {
       return list[i];
@@ -941,8 +1297,191 @@ function toDisplayTag(value, fallback) {
   return safe === "(none)" ? safe : `\`${safe}\``;
 }
 
+function summarizeRosterFocus(data) {
+  const roster = Array.isArray(data && data.character_roster) ? data.character_roster : [];
+  const slotStatus = data && data.slot_status && typeof data.slot_status === "object" ? data.slot_status : {};
+  const activeEntry = roster.find((entry) => entry && entry.is_active === true) || null;
+  const activeName = cleanText(
+    activeEntry && activeEntry.name,
+    data && data.character && data.character.name ? data.character.name : "Unknown Adventurer"
+  );
+  const alternates = roster.filter((entry) => entry && entry.character_id && entry.is_active !== true).length;
+  const usedSlots = Number.isFinite(Number(slotStatus.used_slots)) ? Number(slotStatus.used_slots) : roster.length;
+  const maxSlots = Number.isFinite(Number(slotStatus.max_character_slots)) ? Number(slotStatus.max_character_slots) : null;
+  const parts = [
+    `Active: ${activeName}`
+  ];
+  if (maxSlots !== null) {
+    parts.push(`Roster: ${usedSlots}/${maxSlots}`);
+  }
+  if (alternates > 0) {
+    parts.push(`${alternates} alternate${alternates === 1 ? "" : "s"} ready`);
+  }
+  return parts.join(" • ");
+}
+
+function hasMultipleRosterCharacters(data) {
+  const roster = Array.isArray(data && data.character_roster) ? data.character_roster : [];
+  if (roster.length > 1) {
+    return true;
+  }
+  const slotStatus = data && data.slot_status && typeof data.slot_status === "object" ? data.slot_status : {};
+  const usedSlots = Number(slotStatus.used_slots);
+  return Number.isFinite(usedSlots) && usedSlots > 1;
+}
+
+function describeHubReason(data, source) {
+  if (hasMultipleRosterCharacters(data)) {
+    if (source === "start") {
+      return "Your account already has more than one character, so the hub is the safest place to confirm which one is active before you continue.";
+    }
+    return "You have multiple characters on this account, so the hub keeps switching and follow-up reads tied to the correct active character.";
+  }
+  return "This hub keeps profile, inventory, and equipment entry points centered on the current active character.";
+}
+
+function describeHubNextActions(data) {
+  if (hasMultipleRosterCharacters(data)) {
+    return [
+      "Switch active character if you want to continue on a different roster entry.",
+      "Open Profile to review the current build and account-facing character summary.",
+      "Open Inventory or Open Equipment to inspect or mutate the active character's gear."
+    ].join("\n");
+  }
+  return [
+    "Open Profile to review the current character record.",
+    "Open Inventory to inspect carried items and magical gear.",
+    "Open Equipment to jump straight into equip and unequip actions."
+  ].join("\n");
+}
+
+function buildRosterEmbed(data) {
+  const roster = Array.isArray(data && data.character_roster) ? data.character_roster : [];
+  const slotStatus = data && data.slot_status && typeof data.slot_status === "object" ? data.slot_status : {};
+  const activeCharacterId = getActiveCharacterIdFromProfileData(data) || getActiveCharacterIdFromInventoryData(data);
+  const source = cleanText(data && data.__hub_source, "profile");
+  return new EmbedBuilder()
+    .setColor(0x8e6f3e)
+    .setTitle("Character Roster")
+    .setDescription([summarizeRosterFocus(data), describeHubReason(data, source)].join("\n"))
+    .addFields(
+      {
+        name: "Roster Entries",
+        value: roster.length > 0
+          ? roster
+            .map((entry) => {
+              const safe = entry && typeof entry === "object" ? entry : {};
+              const isActive = cleanText(safe.character_id, "") === activeCharacterId || safe.is_active === true;
+              return [
+                `${isActive ? ">>" : "--"} ${cleanText(safe.name, safe.character_id || "unknown")} • Lv.${Number.isFinite(Number(safe.level)) ? Number(safe.level) : 1}`,
+                `Character: ${toDisplayTag(safe.character_id, "(unknown)")}`
+              ].join("\n");
+            })
+            .join("\n\n")
+          : "(no roster found)",
+        inline: false
+      },
+      {
+        name: "Slot Status",
+        value: [
+          `Used Slots: ${Number.isFinite(Number(slotStatus.used_slots)) ? Number(slotStatus.used_slots) : roster.length}`,
+          `Open Slots: ${Number.isFinite(Number(slotStatus.remaining_slots)) ? Number(slotStatus.remaining_slots) : "unknown"}`,
+          `Max Slots: ${Number.isFinite(Number(slotStatus.max_character_slots)) ? Number(slotStatus.max_character_slots) : "unknown"}`
+        ].join("\n"),
+        inline: false
+      },
+      {
+        name: "Next Actions",
+        value: describeHubNextActions(data),
+        inline: false
+      }
+    )
+    .setFooter({ text: "Character hub • switch active character or jump straight into inventory/equipment" });
+}
+
+function buildRosterComponents(view) {
+  const safeView = view && typeof view === "object" ? view : {};
+  const data = safeView.data || {};
+  const source = cleanText(safeView.source, "profile");
+  const activeCharacterName = cleanText(data && data.character && data.character.name, "Unknown");
+  const primaryBackId = source === "inventory" ? CUSTOM_IDS.rosterBackInventory : CUSTOM_IDS.rosterBackProfile;
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(primaryBackId)
+        .setLabel(source === "inventory" ? "Back to Inventory" : "Back to Profile")
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(CUSTOM_IDS.rosterOpenProfile)
+        .setLabel("Open Profile")
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(CUSTOM_IDS.rosterOpenInventory)
+        .setLabel("Open Inventory")
+        .setStyle(ButtonStyle.Secondary)
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(CUSTOM_IDS.rosterOpenEquipment)
+        .setLabel("Open Equipment")
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(CUSTOM_IDS.rosterRefresh)
+        .setLabel("Refresh Roster")
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId("roster:view:active")
+        .setLabel(`Active: ${abbreviate(activeCharacterName, 12)}`)
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(true)
+    )
+  ];
+  const roster = Array.isArray(data && data.character_roster) ? data.character_roster : [];
+  const switchTargets = roster
+    .filter((entry) => entry && entry.character_id && entry.is_active !== true)
+    .slice(0, 5)
+    .map((entry) =>
+      new ButtonBuilder()
+        .setCustomId(`${CUSTOM_IDS.rosterSwitchCharacter}:${cleanText(entry.character_id, "unknown")}`)
+        .setLabel(`Switch to ${abbreviate(cleanText(entry.name, entry.character_id), 14)}`)
+        .setStyle(ButtonStyle.Secondary)
+    );
+  if (switchTargets.length > 0) {
+    rows.push(new ActionRowBuilder().addComponents(...switchTargets));
+  }
+  return rows;
+}
+
+function buildCharacterEmptyStateEmbed(kind) {
+  const isInventory = String(kind || "") === "inventory";
+  return new EmbedBuilder()
+    .setColor(0xfaa61a)
+    .setTitle(isInventory ? "No Inventory Yet" : "No Character Yet")
+    .setDescription(
+      isInventory
+        ? "Create a character first, then inventory, equipment, and magical item controls will unlock on the active character."
+        : "Create your first character with `/start name:<character name>` to unlock profile, inventory, and equipment actions."
+    )
+    .addFields(
+      {
+        name: "Next Step",
+        value: isInventory
+          ? "Run `/start name:<character name>` if this account has no character yet, then reopen `/inventory` or Character Hub."
+          : "Run `/start name:<character name>`, finish race/background/class/point-buy, then open `/profile` or Character Hub."
+      },
+      {
+        name: "Why This Appears",
+        value: isInventory
+          ? "Inventory always follows the active character. If no character exists yet, there is no inventory to inspect."
+          : "Profile always follows the active character. If no character exists yet, there is no profile to show."
+      }
+    );
+}
+
 function buildProfileEmbed(data) {
   const character = data.character || {};
+  const roster = Array.isArray(data && data.character_roster) ? data.character_roster : [];
+  const slotStatus = data && data.slot_status && typeof data.slot_status === "object" ? data.slot_status : {};
   const attunement = character.attunement && typeof character.attunement === "object" ? character.attunement : {};
   const knownSpellIds = character.spellbook && Array.isArray(character.spellbook.known_spell_ids)
     ? character.spellbook.known_spell_ids
@@ -959,7 +1498,7 @@ function buildProfileEmbed(data) {
   return new EmbedBuilder()
     .setColor(0xc97f2d)
     .setTitle(title)
-    .setDescription(subtitle)
+    .setDescription([subtitle, summarizeRosterFocus(data)].join("\n"))
     .addFields(
       {
         name: "Path",
@@ -995,9 +1534,28 @@ function buildProfileEmbed(data) {
         inline: true
       },
       {
-        name: "Saving Throws",
-        value: buildSaveSummary(character.saving_throws),
+        name: "Roster",
+        value: roster.length > 0
+          ? roster
+            .slice(0, 5)
+            .map((entry) => `${entry.is_active === true ? ">>" : "--"} ${cleanText(entry && entry.name, entry && entry.character_id || "unknown")} • Lv.${Number.isFinite(Number(entry && entry.level)) ? Number(entry.level) : 1}`)
+            .join("\n")
+          : "(no roster found)",
         inline: false
+      },
+      {
+        name: "Roster Status",
+        value: [
+          `Used Slots: ${Number.isFinite(Number(slotStatus.used_slots)) ? Number(slotStatus.used_slots) : roster.length}`,
+          `Open Slots: ${Number.isFinite(Number(slotStatus.remaining_slots)) ? Number(slotStatus.remaining_slots) : "unknown"}`,
+          `Max Slots: ${Number.isFinite(Number(slotStatus.max_character_slots)) ? Number(slotStatus.max_character_slots) : "unknown"}`
+        ].join("\n"),
+        inline: false
+      },
+        {
+          name: "Saving Throws",
+          value: buildSaveSummary(character.saving_throws),
+          inline: false
       },
       {
         name: "Origin Stats",
@@ -1031,11 +1589,17 @@ function buildProfileEmbed(data) {
 
 function buildInventoryEmbed(data) {
   const inventory = data.inventory || {};
+  const character = data && data.character && typeof data.character === "object" ? data.character : {};
+  const roster = Array.isArray(data && data.character_roster) ? data.character_roster : [];
+  const slotStatus = data && data.slot_status && typeof data.slot_status === "object" ? data.slot_status : {};
   const currency = inventory.currency && typeof inventory.currency === "object" ? inventory.currency : {};
   return new EmbedBuilder()
     .setColor(0x2d8f6f)
     .setTitle("Dimensional Pack")
-    .setDescription(`Inventory ${toDisplayTag(inventory.inventory_id, "unknown")} • field-ready storage and relic seal log`)
+    .setDescription([
+      `${cleanText(character.name, "Unknown Adventurer")} • Inventory ${toDisplayTag(inventory.inventory_id, "unknown")} • field-ready storage and relic seal log`,
+      summarizeRosterFocus(data)
+    ].join("\n"))
     .addFields(
       {
         name: "Ledger",
@@ -1065,19 +1629,42 @@ function buildInventoryEmbed(data) {
         name: "Supply Cache",
         value: summarizeInventoryPreview(inventory.stackable_preview),
         inline: false
+      },
+      {
+        name: "Roster",
+        value: roster.length > 0
+          ? roster
+            .slice(0, 5)
+            .map((entry) => `${entry.is_active === true ? ">>" : "--"} ${cleanText(entry && entry.name, entry && entry.character_id || "unknown")} • Lv.${Number.isFinite(Number(entry && entry.level)) ? Number(entry.level) : 1}`)
+            .join("\n")
+          : "(no roster found)",
+        inline: false
+      },
+      {
+        name: "Roster Status",
+        value: [
+          `Used Slots: ${Number.isFinite(Number(slotStatus.used_slots)) ? Number(slotStatus.used_slots) : roster.length}`,
+          `Open Slots: ${Number.isFinite(Number(slotStatus.remaining_slots)) ? Number(slotStatus.remaining_slots) : "unknown"}`,
+          `Max Slots: ${Number.isFinite(Number(slotStatus.max_character_slots)) ? Number(slotStatus.max_character_slots) : "unknown"}`
+        ].join("\n"),
+        inline: false
       }
     )
     .setFooter({ text: "Portable Storage Manifest" });
 }
 
 function buildInventoryDetailEmbed(data, tab) {
-  const inventory = data && data.inventory && typeof data.inventory === "object" ? data.inventory : {};
-  const selectedTab = String(tab || "summary");
-  if (selectedTab === "equipment") {
-    return new EmbedBuilder()
-      .setColor(0x2d6d8f)
-      .setTitle("Dimensional Pack | Equipment")
-      .setDescription(`Inventory ${toDisplayTag(inventory.inventory_id, "unknown")} • arms, armor, and expedition gear`)
+    const inventory = data && data.inventory && typeof data.inventory === "object" ? data.inventory : {};
+    const character = data && data.character && typeof data.character === "object" ? data.character : {};
+    const selectedTab = String(tab || "summary");
+    if (selectedTab === "equipment") {
+      return new EmbedBuilder()
+        .setColor(0x2d6d8f)
+        .setTitle("Dimensional Pack | Equipment")
+        .setDescription([
+          `${cleanText(character.name, "Unknown Adventurer")} • Inventory ${toDisplayTag(inventory.inventory_id, "unknown")} • arms, armor, and expedition gear`,
+          summarizeRosterFocus(data)
+        ].join("\n"))
       .addFields(
         {
           name: "Equipped Cache",
@@ -1098,11 +1685,14 @@ function buildInventoryDetailEmbed(data, tab) {
       .setFooter({ text: "Armaments and relics" });
   }
 
-  if (selectedTab === "magical") {
-    return new EmbedBuilder()
-      .setColor(0x7a4acb)
-      .setTitle("Dimensional Pack | Arcane Ledger")
-      .setDescription(`Inventory ${toDisplayTag(inventory.inventory_id, "unknown")} • relic resonance, seals, and attunement drift`)
+    if (selectedTab === "magical") {
+      return new EmbedBuilder()
+        .setColor(0x7a4acb)
+        .setTitle("Dimensional Pack | Arcane Ledger")
+        .setDescription([
+          `${cleanText(character.name, "Unknown Adventurer")} • Inventory ${toDisplayTag(inventory.inventory_id, "unknown")} • relic resonance, seals, and attunement drift`,
+          summarizeRosterFocus(data)
+        ].join("\n"))
       .addFields(
         {
           name: "Magical Cache",
@@ -1913,12 +2503,26 @@ function buildCombatStatusComponents(data) {
 
 function buildInventoryComponents(selectedTab, data) {
   const tab = String(selectedTab || "summary");
+  const activeCharacterName = cleanText(data && data.character && data.character.name, "Unknown");
   const rows = [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(CUSTOM_IDS.inventoryBackToProfile)
         .setLabel("Back to Profile")
         .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(CUSTOM_IDS.inventoryRefresh)
+        .setLabel("Refresh Inventory")
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(CUSTOM_IDS.inventoryOpenRoster)
+        .setLabel("Character Hub")
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId("inventory:view:active")
+        .setLabel(`Active: ${abbreviate(activeCharacterName, 16)}`)
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(true),
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -1935,6 +2539,19 @@ function buildInventoryComponents(selectedTab, data) {
         .setStyle(tab === "magical" ? ButtonStyle.Primary : ButtonStyle.Secondary)
     )
   ];
+  const roster = Array.isArray(data && data.character_roster) ? data.character_roster : [];
+  const switchTargets = roster
+    .filter((entry) => entry && entry.character_id && entry.is_active !== true)
+    .slice(0, 4)
+    .map((entry) =>
+      new ButtonBuilder()
+        .setCustomId(`${CUSTOM_IDS.inventorySwitchCharacter}:${cleanText(entry.character_id, "unknown")}`)
+        .setLabel(`Switch to ${abbreviate(cleanText(entry.name, entry.character_id), 14)}`)
+        .setStyle(ButtonStyle.Secondary)
+    );
+  if (switchTargets.length > 0) {
+    rows.push(new ActionRowBuilder().addComponents(...switchTargets));
+  }
   if (tab === "magical") {
     const magicalButtons = buildMagicalInventoryActionButtons(data);
     if (magicalButtons.length > 0) {
@@ -1949,15 +2566,43 @@ function buildInventoryComponents(selectedTab, data) {
   return rows;
 }
 
-function buildProfileComponents() {
-  return [
+function buildProfileComponents(data) {
+  const activeCharacterName = cleanText(data && data.character && data.character.name, "Unknown");
+  const rows = [
     new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(CUSTOM_IDS.profileRefresh)
+        .setLabel("Refresh Profile")
+        .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(CUSTOM_IDS.profileOpenInventory)
         .setLabel("Open Inventory")
-        .setStyle(ButtonStyle.Primary)
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(CUSTOM_IDS.profileOpenRoster)
+        .setLabel("Character Hub")
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId("profile:view:active")
+        .setLabel(`Active: ${abbreviate(activeCharacterName, 16)}`)
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(true)
     )
   ];
+  const roster = Array.isArray(data && data.character_roster) ? data.character_roster : [];
+  const switchTargets = roster
+    .filter((entry) => entry && entry.character_id && entry.is_active !== true)
+    .slice(0, 4)
+    .map((entry) =>
+      new ButtonBuilder()
+        .setCustomId(`${CUSTOM_IDS.profileSwitchCharacter}:${cleanText(entry.character_id, "unknown")}`)
+        .setLabel(`Switch to ${abbreviate(cleanText(entry.name, entry.character_id), 14)}`)
+        .setStyle(ButtonStyle.Secondary)
+    );
+  if (switchTargets.length > 0) {
+    rows.push(new ActionRowBuilder().addComponents(...switchTargets));
+  }
+  return rows;
 }
 
 function buildShopEmbed(data) {
@@ -2684,7 +3329,7 @@ function getClassOptionMenu(classId) {
 
 function canSubmit(session) {
   const safe = session || {};
-  if (!safe.race_id || !safe.class_id || !safe.secondary_class_id) return false;
+  if (!safe.race_id || !safe.background_id || !safe.class_id || !safe.secondary_class_id) return false;
   if (safe.class_id === safe.secondary_class_id) return false;
   if (raceNeedsOption(safe.race_id) && !safe.race_option_id) return false;
   if (classNeedsOptionAtStart(safe.class_id) && !safe.class_option_id) return false;
@@ -2726,9 +3371,11 @@ function validatePointBuy(stats) {
 function buildStartEmbed(session, extra) {
   const safe = session || {};
   const race = getRaceById(safe.race_id);
+  const background = getBackgroundById(safe.background_id);
   const primaryClass = getClassById(safe.class_id);
   const secondaryClass = getClassById(safe.secondary_class_id);
   const raceText = race ? `${race.name} (${safe.race_id})` : "Not selected";
+  const backgroundText = background ? `${background.name} (${safe.background_id})` : "Not selected";
   const primaryClassText = primaryClass ? `${primaryClass.name} (${safe.class_id})` : "Not selected";
   const secondaryClassText = secondaryClass
     ? `${secondaryClass.name} (${safe.secondary_class_id})`
@@ -2741,7 +3388,7 @@ function buildStartEmbed(session, extra) {
   const pointBuyText = `Spent ${pointBuySummary.total_cost}/27 | Remaining ${pointBuySummary.remaining_points}`;
   const status = canSubmit(safe)
     ? "Ready to create"
-    : "Set race, both gestalt classes, then confirm the 27-point buy.";
+    : "Set race, background, both gestalt classes, then confirm the 27-point buy.";
 
   if (safe.view === "point_buy") {
     const selectedAbility = safe.selected_ability || ABILITY_FIELDS[0];
@@ -2770,6 +3417,7 @@ function buildStartEmbed(session, extra) {
     .addFields(
       { name: "Name", value: cleanText(safe.requested_character_name, "(none)"), inline: true },
       { name: "Race", value: raceText, inline: true },
+      { name: "Background", value: backgroundText, inline: true },
       { name: "Track A", value: primaryClassText, inline: true },
       { name: "Track B", value: secondaryClassText, inline: true },
       { name: "Race option", value: safe.race_option_id ? safe.race_option_id : "(none)", inline: true },
@@ -2779,7 +3427,7 @@ function buildStartEmbed(session, extra) {
       { name: "Point-buy", value: `${pointBuyText} | ${safe.point_buy_confirmed ? "Confirmed" : "Needs confirm"}`, inline: false },
       {
         name: "Flow",
-        value: "Name is typed in `/start`. Race, both gestalt tracks, and stats are all selected in menus/buttons."
+        value: "Name is typed in `/start`. Race, background, both gestalt tracks, and stats are all selected in menus/buttons."
       },
       {
         name: "Subclass Timing",
@@ -2848,6 +3496,11 @@ function buildStartComponents(session) {
   }));
 
   const classOptions = loadClasses().map((entry) => ({
+    value: entry.id,
+    label: abbreviate(entry.name, 100),
+    description: abbreviate(`${entry.source} • ${entry.notes[0] || ""}`.trim(), 100)
+  }));
+  const backgroundOptions = loadBackgrounds().map((entry) => ({
     value: entry.id,
     label: abbreviate(entry.name, 100),
     description: abbreviate(`${entry.source} • ${entry.notes[0] || ""}`.trim(), 100)
@@ -2927,7 +3580,30 @@ function buildStartComponents(session) {
     ));
   }
 
-  rows.push(new ActionRowBuilder().addComponents(
+  const actionButtons = [];
+  if (backgroundOptions.length > 0 && backgroundOptions.length <= 3) {
+    for (let i = 0; i < backgroundOptions.length; i += 1) {
+      const option = backgroundOptions[i];
+      actionButtons.push(
+        new ButtonBuilder()
+          .setCustomId(`start:background:${option.value}`)
+          .setLabel(abbreviate(option.label, 20))
+          .setStyle(session.background_id === option.value ? ButtonStyle.Primary : ButtonStyle.Secondary)
+      );
+    }
+  }
+  if (backgroundOptions.length > 3) {
+    rows.push(new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId("start:background_select")
+        .setPlaceholder("Choose a background")
+        .setMinValues(1)
+        .setMaxValues(1)
+        .addOptions(backgroundOptions)
+    ));
+  }
+
+  actionButtons.push(
     new ButtonBuilder()
       .setCustomId(CUSTOM_IDS.pointBuyButton)
       .setLabel("Point-Buy")
@@ -2937,7 +3613,9 @@ function buildStartComponents(session) {
       .setLabel("Create Character")
       .setStyle(ButtonStyle.Success)
       .setDisabled(!canSubmit(session))
-  ));
+  );
+
+  rows.push(new ActionRowBuilder().addComponents(actionButtons));
 
   return rows;
 }
@@ -2990,22 +3668,30 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
   }
 
   if (responseType === "start") {
-    const character = data.character || {};
-    const baseStats = character.base_stats || (data.point_buy_summary && data.point_buy_summary.abilities) || null;
-    return {
-      ok: true,
-      content: [
-        "Character created successfully",
-        `Name: ${cleanText(character.name, "unknown")}`,
-        `Race: ${cleanText(character.race, character.race_id || "unknown")}`,
-        `Track A: ${cleanText(character.class, character.class_id || "unknown")}`,
-        `Track B: ${cleanText(character.secondary_class_id, "unknown")}`,
-        `Level: ${character.level || 1}`,
-        `Base Stats: ${baseStats ? formatStatLine(baseStats) : "unknown"}`,
-        `Stats: ${formatStatLine(character.stats || {})}`
-      ].join("\n"),
-      data
-    };
+      const character = data.character || {};
+      const baseStats = character.base_stats || (data.point_buy_summary && data.point_buy_summary.abilities) || null;
+      const slotStatus = data.slot_status && typeof data.slot_status === "object" ? data.slot_status : {};
+      const usedSlots = Number.isFinite(Number(slotStatus.used_slots)) ? Number(slotStatus.used_slots) : null;
+      const maxSlots = Number.isFinite(Number(slotStatus.max_character_slots)) ? Number(slotStatus.max_character_slots) : null;
+      const remainingSlots = Number.isFinite(Number(slotStatus.remaining_slots)) ? Number(slotStatus.remaining_slots) : null;
+      return {
+        ok: true,
+        content: [
+          "Character created successfully",
+          `Name: ${cleanText(character.name, "unknown")}`,
+          `Race: ${cleanText(character.race, character.race_id || "unknown")}`,
+          `Background: ${cleanText(character.background, character.background_id || "unknown")}`,
+          `Track A: ${cleanText(character.class, character.class_id || "unknown")}`,
+          `Track B: ${cleanText(character.secondary_class_id, "unknown")}`,
+          `Level: ${character.level || 1}`,
+          `Inventory: ${cleanText(data.inventory && data.inventory.inventory_id, "unknown")}`,
+          `Active Character: ${data.active_character_set === true ? "set to this character" : cleanText(data.active_character_id, "(unknown)")}`,
+          `Roster: ${usedSlots !== null && maxSlots !== null ? `${usedSlots}/${maxSlots} characters` : "unknown"}${remainingSlots !== null ? ` • ${remainingSlots} slot${remainingSlots === 1 ? "" : "s"} open` : ""}`,
+          `Base Stats: ${baseStats ? formatStatLine(baseStats) : "unknown"}`,
+          `Stats: ${formatStatLine(character.stats || {})}`
+        ].join("\n"),
+        data
+      };
   }
 
   if (responseType === "ping") {
@@ -3020,7 +3706,8 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
     if (data.profile_found !== true || !data.character) {
       return {
         ok: true,
-        content: "No character profile found for this player.",
+        embeds: [buildCharacterEmptyStateEmbed("profile")],
+        content: "No character profile found for this player. Run `/start name:<character name>` to create one, then reopen `/profile` or Character Hub.",
         data
       };
     }
@@ -3032,12 +3719,13 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
       : [];
     const feats = Array.isArray(character.feats) ? character.feats : [];
     const featSlots = character.feat_slots && typeof character.feat_slots === "object" ? character.feat_slots : {};
+    const slotStatus = data.slot_status && typeof data.slot_status === "object" ? data.slot_status : {};
     return {
       ok: true,
       embeds: [buildProfileEmbed(data)],
-      components: buildProfileComponents(),
-      content: [
-        `Name: ${cleanText(character.name, "unknown")}`,
+        components: buildProfileComponents(data),
+        content: [
+          `Name: ${cleanText(character.name, "unknown")}`,
         `Race: ${cleanText(character.race, character.race_id || "unknown")}`,
         `Track A: ${cleanText(character.class, character.class_id || "unknown")}`,
         `Track B: ${cleanText(character.secondary_class_id, "(none)")}`,
@@ -3045,9 +3733,13 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
         `Track B Subclass: ${cleanText(character.secondary_class_option_id, "(none)")}`,
         `Level: ${Number.isFinite(Number(character.level)) ? Number(character.level) : 1}`,
         `XP: ${Number.isFinite(Number(character.xp)) ? Number(character.xp) : 0}`,
-        `Known Spells: ${knownSpellIds.length}`,
-        `Feats: ${feats.length} (${summarizeFeatPreview(feats)})`,
-        `Feat Slots: ${Number.isFinite(Number(featSlots.used_slots)) ? Number(featSlots.used_slots) : 0}/${Number.isFinite(Number(featSlots.total_slots)) ? Number(featSlots.total_slots) : 0}${data.character && data.character.feat_available === true ? " • available" : ""}`,
+          `Known Spells: ${knownSpellIds.length}`,
+          `Feats: ${feats.length} (${summarizeFeatPreview(feats)})`,
+          `Roster: ${Array.isArray(data.character_roster) ? data.character_roster.length : 0}`,
+          `Roster Slots: ${Number.isFinite(Number(slotStatus.used_slots)) && Number.isFinite(Number(slotStatus.max_character_slots))
+            ? `${Number(slotStatus.used_slots)}/${Number(slotStatus.max_character_slots)}`
+            : "unknown"}${Number.isFinite(Number(slotStatus.remaining_slots)) ? ` • ${Number(slotStatus.remaining_slots)} open` : ""}`,
+          `Feat Slots: ${Number.isFinite(Number(featSlots.used_slots)) ? Number(featSlots.used_slots) : 0}/${Number.isFinite(Number(featSlots.total_slots)) ? Number(featSlots.total_slots) : 0}${data.character && data.character.feat_available === true ? " • available" : ""}`,
         `Attunement: ${Number.isFinite(Number(attunement.slots_used)) ? Number(attunement.slots_used) : 0}/${Number.isFinite(Number(attunement.attunement_slots)) ? Number(attunement.attunement_slots) : 3}`,
         `Base Stats: ${character.base_stats ? formatStatLine(character.base_stats) : "unknown"}`,
         `Stats: ${character.stats ? formatStatLine(character.stats) : "unknown"}`
@@ -3091,26 +3783,32 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
     if (data.inventory_found !== true || !data.inventory) {
       return {
         ok: true,
-        content: "No inventory found for this player.",
+        embeds: [buildCharacterEmptyStateEmbed("inventory")],
+        content: "No inventory found for this player. Run `/start name:<character name>` first, then reopen `/inventory` or Character Hub.",
         data
       };
     }
 
     const inventory = data.inventory || {};
     const currency = inventory.currency && typeof inventory.currency === "object" ? inventory.currency : {};
-    return {
-      ok: true,
-      embeds: [buildInventoryDetailEmbed(data, "summary")],
-      components: buildInventoryComponents("summary", data),
-      content: [
-        `Inventory ID: ${cleanText(inventory.inventory_id, "unknown")}`,
-        `Gold: ${Number.isFinite(Number(currency.gold)) ? Number(currency.gold) : 0}`,
+      const slotStatus = data.slot_status && typeof data.slot_status === "object" ? data.slot_status : {};
+      return {
+        ok: true,
+        embeds: [buildInventoryDetailEmbed(data, "summary")],
+        components: buildInventoryComponents("summary", data),
+        content: [
+          `Character: ${cleanText(data.character && data.character.name, data.character && data.character.character_id || "unknown")}`,
+          `Inventory ID: ${cleanText(inventory.inventory_id, "unknown")}`,
+          `Gold: ${Number.isFinite(Number(currency.gold)) ? Number(currency.gold) : 0}`,
         `Stackables: ${Number.isFinite(Number(inventory.stackable_count)) ? Number(inventory.stackable_count) : 0}`,
         `Equipment: ${Number.isFinite(Number(inventory.equipment_count)) ? Number(inventory.equipment_count) : 0}`,
         `Quest Items: ${Number.isFinite(Number(inventory.quest_count)) ? Number(inventory.quest_count) : 0}`,
         `Magical: ${Number.isFinite(Number(inventory.magical_count)) ? Number(inventory.magical_count) : 0}`,
         `Unidentified: ${Number.isFinite(Number(inventory.unidentified_count)) ? Number(inventory.unidentified_count) : 0}`,
         `Attuned: ${Number.isFinite(Number(inventory.attuned_count)) ? Number(inventory.attuned_count) : 0}/${Number.isFinite(Number(inventory.attunement_slots)) ? Number(inventory.attunement_slots) : 3}`,
+        `Roster Slots: ${Number.isFinite(Number(slotStatus.used_slots)) && Number.isFinite(Number(slotStatus.max_character_slots))
+          ? `${Number(slotStatus.used_slots)}/${Number(slotStatus.max_character_slots)}`
+          : "unknown"}${Number.isFinite(Number(slotStatus.remaining_slots)) ? ` • ${Number(slotStatus.remaining_slots)} open` : ""}`,
         `Equipment Preview: ${summarizeInventoryPreview(inventory.equipment_preview)}`,
         `Stackable Preview: ${summarizeInventoryPreview(inventory.stackable_preview)}`
       ].join("\n"),
@@ -3761,6 +4459,38 @@ function formatGatewayReplyFromRuntime(runtimeResult) {
     };
   }
 
+  if (responseType === "equip") {
+    const character = data.character && typeof data.character === "object" ? data.character : {};
+    const equipped = data.equipped && typeof data.equipped === "object" ? data.equipped : {};
+    const inventory = data.inventory && typeof data.inventory === "object" ? data.inventory : {};
+    return {
+      ok: true,
+      content: [
+        `Equip completed for ${formatCharacterFocus(character, "active character")}.`,
+        `Item: ${cleanText(equipped.item_id, "unknown")}`,
+        `Slot: ${cleanText(equipped.slot, "unknown")}`,
+        `Inventory: ${cleanText(inventory.inventory_id, "(unknown)")}`
+      ].join("\n"),
+      data
+    };
+  }
+
+  if (responseType === "unequip") {
+    const character = data.character && typeof data.character === "object" ? data.character : {};
+    const unequipped = data.unequipped && typeof data.unequipped === "object" ? data.unequipped : {};
+    const inventory = data.inventory && typeof data.inventory === "object" ? data.inventory : {};
+    return {
+      ok: true,
+      content: [
+        `Unequip completed for ${formatCharacterFocus(character, "active character")}.`,
+        `Item: ${cleanText(unequipped.item_id, "unknown")}`,
+        `Slot: ${cleanText(unequipped.slot, "unknown")}`,
+        `Inventory: ${cleanText(inventory.inventory_id, "(unknown)")}`
+      ].join("\n"),
+      data
+    };
+  }
+
   return {
     ok: true,
     content: responseType + " completed.",
@@ -3830,6 +4560,7 @@ async function attachCombatMapToReply(reply, userId, storedView, options) {
     return reply;
   }
 
+  const { buildCombatMapView } = loadCombatMapSupport();
   const mapView = await buildCombatMapView({
     data: reply.data,
     user_id: userId,
@@ -3867,6 +4598,7 @@ async function attachDungeonMapToReply(reply, userId, storedView, options) {
     return reply;
   }
 
+  const { buildDungeonMapView } = loadDungeonMapSupport();
   const mapView = await buildDungeonMapView({
     data: reply.data,
     user_id: userId,
@@ -3901,6 +4633,7 @@ function buildStartCompleteEmbed(runtimeResult) {
   const data = reply.data || {};
   const character = data.character || {};
   const points = data.point_buy_summary || null;
+  const slotStatus = data.slot_status && typeof data.slot_status === "object" ? data.slot_status : {};
   const baseStats = character.base_stats || (points && points.abilities) || null;
   return new EmbedBuilder()
     .setTitle(reply.ok ? "Character created" : "Character creation failed")
@@ -3912,9 +4645,17 @@ function buildStartCompleteEmbed(runtimeResult) {
         value: [
           `Name: ${character.name || "unknown"}`,
           `Race: ${character.race || "unknown"}`,
+          `Background: ${character.background || "unknown"}`,
           `Track A: ${character.class || "unknown"}`,
           `Track B: ${character.secondary_class_id || "unknown"}`,
           `Level: ${character.level || 1}`,
+          `Inventory: ${(data.inventory && data.inventory.inventory_id) || character.inventory_id || "unknown"}`,
+          `Active Character: ${data.active_character_set === true ? "set to this character" : (data.active_character_id || "unknown")}`,
+          `Roster: ${Number.isFinite(Number(slotStatus.used_slots)) && Number.isFinite(Number(slotStatus.max_character_slots))
+            ? `${Number(slotStatus.used_slots)}/${Number(slotStatus.max_character_slots)} characters`
+            : "unknown"}${Number.isFinite(Number(slotStatus.remaining_slots))
+            ? ` • ${Number(slotStatus.remaining_slots)} slot${Number(slotStatus.remaining_slots) === 1 ? "" : "s"} open`
+            : ""}`,
           `Base Stats: ${baseStats ? formatStatLine(baseStats) : "unknown"}`,
           `Stats: ${character.stats ? formatStatLine(character.stats) : "unknown"}`
         ].join("\n")
@@ -3922,8 +4663,75 @@ function buildStartCompleteEmbed(runtimeResult) {
       {
         name: "Point-buy",
         value: points ? `Spent: ${points.total_cost || 0}/27 | Remaining: ${points.remaining_points || 0}` : "not set"
+      },
+      {
+        name: "Next Step",
+        value: hasMultipleRosterCharacters(data)
+          ? "Multiple characters are now on this account. Open Character Hub to confirm the active character before jumping into profile, inventory, or equipment."
+          : "Open Profile or Open Inventory to keep playing on the character you just created."
       }
     );
+}
+
+function buildStartCompleteComponents(runtimeResult) {
+  const reply = formatGatewayReplyFromRuntime(runtimeResult);
+  if (!reply.ok) {
+    return [];
+  }
+
+  const data = reply.data || {};
+  if (hasMultipleRosterCharacters(data)) {
+    return [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(CUSTOM_IDS.startCompleteHub)
+          .setLabel("Character Hub")
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId(CUSTOM_IDS.startCompleteProfile)
+          .setLabel("Open Profile")
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId(CUSTOM_IDS.startCompleteInventory)
+          .setLabel("Open Inventory")
+          .setStyle(ButtonStyle.Secondary)
+      )
+    ];
+  }
+
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(CUSTOM_IDS.startCompleteProfile)
+        .setLabel("Open Profile")
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(CUSTOM_IDS.startCompleteInventory)
+        .setLabel("Open Inventory")
+        .setStyle(ButtonStyle.Secondary)
+    )
+  ];
+}
+
+function cacheStartCompletionSnapshots(userId, reply) {
+  const data = reply && reply.data && typeof reply.data === "object" ? reply.data : {};
+  cacheCharacterStateSnapshots(userId, {
+    profile_data: data.profile_snapshot,
+    profile_content: `Active character ready: ${cleanText(data.profile_snapshot && data.profile_snapshot.character && data.profile_snapshot.character.name, "unknown")}.`,
+    inventory_data: data.inventory_snapshot,
+    inventory_tab: "summary",
+    inventory_content: `Inventory ready for ${cleanText(data.inventory_snapshot && data.inventory_snapshot.character && data.inventory_snapshot.character.name, "unknown")}.`
+  });
+  if (hasProfileSnapshot(data.profile_snapshot)) {
+    cacheRosterView(userId, data.profile_snapshot, {
+      source: "start",
+      content: hasMultipleRosterCharacters(data)
+        ? `Multiple characters detected. Review the hub before continuing on ${cleanText(data.profile_snapshot.character && data.profile_snapshot.character.name, "unknown")}.`
+        : `Character hub ready for ${cleanText(data.profile_snapshot.character && data.profile_snapshot.character.name, "unknown")}.`,
+      profile_data: data.profile_snapshot,
+      inventory_data: data.inventory_snapshot
+    });
+  }
 }
 
 async function respondInteraction(interaction, payload) {
@@ -4018,14 +4826,28 @@ function resetSelectedAbility(session) {
 async function handleStartComponent(interaction, runtime) {
   const userId = extractInteractionUser(interaction);
   const customId = interaction.customId || "";
+  const backgroundButtonPrefix = "start:background:";
+  const backgroundSelectCustomId = "start:background_select";
 
   if (!userId) {
     await respondInteraction(interaction, { content: "Could not identify user." });
     return;
   }
 
+  function getRequiredSession() {
+    const session = getStartSession(userId);
+    if (!session) {
+      return null;
+    }
+    return syncSessionPointBuy(session);
+  }
+
   if (customId === CUSTOM_IDS.pointBuyButton) {
-    const session = syncSessionPointBuy(getStartSession(userId) || {});
+    const session = getRequiredSession();
+    if (!session) {
+      await respondInteraction(interaction, { content: "No active `/start` session found. Run `/start name:<character name>` again." });
+      return;
+    }
     session.view = "point_buy";
     setStartSession(userId, session);
     await refreshInteractionMessage(interaction, buildStartUpdateMessage(session, "Point-buy editor opened."));
@@ -4035,7 +4857,7 @@ async function handleStartComponent(interaction, runtime) {
   if (customId === CUSTOM_IDS.pointBuyDecrease || customId === CUSTOM_IDS.pointBuyIncrease) {
     const session = getStartSession(userId);
     if (!session) {
-      await respondInteraction(interaction, { content: "No active start session found. Run /start again." });
+      await respondInteraction(interaction, { content: "No active `/start` session found. Run `/start name:<character name>` again." });
       return;
     }
 
@@ -4055,7 +4877,7 @@ async function handleStartComponent(interaction, runtime) {
   if (customId === CUSTOM_IDS.pointBuyResetAbility || customId === CUSTOM_IDS.pointBuyResetAll) {
     const session = getStartSession(userId);
     if (!session) {
-      await respondInteraction(interaction, { content: "No active start session found. Run /start again." });
+      await respondInteraction(interaction, { content: "No active `/start` session found. Run `/start name:<character name>` again." });
       return;
     }
 
@@ -4069,7 +4891,11 @@ async function handleStartComponent(interaction, runtime) {
   }
 
   if (customId === CUSTOM_IDS.pointBuyConfirm) {
-    const session = syncSessionPointBuy(getStartSession(userId) || {});
+    const session = getRequiredSession();
+    if (!session) {
+      await respondInteraction(interaction, { content: "No active `/start` session found. Run `/start name:<character name>` again." });
+      return;
+    }
     if (!isPointBuyComplete(session)) {
       await respondInteraction(interaction, { content: "Spend all 27 points before confirming point-buy." });
       return;
@@ -4083,22 +4909,43 @@ async function handleStartComponent(interaction, runtime) {
   }
 
   if (customId === CUSTOM_IDS.pointBuyBack) {
-    const session = syncSessionPointBuy(getStartSession(userId) || {});
+    const session = getRequiredSession();
+    if (!session) {
+      await respondInteraction(interaction, { content: "No active `/start` session found. Run `/start name:<character name>` again." });
+      return;
+    }
     session.view = "wizard";
     setStartSession(userId, session);
     await refreshInteractionMessage(interaction, buildStartUpdateMessage(session, "Returned to start wizard."));
     return;
   }
 
+  if (customId.startsWith(backgroundButtonPrefix)) {
+    const session = getRequiredSession();
+    if (!session) {
+      await respondInteraction(interaction, { content: "No active `/start` session found. Run `/start name:<character name>` again." });
+      return;
+    }
+    const selectedBackgroundId = normalizeSelection(customId.slice(backgroundButtonPrefix.length));
+    if (!selectedBackgroundId) {
+      await respondInteraction(interaction, { content: "Please choose a valid background." });
+      return;
+    }
+    session.background_id = selectedBackgroundId;
+    setStartSession(userId, session);
+    await refreshInteractionMessage(interaction, buildStartUpdateMessage(session, "Background updated."));
+    return;
+  }
+
   if (customId === CUSTOM_IDS.createButton) {
     const session = syncSessionPointBuy(getStartSession(userId));
     if (!session) {
-      await respondInteraction(interaction, { content: "No active start session found. Run /start again." });
+      await respondInteraction(interaction, { content: "No active `/start` session found. Run `/start name:<character name>` again." });
       return;
     }
 
     if (!canSubmit(session)) {
-      await respondInteraction(interaction, { content: "Choose race, both classes, and confirm the full 27-point buy before creating." });
+      await respondInteraction(interaction, { content: "Choose race, background, both classes, and confirm the full 27-point buy before creating." });
       return;
     }
 
@@ -4112,6 +4959,7 @@ async function handleStartComponent(interaction, runtime) {
       requested_character_name: session.requested_character_name || null,
       race_id: session.race_id,
       race_option_id: session.race_option_id || null,
+      background_id: session.background_id || null,
       class_id: session.class_id,
       class_option_id: session.class_option_id || null,
       secondary_class_id: session.secondary_class_id,
@@ -4125,21 +4973,31 @@ async function handleStartComponent(interaction, runtime) {
 
     const runtimeResult = await runtime.processGatewayReadCommandEvent(event);
     const embed = buildStartCompleteEmbed(runtimeResult);
+    const startReply = formatGatewayReplyFromRuntime(runtimeResult);
     deleteStartSession(userId);
+    deleteProfileView(userId);
+    deleteInventoryView(userId);
+    if (startReply.ok) {
+      cacheStartCompletionSnapshots(userId, startReply);
+    }
 
     await refreshInteractionMessage(interaction, {
       content: null,
       embeds: [embed],
-      components: []
+      components: buildStartCompleteComponents(runtimeResult)
     });
     return;
   }
 
-  if (customId === CUSTOM_IDS.raceSelect || customId === CUSTOM_IDS.classSelect ||
+  if (customId === CUSTOM_IDS.raceSelect || customId === backgroundSelectCustomId || customId === CUSTOM_IDS.classSelect ||
       customId === CUSTOM_IDS.secondaryClassSelect || customId === CUSTOM_IDS.raceOptionSelect ||
       customId === CUSTOM_IDS.classOptionSelect || customId === CUSTOM_IDS.secondaryClassOptionSelect ||
       customId === CUSTOM_IDS.pointBuyAbilitySelect) {
-    const session = syncSessionPointBuy(getStartSession(userId) || {});
+    const session = getRequiredSession();
+    if (!session) {
+      await respondInteraction(interaction, { content: "No active `/start` session found. Run `/start name:<character name>` again." });
+      return;
+    }
     const selected = normalizeSelection(interaction.values && interaction.values[0]);
 
     if (!selected) {
@@ -4155,6 +5013,8 @@ async function handleStartComponent(interaction, runtime) {
     if (customId === CUSTOM_IDS.raceSelect) {
       session.race_id = selected;
       session.race_option_id = null;
+    } else if (customId === backgroundSelectCustomId) {
+      session.background_id = selected;
     } else if (customId === CUSTOM_IDS.classSelect) {
       session.class_id = selected;
       session.class_option_id = null;
@@ -4186,6 +5046,7 @@ async function handleStartWizard(interaction, mappedEvent) {
     requested_character_name: payload.requested_character_name || "",
     race_id: normalizeSelection(payload.race_id),
     race_option_id: normalizeSelection(payload.race_option_id),
+    background_id: normalizeSelection(payload.background_id),
     class_id: normalizeSelection(payload.class_id),
     class_option_id: normalizeSelection(payload.class_option_id),
     secondary_class_id: normalizeSelection(payload.secondary_class_id),
@@ -4198,7 +5059,7 @@ async function handleStartWizard(interaction, mappedEvent) {
   };
 
   setStartSession(extractInteractionUser(interaction), session);
-  await interaction.reply(buildStartMessage(session, "Use the controls to pick race, both gestalt classes, and stats."));
+  await interaction.reply(buildStartMessage(session, "Use the controls to pick race, background, both gestalt classes, and stats."));
 }
 
 function isStartComponentInteraction(interaction) {
@@ -4206,7 +5067,8 @@ function isStartComponentInteraction(interaction) {
     return false;
   }
 
-  return interaction.customId.startsWith("start:");
+  return interaction.customId.startsWith("start:")
+    && !interaction.customId.startsWith("start:complete:");
 }
 
 function isInventoryComponentInteraction(interaction) {
@@ -4222,7 +5084,27 @@ function isProfileComponentInteraction(interaction) {
     return false;
   }
 
-  return interaction.customId === CUSTOM_IDS.profileOpenInventory;
+  return interaction.customId.startsWith("profile:view:")
+    || interaction.customId === CUSTOM_IDS.profileOpenInventory
+    || interaction.customId === CUSTOM_IDS.profileOpenRoster
+    || interaction.customId === CUSTOM_IDS.startCompleteHub
+    || interaction.customId === CUSTOM_IDS.startCompleteProfile
+    || interaction.customId === CUSTOM_IDS.startCompleteInventory
+    || interaction.customId === CUSTOM_IDS.profileRefresh
+    || interaction.customId.startsWith(`${CUSTOM_IDS.profileSwitchCharacter}:`);
+}
+
+function isRosterComponentInteraction(interaction) {
+  if (!interaction || !interaction.customId) {
+    return false;
+  }
+  return interaction.customId === CUSTOM_IDS.rosterOpenProfile
+    || interaction.customId === CUSTOM_IDS.rosterBackProfile
+    || interaction.customId === CUSTOM_IDS.rosterBackInventory
+    || interaction.customId === CUSTOM_IDS.rosterOpenInventory
+    || interaction.customId === CUSTOM_IDS.rosterOpenEquipment
+    || interaction.customId === CUSTOM_IDS.rosterRefresh
+    || interaction.customId.startsWith(`${CUSTOM_IDS.rosterSwitchCharacter}:`);
 }
 
 function isShopComponentInteraction(interaction) {
@@ -4298,16 +5180,123 @@ async function handleInventoryComponent(interaction, runtime) {
   }
 
   if (customId === CUSTOM_IDS.inventoryBackToProfile) {
-    const profileView = getProfileView(userId);
-    if (!profileView || !profileView.data) {
-      await respondInteraction(interaction, { content: "No active profile view found. Run /profile again." });
+    let profilePayload = getCachedProfileViewPayload(userId);
+    if (!profilePayload && hasProfileSnapshot(inventoryView.profile_data)) {
+      cacheProfileSnapshot(
+        userId,
+        inventoryView.profile_data,
+        `Profile loaded for ${cleanText(inventoryView.profile_data.character && inventoryView.profile_data.character.name, "unknown")}.`
+      );
+      profilePayload = getCachedProfileViewPayload(userId);
+    }
+    if (!profilePayload) {
+      const ensured = await ensureProfileViewForUser(runtime, userId);
+      if (ensured.ok) {
+        profilePayload = getCachedProfileViewPayload(userId);
+      }
+    }
+    if (!profilePayload) {
+      await respondInteraction(interaction, { content: "Profile could not be loaded. Run /profile again." });
       return;
     }
-    await refreshInteractionMessage(interaction, {
-      content: profileView.content || "Profile loaded.",
-      embeds: Array.isArray(profileView.embeds) ? profileView.embeds : [],
-      components: Array.isArray(profileView.components) ? profileView.components : []
+    await refreshInteractionMessage(interaction, profilePayload);
+    return;
+  }
+
+  if (customId === CUSTOM_IDS.inventoryRefresh) {
+    const refreshed = await ensureInventoryViewForUser(runtime, userId, {
+      force_refresh: true,
+      tab: inventoryView.tab || "summary"
     });
+    await refreshProfileViewCacheForUser(runtime, userId);
+    if (!refreshed.ok || !refreshed.view || !refreshed.view.data) {
+      deleteInventoryView(userId);
+      await respondInteraction(interaction, { content: (refreshed.reply && refreshed.reply.content) || "Inventory could not be loaded." });
+      return;
+    }
+
+    await refreshInteractionMessage(interaction, getCachedInventoryViewPayload(userId));
+    return;
+  }
+
+  if (customId === CUSTOM_IDS.inventoryOpenRoster) {
+    const roster = await ensureRosterViewForUser(runtime, userId, { source: "inventory" });
+    if (!roster.ok || !roster.view || !roster.view.data) {
+      await respondInteraction(interaction, { content: (roster.reply && roster.reply.content) || "Character roster could not be loaded." });
+      return;
+    }
+    await refreshInteractionMessage(interaction, buildRosterViewPayload(roster.view));
+    return;
+  }
+
+  if (customId.startsWith(`${CUSTOM_IDS.inventorySwitchCharacter}:`)) {
+    const characterId = customId.split(":")[3] || null;
+    if (!characterId) {
+      await respondInteraction(interaction, { content: "Inventory switch action is missing character context." });
+      return;
+    }
+
+    const switchEvent = createEvent(EVENT_TYPES.PLAYER_SET_ACTIVE_CHARACTER_REQUESTED, {
+      command_name: "inventory",
+      character_id: characterId
+    }, {
+      source: "gateway.discord",
+      target_system: "world_system",
+      player_id: userId
+    });
+
+    const switchResult = await runtime.processGatewayReadCommandEvent(switchEvent);
+    const switchReply = formatGatewayReplyFromRuntime(switchResult);
+    if (!switchReply.ok) {
+      await respondInteraction(interaction, { content: switchReply.content || "Active character could not be changed." });
+      return;
+    }
+
+    if (hasProfileSnapshot(switchReply.data)) {
+      cacheCharacterStateSnapshots(userId, {
+        profile_data: switchReply.data,
+        profile_content: switchReply.content,
+        inventory_data: switchReply.data && switchReply.data.inventory_snapshot,
+        inventory_tab: inventoryView.tab || "summary",
+        inventory_content: `Active character switched to ${cleanText(
+          switchReply.data && switchReply.data.inventory_snapshot && switchReply.data.inventory_snapshot.character && switchReply.data.inventory_snapshot.character.name,
+          characterId
+        )}.`
+      });
+    } else {
+      await refreshProfileViewCacheForUser(runtime, userId);
+    }
+
+    if (hasInventorySnapshot(switchReply.data && switchReply.data.inventory_snapshot)) {
+      const nextInventoryData = switchReply.data.inventory_snapshot;
+      await refreshInteractionMessage(
+        interaction,
+        buildInventoryViewPayload(
+          nextInventoryData,
+          inventoryView.tab || "summary",
+          `Active character switched to ${cleanText(nextInventoryData && nextInventoryData.character && nextInventoryData.character.name, characterId)}.`
+        )
+      );
+      return;
+    }
+
+    const refreshed = await ensureInventoryViewForUser(runtime, userId, {
+      force_refresh: true,
+      tab: inventoryView.tab || "summary"
+    });
+    if (!refreshed.ok || !refreshed.view || !refreshed.view.data) {
+      deleteInventoryView(userId);
+      await respondInteraction(interaction, { content: (refreshed.reply && refreshed.reply.content) || "Inventory could not be reloaded." });
+      return;
+    }
+    await refreshInteractionMessage(
+      interaction,
+      buildInventoryViewPayload(
+        refreshed.view.data,
+        inventoryView.tab || "summary",
+        `Active character switched to ${cleanText(refreshed.view.data && refreshed.view.data.character && refreshed.view.data.character.name, characterId)}.`
+      )
+    );
     return;
   }
 
@@ -4373,33 +5362,56 @@ async function handleInventoryComponent(interaction, runtime) {
     const actionResult = await runtime.processGatewayReadCommandEvent(actionEvent);
     const actionReply = formatGatewayReplyFromRuntime(actionResult);
     if (!actionReply.ok) {
-      await refreshInteractionMessage(interaction, {
-        content: actionReply.content,
-        embeds: [buildInventoryDetailEmbed(inventoryView.data, inventoryView.tab || "magical")],
-        components: buildInventoryComponents(inventoryView.tab || "magical", inventoryView.data)
-      });
+      await refreshInteractionMessage(
+        interaction,
+        buildInventoryViewPayload(inventoryView.data, inventoryView.tab || "magical", actionReply.content)
+      );
       return;
     }
 
-    const refreshedReply = await loadInventoryReplyForUser(runtime, userId);
-    if (refreshedReply.ok && refreshedReply.data && refreshedReply.data.inventory_found === true) {
-      inventoryView.data = refreshedReply.data;
-      inventoryView.tab = isEquipAction || isUnequipAction ? "equipment" : "magical";
-      inventoryView.content = actionReply.content;
-      setInventoryView(userId, inventoryView);
-      await refreshInteractionMessage(interaction, {
-        content: actionReply.content,
-        embeds: [buildInventoryDetailEmbed(refreshedReply.data, inventoryView.tab)],
-        components: buildInventoryComponents(inventoryView.tab, refreshedReply.data)
+    if (hasProfileSnapshot(actionReply.data && actionReply.data.profile_snapshot)) {
+      cacheCharacterStateSnapshots(userId, {
+        profile_data: actionReply.data.profile_snapshot,
+        profile_content: `Active character ready: ${cleanText(actionReply.data.profile_snapshot.character && actionReply.data.profile_snapshot.character.name, "unknown")}.`,
+        inventory_data: hasInventorySnapshot(actionReply.data) ? actionReply.data : null,
+        inventory_tab: isEquipAction || isUnequipAction ? "equipment" : "magical",
+        inventory_content: actionReply.content
       });
+    } else {
+      await refreshProfileViewCacheForUser(runtime, userId);
+    }
+    if (hasInventorySnapshot(actionReply.data)) {
+      const nextTab = isEquipAction || isUnequipAction ? "equipment" : "magical";
+      if (!hasProfileSnapshot(actionReply.data && actionReply.data.profile_snapshot)) {
+        cacheInventorySnapshot(userId, actionReply.data, {
+          tab: nextTab,
+          content: actionReply.content,
+          profile_data: inventoryView.profile_data || null
+        });
+      }
+      await refreshInteractionMessage(interaction, buildInventoryViewPayload(actionReply.data, nextTab, actionReply.content));
       return;
     }
 
-    await refreshInteractionMessage(interaction, {
-      content: actionReply.content,
-      embeds: [buildInventoryDetailEmbed(inventoryView.data, inventoryView.tab || (isEquipAction || isUnequipAction ? "equipment" : "magical"))],
-      components: buildInventoryComponents(inventoryView.tab || (isEquipAction || isUnequipAction ? "equipment" : "magical"), inventoryView.data)
+    const refreshed = await ensureInventoryViewForUser(runtime, userId, {
+      force_refresh: true,
+      tab: isEquipAction || isUnequipAction ? "equipment" : "magical",
+      content: actionReply.content
     });
+    if (refreshed.ok && refreshed.view && refreshed.view.data) {
+      const nextTab = isEquipAction || isUnequipAction ? "equipment" : "magical";
+      await refreshInteractionMessage(interaction, buildInventoryViewPayload(refreshed.view.data, nextTab, actionReply.content));
+      return;
+    }
+
+    await refreshInteractionMessage(
+      interaction,
+      buildInventoryViewPayload(
+        inventoryView.data,
+        inventoryView.tab || (isEquipAction || isUnequipAction ? "equipment" : "magical"),
+        actionReply.content
+      )
+    );
     return;
   }
 
@@ -4410,13 +5422,15 @@ async function handleInventoryComponent(interaction, runtime) {
     tab = "magical";
   }
 
-  inventoryView.tab = tab;
-  setInventoryView(userId, inventoryView);
-  await refreshInteractionMessage(interaction, {
+  cacheInventorySnapshot(userId, inventoryView.data, {
+    tab,
     content: inventoryView.content || "Inventory loaded.",
-    embeds: [buildInventoryDetailEmbed(inventoryView.data, tab)],
-    components: buildInventoryComponents(tab, inventoryView.data)
+    profile_data: inventoryView.profile_data || null
   });
+  await refreshInteractionMessage(
+    interaction,
+    buildInventoryViewPayload(inventoryView.data, tab, inventoryView.content || "Inventory loaded.")
+  );
 }
 
 async function handleProfileComponent(interaction, runtime) {
@@ -4425,33 +5439,295 @@ async function handleProfileComponent(interaction, runtime) {
     await respondInteraction(interaction, { content: "Could not identify user." });
     return;
   }
+  const customId = String(interaction.customId || "");
 
-  const event = createEvent(EVENT_TYPES.PLAYER_INVENTORY_REQUESTED, {
-    command_name: "inventory"
+  if (customId === CUSTOM_IDS.startCompleteProfile) {
+    const cachedProfilePayload = getCachedProfileViewPayload(userId);
+    if (cachedProfilePayload) {
+      await refreshInteractionMessage(interaction, cachedProfilePayload);
+      return;
+    }
+
+    const ensured = await ensureProfileViewForUser(runtime, userId);
+    if (!ensured.ok) {
+      await respondInteraction(interaction, { content: (ensured.reply && ensured.reply.content) || "Profile could not be loaded." });
+      return;
+    }
+    await refreshInteractionMessage(interaction, getCachedProfileViewPayload(userId));
+    return;
+  }
+
+  if (customId === CUSTOM_IDS.startCompleteHub) {
+    const cachedRosterPayload = getCachedRosterViewPayload(userId);
+    if (cachedRosterPayload) {
+      await refreshInteractionMessage(interaction, cachedRosterPayload);
+      return;
+    }
+
+    const ensured = await ensureRosterViewForUser(runtime, userId, { source: "start" });
+    if (!ensured.ok) {
+      await respondInteraction(interaction, { content: (ensured.reply && ensured.reply.content) || "Character hub could not be loaded." });
+      return;
+    }
+    await refreshInteractionMessage(interaction, getCachedRosterViewPayload(userId));
+    return;
+  }
+
+  if (customId === CUSTOM_IDS.startCompleteInventory) {
+    const cachedInventoryPayload = getCachedInventoryViewPayload(userId);
+    if (cachedInventoryPayload) {
+      await refreshInteractionMessage(interaction, cachedInventoryPayload);
+      return;
+    }
+
+    const ensured = await ensureInventoryViewForUser(runtime, userId, { tab: "summary" });
+    if (!ensured.ok) {
+      await respondInteraction(interaction, { content: (ensured.reply && ensured.reply.content) || "Inventory could not be loaded." });
+      return;
+    }
+    await refreshInteractionMessage(interaction, getCachedInventoryViewPayload(userId));
+    return;
+  }
+
+  if (customId === CUSTOM_IDS.profileRefresh) {
+    const refreshedReply = await refreshProfileViewCacheForUser(runtime, userId);
+    if (!refreshedReply.ok || !refreshedReply.data || refreshedReply.data.profile_found !== true) {
+      await respondInteraction(interaction, { content: refreshedReply.content || "Profile could not be loaded." });
+      return;
+    }
+
+    await refreshInteractionMessage(interaction, getCachedProfileViewPayload(userId) || {
+      content: refreshedReply.content,
+      embeds: Array.isArray(refreshedReply.embeds) ? refreshedReply.embeds : [],
+      components: Array.isArray(refreshedReply.components) ? refreshedReply.components : []
+    });
+    return;
+  }
+
+  if (customId === CUSTOM_IDS.profileOpenRoster) {
+    const roster = await ensureRosterViewForUser(runtime, userId, { source: "profile" });
+    if (!roster.ok || !roster.view || !roster.view.data) {
+      await respondInteraction(interaction, { content: (roster.reply && roster.reply.content) || "Character roster could not be loaded." });
+      return;
+    }
+    await refreshInteractionMessage(interaction, buildRosterViewPayload(roster.view));
+    return;
+  }
+
+  if (customId === CUSTOM_IDS.profileOpenInventory) {
+    const ensured = await ensureInventoryViewForUser(runtime, userId, { tab: "summary" });
+    if (!ensured.ok) {
+      await respondInteraction(interaction, { content: (ensured.reply && ensured.reply.content) || "Inventory could not be loaded." });
+      return;
+    }
+    await refreshInteractionMessage(interaction, getCachedInventoryViewPayload(userId));
+    return;
+  }
+
+  if (!customId.startsWith(`${CUSTOM_IDS.profileSwitchCharacter}:`)) {
+    await respondInteraction(interaction, { content: "Unknown profile action." });
+    return;
+  }
+
+  const characterId = customId.split(":")[3] || null;
+  if (!characterId) {
+    await respondInteraction(interaction, { content: "Profile switch action is missing character context." });
+    return;
+  }
+
+  const switchEvent = createEvent(EVENT_TYPES.PLAYER_SET_ACTIVE_CHARACTER_REQUESTED, {
+    command_name: "profile",
+    character_id: characterId
   }, {
     source: "gateway.discord",
     target_system: "world_system",
     player_id: userId
   });
 
-  const runtimeResult = await runtime.processGatewayReadCommandEvent(event);
-  const reply = formatGatewayReplyFromRuntime(runtimeResult);
-  if (!reply.ok || !reply.data || reply.data.inventory_found !== true) {
-    await respondInteraction(interaction, { content: reply.content || "Inventory could not be loaded." });
+  const switchResult = await runtime.processGatewayReadCommandEvent(switchEvent);
+  const switchReply = formatGatewayReplyFromRuntime(switchResult);
+  if (!switchReply.ok) {
+    await respondInteraction(interaction, { content: switchReply.content || "Active character could not be changed." });
     return;
   }
 
-  setInventoryView(userId, {
-    data: reply.data,
-    tab: "summary",
-    content: reply.content
-  });
+  if (!hasProfileSnapshot(switchReply.data)) {
+    const refreshed = await ensureProfileViewForUser(runtime, userId, { force_refresh: true });
+    if (!refreshed.ok || !refreshed.view || !refreshed.view.data) {
+      await respondInteraction(interaction, { content: (refreshed.reply && refreshed.reply.content) || "Profile could not be reloaded." });
+      return;
+    }
+    deleteInventoryView(userId);
 
-  await refreshInteractionMessage(interaction, {
-    content: reply.content,
-    embeds: Array.isArray(reply.embeds) ? reply.embeds : [],
-    components: Array.isArray(reply.components) ? reply.components : []
+    const profilePayload = getCachedProfileViewPayload(userId) || buildProfileViewPayload(refreshed.view);
+    await refreshInteractionMessage(interaction, Object.assign({}, profilePayload, {
+      content: `Active character switched to ${cleanText(refreshed.view.data && refreshed.view.data.character && refreshed.view.data.character.name, characterId)}.`
+    }));
+    return;
+  }
+
+  cacheCharacterStateSnapshots(userId, {
+    profile_data: switchReply.data,
+    profile_content: switchReply.content,
+    inventory_data: switchReply.data && switchReply.data.inventory_snapshot,
+    inventory_tab: "summary",
+    inventory_content: `Active character switched to ${cleanText(
+      switchReply.data && switchReply.data.character && switchReply.data.character.name,
+      characterId
+    )}.`
   });
+  if (hasInventorySnapshot(switchReply.data && switchReply.data.inventory_snapshot)) {
+  } else {
+    deleteInventoryView(userId);
+  }
+
+  const profilePayload = getCachedProfileViewPayload(userId) || {
+    content: `Active character switched to ${cleanText(switchReply.data && switchReply.data.character && switchReply.data.character.name, characterId)}.`,
+    embeds: Array.isArray(switchReply.embeds) ? switchReply.embeds : [],
+    components: Array.isArray(switchReply.components) ? switchReply.components : []
+  };
+  await refreshInteractionMessage(interaction, Object.assign({}, profilePayload, {
+    content: `Active character switched to ${cleanText(switchReply.data && switchReply.data.character && switchReply.data.character.name, characterId)}.`
+  }));
+}
+
+async function handleRosterComponent(interaction, runtime) {
+  const userId = extractInteractionUser(interaction);
+  const customId = String(interaction.customId || "");
+  const rosterView = getRosterView(userId);
+
+  if (!rosterView || !rosterView.data) {
+    const ensured = await ensureRosterViewForUser(runtime, userId, { source: "profile" });
+    if (!ensured.ok || !ensured.view || !ensured.view.data) {
+      await respondInteraction(interaction, { content: (ensured.reply && ensured.reply.content) || "Character roster could not be loaded." });
+      return;
+    }
+  }
+
+  if (customId === CUSTOM_IDS.rosterRefresh) {
+    const refreshed = await ensureRosterViewForUser(runtime, userId, {
+      source: (getRosterView(userId) && getRosterView(userId).source) || "profile",
+      force_refresh: true
+    });
+    if (!refreshed.ok || !refreshed.view || !refreshed.view.data) {
+      await respondInteraction(interaction, { content: (refreshed.reply && refreshed.reply.content) || "Character roster could not be loaded." });
+      return;
+    }
+    await refreshInteractionMessage(interaction, buildRosterViewPayload(refreshed.view));
+    return;
+  }
+
+  if (customId === CUSTOM_IDS.rosterBackProfile) {
+    const cachedProfilePayload = getCachedProfileViewPayload(userId) || reuseRosterLinkedProfileView(userId);
+    if (cachedProfilePayload) {
+      await refreshInteractionMessage(interaction, cachedProfilePayload);
+      return;
+    }
+    const ensured = await ensureProfileViewForUser(runtime, userId);
+    if (!ensured.ok || !ensured.view || !ensured.view.data) {
+      await respondInteraction(interaction, { content: (ensured.reply && ensured.reply.content) || "Profile could not be loaded." });
+      return;
+    }
+    await refreshInteractionMessage(interaction, buildProfileViewPayload(ensured.view));
+    return;
+  }
+
+  if (customId === CUSTOM_IDS.rosterOpenProfile) {
+    const cachedProfilePayload = getCachedProfileViewPayload(userId) || reuseRosterLinkedProfileView(userId);
+    if (cachedProfilePayload) {
+      await refreshInteractionMessage(interaction, cachedProfilePayload);
+      return;
+    }
+    const ensured = await ensureProfileViewForUser(runtime, userId);
+    if (!ensured.ok || !ensured.view || !ensured.view.data) {
+      await respondInteraction(interaction, { content: (ensured.reply && ensured.reply.content) || "Profile could not be loaded." });
+      return;
+    }
+    await refreshInteractionMessage(interaction, buildProfileViewPayload(ensured.view));
+    return;
+  }
+
+  if (customId === CUSTOM_IDS.rosterBackInventory || customId === CUSTOM_IDS.rosterOpenInventory || customId === CUSTOM_IDS.rosterOpenEquipment) {
+    const tab = customId === CUSTOM_IDS.rosterOpenEquipment ? "equipment" : "summary";
+    const cachedInventoryPayload = getCachedInventoryViewPayload(userId)
+      || reuseRosterLinkedInventoryView(userId, tab, tab === "equipment" ? "Equipment loaded from character hub." : "Inventory loaded from character hub.");
+    if (cachedInventoryPayload) {
+      await refreshInteractionMessage(interaction, cachedInventoryPayload);
+      return;
+    }
+    const ensured = await ensureInventoryViewForUser(runtime, userId, { tab });
+    if (!ensured.ok || !ensured.view || !ensured.view.data) {
+      await respondInteraction(interaction, { content: (ensured.reply && ensured.reply.content) || "Inventory could not be loaded." });
+      return;
+    }
+    await refreshInteractionMessage(interaction, buildInventoryViewPayload(
+      ensured.view.data,
+      ensured.view.tab || tab,
+      ensured.view.content || "Inventory loaded."
+    ));
+    return;
+  }
+
+  if (customId.startsWith(`${CUSTOM_IDS.rosterSwitchCharacter}:`)) {
+    const characterId = customId.split(":")[3] || null;
+    if (!characterId) {
+      await respondInteraction(interaction, { content: "Character roster switch is missing character context." });
+      return;
+    }
+
+    const switchEvent = createEvent(EVENT_TYPES.PLAYER_SET_ACTIVE_CHARACTER_REQUESTED, {
+      command_name: "roster",
+      character_id: characterId
+    }, {
+      source: "gateway.discord",
+      target_system: "world_system",
+      player_id: userId
+    });
+
+    const switchResult = await runtime.processGatewayReadCommandEvent(switchEvent);
+    const switchReply = formatGatewayReplyFromRuntime(switchResult);
+    if (!switchReply.ok) {
+      await respondInteraction(interaction, { content: switchReply.content || "Active character could not be changed." });
+      return;
+    }
+
+    if (hasProfileSnapshot(switchReply.data)) {
+      cacheCharacterStateSnapshots(userId, {
+        profile_data: switchReply.data,
+        profile_content: switchReply.content,
+        inventory_data: switchReply.data && switchReply.data.inventory_snapshot,
+        inventory_tab: "summary",
+        inventory_content: `Active character switched to ${cleanText(
+          switchReply.data && switchReply.data.character && switchReply.data.character.name,
+          characterId
+        )}.`
+      });
+      cacheRosterView(userId, switchReply.data, {
+        source: (getRosterView(userId) && getRosterView(userId).source) || "profile",
+        content: `Character roster ready for ${cleanText(
+          switchReply.data && switchReply.data.character && switchReply.data.character.name,
+          characterId
+        )}.`,
+        profile_data: switchReply.data,
+        inventory_data: switchReply.data && switchReply.data.inventory_snapshot
+      });
+      await refreshInteractionMessage(interaction, buildRosterViewPayload(getRosterView(userId)));
+      return;
+    }
+
+    const refreshed = await ensureRosterViewForUser(runtime, userId, {
+      source: (getRosterView(userId) && getRosterView(userId).source) || "profile",
+      force_refresh: true
+    });
+    if (!refreshed.ok || !refreshed.view || !refreshed.view.data) {
+      await respondInteraction(interaction, { content: (refreshed.reply && refreshed.reply.content) || "Character roster could not be reloaded." });
+      return;
+    }
+    await refreshInteractionMessage(interaction, buildRosterViewPayload(refreshed.view));
+    return;
+  }
+
+  await respondInteraction(interaction, { content: "Unknown character hub action." });
 }
 
 async function handleShopComponent(interaction, runtime) {
@@ -4614,6 +5890,160 @@ async function loadInventoryReplyForUser(runtime, userId) {
 
   const runtimeResult = await runtime.processGatewayReadCommandEvent(event);
   return formatGatewayReplyFromRuntime(runtimeResult);
+}
+
+async function loadProfileReplyForUser(runtime, userId) {
+  const event = createEvent(EVENT_TYPES.PLAYER_PROFILE_REQUESTED, {
+    command_name: "profile"
+  }, {
+    source: "gateway.discord",
+    target_system: "world_system",
+    player_id: userId
+  });
+
+  const runtimeResult = await runtime.processGatewayReadCommandEvent(event);
+  return formatGatewayReplyFromRuntime(runtimeResult);
+}
+
+async function ensureProfileViewForUser(runtime, userId, options) {
+  const config = options && typeof options === "object" ? options : {};
+  if (config.force_refresh !== true) {
+    const cachedView = getProfileView(userId);
+    if (cachedView && cachedView.data) {
+      return { ok: true, view: cachedView, from_cache: true };
+    }
+  }
+
+  const reply = await loadProfileReplyForUser(runtime, userId);
+  if (!reply.ok || !reply.data || reply.data.profile_found !== true) {
+    if (reply.ok && reply.data && reply.data.profile_found !== true) {
+      deleteProfileView(userId);
+      deleteInventoryView(userId);
+      deleteRosterView(userId);
+    }
+    return { ok: false, reply };
+  }
+
+  cacheProfileSnapshot(userId, reply.data, reply.content, {
+    inventory_data: getProfileView(userId) && getProfileView(userId).inventory_data
+  });
+  return { ok: true, view: getProfileView(userId), reply, from_cache: false };
+}
+
+async function ensureInventoryViewForUser(runtime, userId, options) {
+  const config = options && typeof options === "object" ? options : {};
+  const preferredTab = config.tab || "summary";
+
+  if (config.force_refresh !== true) {
+    const cachedView = getInventoryView(userId);
+    if (cachedView && cachedView.data) {
+      if (preferredTab && cachedView.tab !== preferredTab) {
+        cacheInventorySnapshot(userId, cachedView.data, {
+          tab: preferredTab,
+          content: cachedView.content || "Inventory loaded.",
+          profile_data: cachedView.profile_data || null
+        });
+      }
+      return { ok: true, view: getInventoryView(userId), from_cache: true };
+    }
+  }
+
+  const cachedProfileView = getProfileView(userId);
+  if (
+    config.allow_profile_linked_snapshot !== false &&
+    cachedProfileView &&
+    canReuseInventoryViewForProfile(cachedProfileView.data, { data: cachedProfileView.inventory_data })
+  ) {
+    const linkedContent = `Inventory loaded for ${cleanText(cachedProfileView.inventory_data.character && cachedProfileView.inventory_data.character.name, "unknown")}.`;
+    cacheInventorySnapshot(userId, cachedProfileView.inventory_data, {
+      tab: preferredTab,
+      content: linkedContent,
+      profile_data: cachedProfileView.data
+    });
+    return { ok: true, view: getInventoryView(userId), from_profile_snapshot: true };
+  }
+
+  const reply = await loadInventoryReplyForUser(runtime, userId);
+  if (!reply.ok || !reply.data || reply.data.inventory_found !== true) {
+    if (reply.ok && reply.data && reply.data.inventory_found !== true) {
+      deleteInventoryView(userId);
+    }
+    return { ok: false, reply };
+  }
+
+  cacheInventorySnapshot(userId, reply.data, {
+    tab: preferredTab,
+    content: config.content || reply.content,
+    profile_data: getProfileView(userId) && getProfileView(userId).data
+  });
+  return { ok: true, view: getInventoryView(userId), reply, from_cache: false };
+}
+
+async function ensureRosterViewForUser(runtime, userId, options) {
+  const config = options && typeof options === "object" ? options : {};
+  const source = cleanText(config.source, "profile");
+  if (config.force_refresh !== true) {
+    const cachedView = getRosterView(userId);
+    if (cachedView && cachedView.data) {
+      return { ok: true, view: cachedView, from_cache: true };
+    }
+  }
+
+  let profileData = null;
+  let inventoryData = null;
+  if (source === "inventory") {
+    const inventoryView = getInventoryView(userId);
+    if (inventoryView && hasProfileSnapshot(inventoryView.profile_data)) {
+      profileData = inventoryView.profile_data;
+    }
+    if (inventoryView && hasInventorySnapshot(inventoryView.data)) {
+      inventoryData = inventoryView.data;
+    }
+  }
+  if (!profileData) {
+    const ensured = await ensureProfileViewForUser(runtime, userId, {
+      force_refresh: config.force_refresh === true
+    });
+    if (!ensured.ok || !ensured.view || !ensured.view.data) {
+      return { ok: false, reply: ensured.reply };
+    }
+    profileData = ensured.view.data;
+  }
+  if (!inventoryData) {
+    const profileView = getProfileView(userId);
+    if (profileView && hasInventorySnapshot(profileView.inventory_data) && canReuseInventoryViewForProfile(profileData, { data: profileView.inventory_data })) {
+      inventoryData = profileView.inventory_data;
+    }
+  }
+
+  cacheRosterView(userId, profileData, {
+    source,
+    content: config.content || "Character roster loaded.",
+    profile_data: profileData,
+    inventory_data: inventoryData
+  });
+  return { ok: true, view: getRosterView(userId), from_cache: false };
+}
+
+async function refreshProfileViewCacheForUser(runtime, userId) {
+  const result = await ensureProfileViewForUser(runtime, userId, { force_refresh: true });
+  if (result.ok && result.view && result.view.data) {
+    const inventoryView = getInventoryView(userId);
+    if (inventoryView && inventoryView.data) {
+      cacheInventorySnapshot(userId, inventoryView.data, {
+        tab: inventoryView.tab || "summary",
+        content: inventoryView.content || `Inventory loaded for ${cleanText(inventoryView.data.character && inventoryView.data.character.name, "unknown")}.`,
+        profile_data: result.view.data
+      });
+    }
+  }
+  return result.reply || {
+    ok: Boolean(result.ok),
+    content: result.ok ? (result.view && result.view.content) || "Profile loaded." : "Profile could not be loaded.",
+    data: result.view && result.view.data ? result.view.data : null,
+    embeds: result.view ? result.view.embeds : [],
+    components: result.view ? result.view.components : []
+  };
 }
 
 async function loadShopReplyForUser(runtime, userId, vendorId) {
@@ -4931,6 +6361,13 @@ async function handleDungeonViewComponent(interaction, runtime) {
 }
 
 async function handleDungeonMapComponent(interaction, runtime) {
+  const {
+    parseDungeonMapCustomId,
+    DUNGEON_MAP_ACTIONS,
+    toggleDungeonDebugFlag,
+    createDungeonMapMoveDirectionAction,
+    adaptDungeonMapActionToCanonicalEvent
+  } = loadDungeonMapSupport();
   const userId = extractInteractionUser(interaction);
   const parsed = parseDungeonMapCustomId(String(interaction.customId || ""));
   if (!parsed.ok) {
@@ -5153,6 +6590,12 @@ async function handleCombatViewComponent(interaction, runtime) {
 }
 
 async function handleCombatMapComponent(interaction, runtime) {
+  const {
+    buildMapInteractionContext,
+    buildTokenVisualOverrides,
+    handleButtonAction: handleCombatMapButtonAction,
+    adaptMapActionToCanonicalEvent
+  } = loadCombatMapSupport();
   const userId = extractInteractionUser(interaction);
   const storedCombatId = String(interaction.customId || "").split(":")[3] || null;
   const storedView = storedCombatId ? getCombatMapView(userId, storedCombatId) : null;
@@ -5297,6 +6740,16 @@ async function handleGatewayInteraction(interaction, runtime) {
 
     if (isButton && isProfileComponentInteraction(interaction)) {
       await handleProfileComponent(interaction, runtime);
+      return {
+        ok: true,
+        event_type: "gateway_interaction_processed",
+        payload: { custom_id: interaction.customId },
+        error: null
+      };
+    }
+
+    if (isButton && isRosterComponentInteraction(interaction)) {
+      await handleRosterComponent(interaction, runtime);
       return {
         ok: true,
         event_type: "gateway_interaction_processed",
@@ -5460,18 +6913,17 @@ async function handleGatewayInteraction(interaction, runtime) {
       }
     );
     if (internalEvent.event_type === EVENT_TYPES.PLAYER_PROFILE_REQUESTED && reply.ok && reply.data && reply.data.profile_found === true) {
-      setProfileView(extractInteractionUser(interaction), {
-        data: reply.data,
-        content: reply.content,
-        embeds: Array.isArray(reply.embeds) ? reply.embeds : [],
-        components: Array.isArray(reply.components) ? reply.components : []
+      cacheProfileSnapshot(extractInteractionUser(interaction), reply.data, reply.content, {
+        inventory_data: getProfileView(extractInteractionUser(interaction))
+          && getProfileView(extractInteractionUser(interaction)).inventory_data
       });
     }
     if (internalEvent.event_type === EVENT_TYPES.PLAYER_INVENTORY_REQUESTED && reply.ok && reply.data && reply.data.inventory_found === true) {
-      setInventoryView(extractInteractionUser(interaction), {
-        data: reply.data,
+      cacheInventorySnapshot(extractInteractionUser(interaction), reply.data, {
         tab: "summary",
-        content: reply.content
+        content: reply.content,
+        profile_data: getProfileView(extractInteractionUser(interaction))
+          && getProfileView(extractInteractionUser(interaction)).data
       });
     }
     if (internalEvent.event_type === EVENT_TYPES.PLAYER_SHOP_REQUESTED && reply.ok && reply.data && reply.data.vendor_id) {
@@ -5604,6 +7056,16 @@ module.exports = {
     createBasePointBuyStats,
     getPointBuySummary,
     adjustSelectedAbility,
-    buildStartMessage
+    buildStartMessage,
+    buildProfileEmbed,
+    buildProfileComponents,
+    getProfileView,
+    getInventoryView,
+    getRosterView,
+    setProfileView,
+    setRosterView,
+    deleteProfileView,
+    deleteInventoryView,
+    deleteRosterView
   }
 };
